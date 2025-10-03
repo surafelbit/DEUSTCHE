@@ -29,4 +29,11 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      external: [
+        /core-js\/.*/, // externalize any core-js imports (e.g., core-js/modules/es.promise.js)
+      ],
+    },
+  },
 });
