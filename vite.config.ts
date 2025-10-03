@@ -29,6 +29,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    // Avoid esbuild trying to prebundle canvg which pulls core-js internals
+    exclude: ["canvg"],
+    esbuildOptions: {
+      // Make esbuild ignore core-js so it doesn't try to resolve its internals
+      external: ["core-js/*"],
+    },
+  },
   build: {
     rollupOptions: {
       external: [
