@@ -233,7 +233,7 @@ export default function LandingPage() {
                 className="h-10 w-10 rounded-full object-cover shadow-sm"
               />
               <span className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                DEUTSCHE HOCHSCHULE
+              DEUTSCHE HOCHSCHULE FÜR
               </span>
             </div>
 
@@ -369,8 +369,7 @@ export default function LandingPage() {
               In the city of Bahirdar
             </p>
             <h2 className="text-4xl mb-4 bg-gradient-to-r from-blue-900 to-blue-200 px-4 py-2 rounded font-serif">
-              <span className="font-bold">DEUTSCHE HOCHSCHULE</span> MEDICIN
-              COLLEGE
+              <span className="font-bold">DEUTSCHE HOCHSCHULE FÜR MEDIZIN COLLEGE</span> MEDIZIN COLLEGE
             </h2>
 
             {/* <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
@@ -380,7 +379,8 @@ export default function LandingPage() {
           <div className="absolute left-0 right-0 bottom-0 mx-auto mb-[-40px] max-w-3xl bg-white bg-white/40 backdrop-blur-md rounded-lg p-6 shadow-lg">
             <p className="text-sm font-semibold text-blue-900 mb-1">About us</p>
             <h2 className="text-xl font-bold uppercase text-blue-600 leading-tight">
-              DEUTSCHE HOCHSCHULE <br />
+            DEUTSCHE HOCHSCHULE FÜR
+            <br />
               MEDICIN COLLEGE BAHIRDAR
             </h2>
           </div>
@@ -562,10 +562,10 @@ export default function LandingPage() {
             >
               <div>
                 <h2 className="text-4xl text-blue-500 dark:text-blue-300 font-serif">
-                  Doche College at glance
+                DEUTSCHE College at glance
                 </h2>
                 <p className="text-lg dark:text-white text-black font-poppins mb-4">
-                  For nearly five years, people have come to Douche in the
+                  For nearly five years, people have come to DEUTSCHE in the
                   pursuit of truth, knowledge, and the betterment of society.
                 </p>
                 <img
