@@ -1,107 +1,115 @@
+import React, { Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "./components/theme-provider";
 import { Toaster } from "sonner";
+import PageLoader from "./components/ui/PageLoader";
 
-// Public Pages
-import LandingPage from "./pages/public/LandingPage";
-import LoginPage from "./pages/public/LoginPage";
-import RegisterPage from "./pages/public/RegisterPage";
-import ForgotPasswordPage from "./pages/public/ForgotPasswordPage";
-import MultiStepRegistrationForm from "./../src/registeration/MultiStepRegistrationForm";
-import NotFound from "../src/pages/NotFound/NotFound";
-import SigningUp from "./../src/registeration/SigningUp";
+// Lazy load all components for code splitting
+const LandingPage = React.lazy(() => import("./pages/public/LandingPage"));
+const LoginPage = React.lazy(() => import("./pages/public/LoginPage"));
+const RegisterPage = React.lazy(() => import("./pages/public/RegisterPage"));
+const ForgotPasswordPage = React.lazy(() => import("./pages/public/ForgotPasswordPage"));
+const MultiStepRegistrationForm = React.lazy(() => import("./registeration/MultiStepRegistrationForm"));
+const NotFound = React.lazy(() => import("./pages/NotFound/NotFound"));
+const SigningUp = React.lazy(() => import("./registeration/SigningUp"));
+
 // Student Pages
-import StudentLayout from "./layouts/StudentLayout";
-import StudentDashboard from "./pages/student/Dashboard";
-import StudentProfile from "./pages/student/Profile";
-import StudentGrades from "./pages/student/Grades";
-import StudentPayments from "./pages/student/Payments";
-import StudentSetting from "./pages/student/Setting";
+const StudentLayout = React.lazy(() => import("./layouts/StudentLayout"));
+const StudentDashboard = React.lazy(() => import("./pages/student/Dashboard"));
+const StudentProfile = React.lazy(() => import("./pages/student/Profile"));
+const StudentGrades = React.lazy(() => import("./pages/student/Grades"));
+const StudentPayments = React.lazy(() => import("./pages/student/Payments"));
+const StudentSetting = React.lazy(() => import("./pages/student/Setting"));
 
 // Teacher Pages
-import TeacherLayout from "./layouts/TeacherLayout";
-import TeacherDashboard from "./pages/teacher/Dashboard";
-import TeacherCourses from "./pages/teacher/Courses";
-import TeacherStudents from "./pages/teacher/Students";
-import TeacherAssessments from "./pages/teacher/Assessments";
-import AssessmentPage from "./pages/teacher/AssessmentPage";
+const TeacherLayout = React.lazy(() => import("./layouts/TeacherLayout"));
+const TeacherDashboard = React.lazy(() => import("./pages/teacher/Dashboard"));
+const TeacherCourses = React.lazy(() => import("./pages/teacher/Courses"));
+const TeacherStudents = React.lazy(() => import("./pages/teacher/Students"));
+const TeacherAssessments = React.lazy(() => import("./pages/teacher/Assessments"));
+const AssessmentPage = React.lazy(() => import("./pages/teacher/AssessmentPage"));
 
 // Department Head Pages
-import HeadLayout from "./layouts/HeadLayout";
-import HeadDashboard from "./pages/head/Dashboard";
-import HeadStudents from "./pages/head/Students";
-import HeadTeachers from "./pages/head/Teachers";
-import HeadCourses from "./pages/head/Courses";
-import HeadReports from "./pages/head/Reports";
-import HeadGrades from "./pages/head/Grades";
-import CreateTeacher from "./pages/head/CreateTeacher";
+const HeadLayout = React.lazy(() => import("./layouts/HeadLayout"));
+const HeadDashboard = React.lazy(() => import("./pages/head/Dashboard"));
+const HeadStudents = React.lazy(() => import("./pages/head/Students"));
+const HeadTeachers = React.lazy(() => import("./pages/head/Teachers"));
+const HeadCourses = React.lazy(() => import("./pages/head/Courses"));
+const HeadReports = React.lazy(() => import("./pages/head/Reports"));
+const HeadGrades = React.lazy(() => import("./pages/head/Grades"));
+const CreateTeacher = React.lazy(() => import("./pages/head/CreateTeacher"));
 
 // Registrar Pages
-import RegistrarLayout from "./layouts/RegistrarLayout";
-import RegistrarDashboard from "./pages/registrar/Dashboard";
-import RegistrarApplications from "./pages/registrar/Applications";
-import RegistrarDepartments from "./pages/registrar/Departments";
-import RegistrarStudents from "./pages/registrar/Students";
-import RegistrarCourses from "./pages/registrar/Courses";
-import RegistrarAssessments from "./pages/registrar/Assessments";
-import RegistrarBatches from "./pages/registrar/Batches";
-import DepartmentDetail from "./pages/registrar/DepartmentDetail";
-import StudentDetail from "./pages/registrar/StudentDetail";
-import ApplicantDetail from "./pages/registrar/ApplicantDetail";
-import CustomStudentTable from "./pages/registrar/CustomStudentTable";
-import RejectedApplications from "./pages/registrar/RejectedApplications";
-import LocationEditor from "./pages/registrar/settings/LocationEditor";
-import AcademicYearEditor from "./pages/registrar/settings/AcademicYearEditor";
-import ImpairmentEditor from "./pages/registrar/settings/ImpairmentEditor";
-import CourseCategoriesEditor from "./pages/registrar/settings/CourseCategoriesEditor";
-import NotificationsPage from "./pages/registrar/NotificationsPage";
+const RegistrarLayout = React.lazy(() => import("./layouts/RegistrarLayout"));
+const RegistrarDashboard = React.lazy(() => import("./pages/registrar/Dashboard"));
+const RegistrarApplications = React.lazy(() => import("./pages/registrar/Applications"));
+const RegistrarDepartments = React.lazy(() => import("./pages/registrar/Departments"));
+const RegistrarStudents = React.lazy(() => import("./pages/registrar/Students"));
+const RegistrarCourses = React.lazy(() => import("./pages/registrar/Courses"));
+const RegistrarAssessments = React.lazy(() => import("./pages/registrar/Assessments"));
+const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
+const DepartmentDetail = React.lazy(() => import("./pages/registrar/DepartmentDetail"));
+const StudentDetail = React.lazy(() => import("./pages/registrar/StudentDetail"));
+const ApplicantDetail = React.lazy(() => import("./pages/registrar/ApplicantDetail"));
+const CustomStudentTable = React.lazy(() => import("./pages/registrar/CustomStudentTable"));
+const RejectedApplications = React.lazy(() => import("./pages/registrar/RejectedApplications"));
+const LocationEditor = React.lazy(() => import("./pages/registrar/settings/LocationEditor"));
+const AcademicYearEditor = React.lazy(() => import("./pages/registrar/settings/AcademicYearEditor"));
+const ImpairmentEditor = React.lazy(() => import("./pages/registrar/settings/ImpairmentEditor"));
+
+const CourseCategoriesEditor = React.lazy(() => import("./pages/registrar/settings/CourseCategoriesEditor"));
+const NotificationsPage = React.lazy(() => import("./pages/registrar/NotificationsPage"));
+
 // Finance Pages
-import FinanceLayout from "./layouts/FinanceLayout";
-import FinanceDashboard from "./pages/finance/Dashboard";
-import FinancePayments from "./pages/finance/Payments";
-import FinanceHistory from "./pages/finance/History";
-import FinanceReports from "./pages/finance/Reports";
+const FinanceLayout = React.lazy(() => import("./layouts/FinanceLayout"));
+const FinanceDashboard = React.lazy(() => import("./pages/finance/Dashboard"));
+const FinancePayments = React.lazy(() => import("./pages/finance/Payments"));
+const FinanceHistory = React.lazy(() => import("./pages/finance/History"));
+const FinanceReports = React.lazy(() => import("./pages/finance/Reports"));
 
 // Dean Pages
-import DeanLayout from "./layouts/DeanLayout";
-import DeanDashboard from "./pages/dean/Dashboard";
-import DeanStudents from "./pages/dean/Students";
-import DeanGrades from "./pages/dean/Grades";
-import DeanReports from "./pages/dean/Reports";
-import CreateDepartmentHead from "./pages/dean/CreateDepartmentHead";
-import DeanDepartments from "./pages/dean/DeanDeparment";
-import DeanDepartmentDetail from "./pages/dean/DeanDepartmentsDetails";
+const DeanLayout = React.lazy(() => import("./layouts/DeanLayout"));
+const DeanDashboard = React.lazy(() => import("./pages/dean/Dashboard"));
+const DeanStudents = React.lazy(() => import("./pages/dean/Students"));
+const DeanGrades = React.lazy(() => import("./pages/dean/Grades"));
+const DeanReports = React.lazy(() => import("./pages/dean/Reports"));
+const CreateDepartmentHead = React.lazy(() => import("./pages/dean/CreateDepartmentHead"));
+const DeanDepartments = React.lazy(() => import("./pages/dean/DeanDeparment"));
+const DeanDepartmentDetail = React.lazy(() => import("./pages/dean/DeanDepartmentsDetails"));
+
 // Vice-Dean Pages
-import ViceDeanLayout from "./layouts/ViceDeanLayout";
-import ViceDeanDashboard from "./pages/vice-dean/Dashboard";
-import ViceDeanStudents from "./pages/vice-dean/Students";
-import ViceDeanGrades from "./pages/vice-dean/Grades";
-import ViceDeanReports from "./pages/vice-dean/Reports";
-import ViceCreateDepartmentHead from "./pages/vice-dean/CreateDepartmentHead";
-import ViceDeanDepartments from "./pages/vice-dean/ViceDepartments";
-import ViceDepartmentDetail from "./pages/vice-dean/ViceDepartmentDetail";
+const ViceDeanLayout = React.lazy(() => import("./layouts/ViceDeanLayout"));
+const ViceDeanDashboard = React.lazy(() => import("./pages/vice-dean/Dashboard"));
+const ViceDeanStudents = React.lazy(() => import("./pages/vice-dean/Students"));
+const ViceDeanGrades = React.lazy(() => import("./pages/vice-dean/Grades"));
+const ViceDeanReports = React.lazy(() => import("./pages/vice-dean/Reports"));
+const ViceCreateDepartmentHead = React.lazy(() => import("./pages/vice-dean/CreateDepartmentHead"));
+const ViceDeanDepartments = React.lazy(() => import("./pages/vice-dean/ViceDepartments"));
+const ViceDepartmentDetail = React.lazy(() => import("./pages/vice-dean/ViceDepartmentDetail"));
+
 // Manager Pages
-import ManagerLayout from "./layouts/ManagerLayout";
-import ManagerDashboard from "./pages/manager/Dashboard";
-import ManagerReports from "./pages/manager/Reports";
-import ManagerSettings from "./pages/manager/Settings";
-import BatchUpdateTable from "./pages/registrar/BatchUpdateTable";
-import TenColumnEditableTablePage from "./TenColumnEditableTablePage";
-import BatchesEditor from "./pages/registrar/settings/BatchesEditor";
-import ProgramModalitiesEditor from "./pages/registrar/settings/ProgramModalitiesEditor";
-import AttritionCausesEditor from "./pages/registrar/settings/AttritionCausesEditor";
-import SemestersEditor from "./pages/registrar/settings/SemestersEditor";
-import ClassYearsEditor from "./pages/registrar/settings/ClassYearsEditor";
-import ManagerStudents from "./pages/manager/ManagerStudents";
-import ManagerTeachers from "./pages/manager/ManagerTeachers";
-import DeanProfile from "./pages/manager/DeanProfile";
-import ViceDeanProfile from "./pages/manager/ViceDeanProfile";
-import RegistrarProfile from "./pages/manager/RegistrarProfile";
+const ManagerLayout = React.lazy(() => import("./layouts/ManagerLayout"));
+const ManagerDashboard = React.lazy(() => import("./pages/manager/Dashboard"));
+const ManagerReports = React.lazy(() => import("./pages/manager/Reports"));
+const ManagerSettings = React.lazy(() => import("./pages/manager/Settings"));
+const BatchUpdateTable = React.lazy(() => import("./pages/registrar/BatchUpdateTable"));
+const TenColumnEditableTablePage = React.lazy(() => import("./TenColumnEditableTablePage"));
+const BatchesEditor = React.lazy(() => import("./pages/registrar/settings/BatchesEditor"));
+const ProgramModalitiesEditor = React.lazy(() => import("./pages/registrar/settings/ProgramModalitiesEditor"));
+const AttritionCausesEditor = React.lazy(() => import("./pages/registrar/settings/AttritionCausesEditor"));
+const SemestersEditor = React.lazy(() => import("./pages/registrar/settings/SemestersEditor"));
+const ClassYearsEditor = React.lazy(() => import("./pages/registrar/settings/ClassYearsEditor"));
+const ManagerStudents = React.lazy(() => import("./pages/manager/ManagerStudents"));
+const ManagerTeachers = React.lazy(() => import("./pages/manager/ManagerTeachers"));
+const DeanProfile = React.lazy(() => import("./pages/manager/DeanProfile"));
+const ViceDeanProfile = React.lazy(() => import("./pages/manager/ViceDeanProfile"));
+const RegistrarProfile = React.lazy(() => import("./pages/manager/RegistrarProfile"));
 function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="college-ui-theme">
       <div className="min-h-screen bg-background">
-        <Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           {/* <Route path="/login" element={<LoginPage />} /> */}
@@ -249,6 +257,7 @@ function App() {
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
         <Toaster />
       </div>
     </ThemeProvider>
