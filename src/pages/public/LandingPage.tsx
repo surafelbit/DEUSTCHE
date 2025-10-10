@@ -133,9 +133,7 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen dark:bg-gray-950">
       {/* DarkVeil Background */}
-      {/* <div className="fixed inset-0 w-full h-full z-0 hidden dark:block fixed inset-0 overflow-x-hidden">
-        <DarkVeil className="w-full h-full object-cover" />
-      </div> */}
+
       <div className="relative z-10">
         {show && (
           <button
@@ -383,13 +381,15 @@ export default function LandingPage() {
                     Register <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="text-lg px-8 py-3 bg-transparent"
-                >
-                  Learn More
-                </Button>
+                <Link to="/learn-more">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="text-lg px-8 py-3 bg-transparent"
+                  >
+                    Learn More
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
