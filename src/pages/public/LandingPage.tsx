@@ -133,9 +133,7 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen dark:bg-gray-950">
       {/* DarkVeil Background */}
-      {/* <div className="fixed inset-0 w-full h-full z-0 hidden dark:block fixed inset-0 overflow-x-hidden">
-        <DarkVeil className="w-full h-full object-cover" />
-      </div> */}
+
       <div className="relative z-10">
         {show && (
           <button
@@ -145,83 +143,7 @@ export default function LandingPage() {
             <ChevronUpIcon className="h-6 w-6" />
           </button>
         )}
-        {/* <header className=" top-0 left-0 w-full bg-white dark:bg-gray-900 shadow z-50">
-          <div className="container mx-auto px-4 py-4 flex justify-between items-center relative">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 rounded-full   rounded-lg flex items-center justify-center">
-                <img
-                  src="/assets/companylogo.jpg"
-                  className="h-[50px] w-full rounded-full "
-                />
-              </div>
-            </div>
-
-            <nav className=" shadow  w-full z-50">
-              <ul className="flex gap-30 justify-center space-x-8 p-4">
-                <li
-                  className="w-8 h-8"
-                  // onMouseEnter={() => homeRef.current.play()}
-                  // onMouseLeave={() => homeRef.current.stop()}
-                >
-                  <a href="#home">
-                    <Lottie
-                      // lottieRef={homeRef}
-                      animationData={home}
-                      loop={true}
-                      autoplay={true}
-                    />
-                  </a>
-                </li>
-                <li
-                  className="w-8 h-8"
-                  // onMouseEnter={() => homeRef.current.play()}
-                  // onMouseLeave={() => homeRef.current.stop()}
-                >
-                  <a href="#mission">
-                    <Lottie
-                      // lottieRef={homeRef}
-                      animationData={phone}
-                      loop={true}
-                      autoplay={true}
-                    />
-                  </a>
-                </li>
-                <li
-                  className="w-8 h-8"
-                  // onMouseEnter={() => homeRef.current.play()}
-                  // onMouseLeave={() => homeRef.current.stop()}
-                >
-                  <a href="#hero">
-                    <Lottie
-                      // lottieRef={homeRef}
-                      animationData={register}
-                      loop={true}
-                      autoplay={true}
-                    />
-                  </a>
-                </li>
-                <li className="w-8 h-8">
-                  <a href="#contact">
-                    <Lottie
-                      // lottieRef={homeRef}
-                      animationData={calling}
-                      loop={true}
-                      autoplay={true}
-                    />
-                  </a>
-                </li>
-              </ul>
-            </nav>
-
-            <div className=" md:flex items-center z-50 space-x-4">
-              <LanguageSwitcher />
-              <ThemeToggle />
-              <Link to="/login">
-                <Button variant="outline">{t("auth:login")}</Button>
-              </Link>
-            </div>
-          </div>
-        </header> */}
+        
 
         <header className="fixed top-0 left-0 w-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-lg z-50">
           <div className="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -459,97 +381,20 @@ export default function LandingPage() {
                     Register <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="text-lg px-8 py-3 bg-transparent"
-                >
-                  Learn More
-                </Button>
+                <Link to="/learn-more">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="text-lg px-8 py-3 bg-transparent"
+                  >
+                    Learn More
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
         </section>
-        {/* <section className="container mx-auto px-6 py-24">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: 100 }}
-              animate={infoView ? { opacity: 1, x: 0 } : { opacity: 0, x: 100 }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-            >
-              <h2 className="text-4xl md:text-5xl font-serif text-blue-600 dark:text-blue-400 mb-6">
-                Doche College at a Glance
-              </h2>
-              <p className="text-lg md:text-xl font-sans dark:text-gray-200 text-gray-800 mb-6">
-                For nearly four centuries, people have come to Doche College in
-                pursuit of knowledge, truth, and the betterment of society.
-              </p>
-              <motion.img
-                src="/assets/library.JPG"
-                alt="College Library"
-                className="rounded-3xl shadow-2xl w-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500"
-                whileHover={{ scale: 1.05 }}
-              />
-            </motion.div>
-
-            <motion.div
-              className="flex flex-col gap-10"
-              initial={{ opacity: 0, x: -100 }}
-              animate={
-                infoView ? { opacity: 1, x: 0 } : { opacity: 0, x: -100 }
-              }
-              transition={{ duration: 1.5, ease: "easeOut" }}
-            >
-              <motion.div
-                className="bg-blue-50 dark:bg-slate-900 rounded-2xl p-6 shadow-lg"
-                initial={{ opacity: 0, y: -50 }}
-                animate={
-                  infoView ? { opacity: 1, y: 0 } : { opacity: 0, y: -50 }
-                }
-                transition={{ duration: 1.2, ease: "easeOut" }}
-              >
-                <h3 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-2">
-                  <CountUp end={2017} duration={2} />
-                </h3>
-                <p className="font-sans dark:text-gray-200 text-gray-700 text-lg">
-                  The year Doche was founded
-                </p>
-              </motion.div>
-
-              <motion.div
-                className="bg-blue-50 dark:bg-slate-900 rounded-2xl p-6 shadow-lg"
-                initial={{ opacity: 0, y: 50 }}
-                animate={
-                  infoView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }
-                }
-                transition={{ duration: 1.2, delay: 0.2, ease: "easeOut" }}
-              >
-                <h3 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-2">
-                  <CountUp end={1240} duration={2} />
-                </h3>
-                <p className="font-sans dark:text-gray-200 text-gray-700 text-lg">
-                  Undergraduate & graduate students in 2023-24
-                </p>
-              </motion.div>
-
-              <motion.div
-                className="bg-blue-50 dark:bg-slate-900 rounded-2xl p-6 shadow-lg"
-                initial={{ opacity: 0, y: 50 }}
-                animate={
-                  infoView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }
-                }
-                transition={{ duration: 1.2, delay: 0.4, ease: "easeOut" }}
-              >
-                <h3 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-2">
-                  <CountUp end={850} duration={2} />
-                </h3>
-                <p className="font-sans dark:text-gray-200 text-gray-700 text-lg">
-                  Staff members currently engaged
-                </p>
-              </motion.div>
-            </motion.div>
-          </div>
-        </section> */}
+     
         <section className="mx-4 sm:mx-20 my-10">
           <div
             ref={infoRef}
@@ -598,15 +443,7 @@ export default function LandingPage() {
                 </p>
               </motion.div>
 
-              {/* <div>
-                <h2 className="text-2xl text-blue-500 dark:text-blue-300 font-serif">
-                  204{" "}
-                </h2>
-                <p className="text-lg dark:text-white text-black font-mono">
-                  Undergraduate and graduate students in the 2023-24 academic
-                  year
-                </p>
-              </div> */}
+            
 
               <motion.div
                 initial={{ opacity: 0, y: 100 }}
@@ -626,86 +463,6 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* <section className="container   px-6 py-24">
-          <div className="grid mx-10 lg:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: 100 }}
-              animate={infoView ? { opacity: 1, x: 0 } : { opacity: 0, x: 100 }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-            >
-              <h2 className="text-4xl md:text-5xl font-serif text-blue-600 dark:text-blue-400 mb-6">
-                Doche College at a Glance
-              </h2>
-              <p className="text-lg md:text-xl font-sans dark:text-gray-200 text-gray-800 mb-6">
-                For nearly four years, people have come to Doche College in
-                pursuit of knowledge, truth, and the betterment of society.
-              </p>
-              <motion.img
-                src="/assets/collegephoto.jpg"
-                alt="College Library"
-                className="rounded-3xl shadow-2xl w-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500"
-                whileHover={{ scale: 1.05 }}
-              />
-            </motion.div>
-
-            <motion.div
-              className="flex flex-col gap-10"
-              initial={{ opacity: 0, x: -100 }}
-              animate={
-                infoView ? { opacity: 1, x: 0 } : { opacity: 0, x: -100 }
-              }
-              transition={{ duration: 1.5, ease: "easeOut" }}
-            >
-              <motion.div
-                className=""
-                initial={{ opacity: 0, y: -50 }}
-                animate={
-                  infoView ? { opacity: 1, y: 0 } : { opacity: 0, y: -50 }
-                }
-                transition={{ duration: 1.2, ease: "easeOut" }}
-              >
-                <h3 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-2">
-                  <CountUp end={2017} duration={2} />
-                </h3>
-                <p className="font-sans dark:text-gray-200 text-gray-700 text-lg">
-                  The year Doche was founded
-                </p>
-              </motion.div>
-
-              <motion.div
-                className=""
-                initial={{ opacity: 0, y: 50 }}
-                animate={
-                  infoView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }
-                }
-                transition={{ duration: 1.2, delay: 0.2, ease: "easeOut" }}
-              >
-                <h3 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-2">
-                  <CountUp end={1240} duration={2} />
-                </h3>
-                <p className="font-sans dark:text-gray-200 text-gray-700 text-lg">
-                  Undergraduate & graduate students in 2023-24
-                </p>
-              </motion.div>
-
-              <motion.div
-                className=""
-                initial={{ opacity: 0, y: 50 }}
-                animate={
-                  infoView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }
-                }
-                transition={{ duration: 1.2, delay: 0.4, ease: "easeOut" }}
-              >
-                <h3 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-2">
-                  <CountUp end={850} duration={2} />
-                </h3>
-                <p className="font-sans dark:text-gray-200 text-gray-700 text-lg">
-                  Staff members currently engaged
-                </p>
-              </motion.div>
-            </motion.div>
-          </div>
-        </section> */}
         <section
           id="programs"
           className="container mx-auto px-4 py-24 overflow-hidden"
@@ -784,9 +541,7 @@ export default function LandingPage() {
             playsInline
           ></video>
 
-          {/* Gradient overlay */}
-          {/* <div className="absolute inset-0 bg-gradient-to-b from-blue-900/70 via-transparent to-blue-900/70"></div> */}
-
+          
           {/* Floating circles */}
           <div className="absolute inset-0 overflow-hidden">
             {[...Array(6)].map((_, i) => (
@@ -947,134 +702,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* <div className="pt-28 pb-48">
-          <div className="container mx-auto px-4">
-            <h2 className="text-2xl font-bold mb-4 text-blue-500 dark:text-white">
-              DISCOVER MORE
-            </h2>
-            <div className="relative overflow-hidden">
-              <div
-                ref={carouselRef}
-                id="carousel"
-                className="flex space-x-4 overflow-x-auto scroll-smooth"
-              >
-                <div className="min-w-[250px] flex-shrink-0 bg-white p-4 rounded-lg shadow-md">
-                  <img
-                    src="/assets/collegephoto.jpg"
-                    alt="Ian McEwan"
-                    className="w-full h-40 object-cover mb-2"
-                  />
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    JOIN OUR COLLEGE
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Right here in Bahirdar
-                  </p>
-                </div>
-                <div className="min-w-[250px] flex-shrink-0 bg-white p-4 rounded-lg shadow-md">
-                  <video
-                    controls
-                    poster="https://res.cloudinary.com/djz4nl0ic/video/upload/v1759434928/lv_0_20251002223127_jwkzc8.jpg"
-                    preload="none"
-                    className="w-full h-40 object-cover mb-2"
-                  >
-                    <source
-                      src="https://res.cloudinary.com/djz4nl0ic/video/upload/v1759434928/lv_0_20251002223127_jwkzc8.mp4"
-                      type="video/mp4"
-                    />
-                    Your browser does not support the video tag.
-                  </video>
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    Team Work{" "}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Team Meatings encouraged To Facilitate Learning Process
-                  </p>
-                </div>
-                <div className="min-w-[250px] flex-shrink-0 bg-white p-4 rounded-lg shadow-md">
-                  <video
-                    controls
-                    poster="https://res.cloudinary.com/djz4nl0ic/video/upload/v1755069448/4C5A5095_kvfnmo.jpg"
-                    preload="none"
-                    className="w-full h-40 object-cover mb-2"
-                  >
-                    <source
-                      src="https://res.cloudinary.com/djz4nl0ic/video/upload/v1755069448/4C5A5095_kvfnmo.mov"
-                      type="video/mp4"
-                    />
-                    Your browser does not support the video tag.
-                  </video>
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    Laboratories
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Full and Equipied Labs For Our Students
-                  </p>
-                </div>
-                <div className="min-w-[250px] flex-shrink-0 bg-white p-4 rounded-lg shadow-md">
-                  <video
-                    controls
-                    poster="https://res.cloudinary.com/djz4nl0ic/video/upload/v1755069644/4C5A5181_llhfsl.jpg"
-                    preload="none"
-                    className="w-full h-40 object-cover mb-2"
-                  >
-                    <source
-                      src="https://res.cloudinary.com/djz4nl0ic/video/upload/v1755069644/4C5A5181_llhfsl.mov"
-                      type="video/mp4"
-                    />
-                    Your browser does not support the video tag.
-                  </video>
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    WHAT WE CAN KNOW
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Video: Ian McEwan in conversation with Richard Ovenden, book
-                    now
-                  </p>
-                </div>
-                <div className="relative w-full h-40">
-                  <video
-                    ref={videoRef}
-                    poster="https://res.cloudinary.com/djz4nl0ic/video/upload/v1755069644/4C5A5181_llhfsl.jpg"
-                    preload="none"
-                    className="w-full h-full object-cover"
-                  >
-                    <source
-                      src="https://res.cloudinary.com/djz4nl0ic/video/upload/v1755069644/4C5A5181_llhfsl.mov"
-                      type="video/mp4"
-                    />
-                  </video>
-                </div>
-              </div>
-              <button
-                id="prev"
-                onClick={scrollPrev}
-                className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-gray-800 text-white p-2 rounded-full"
-              >
-                &lt;
-              </button>
-              <button
-                id="next"
-                onClick={scrollNext}
-                className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-gray-800 text-white p-2 rounded-full"
-              >
-                &gt;
-              </button>
-            </div>
-          </div>
-        </div> */}
-        {/* <video
-          ref={videoRef}
-          poster="https://res.cloudinary.com/djz4nl0ic/video/upload/v1759434928/lv_0_20251002223127_jwkzc8.jpg"
-          preload="none"
-          className="w-00 h-58 object-cover rounded-xl shadow-lg"
-          controls={isPlaying} // only show controls after play
-        >
-          <source
-            src="https://res.cloudinary.com/djz4nl0ic/video/upload/v1759434928/lv_0_20251002223127_jwkzc8.mp4"
-            type="video/mp4"
-          />
-        </video> */}
+        
         <section style={{ textAlign: "left", marginBottom: "60px" }}>
           <h2
             className="text-4xl font-extrabold text-center mb-16 
@@ -1289,32 +917,7 @@ export default function LandingPage() {
                     </li>
                   </ul>
                 </div>
-                {/* <div>
-                  <h4 className="font-semibold mb-4">Follow Us</h4>
-                  <div className="flex flex-col space-x-4">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <span className="sr-only">Facebook</span>📘
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <span className="sr-only">Twitter</span>🐦
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <span className="sr-only">LinkedIn</span>💼
-                    </Button>
-                  </div>
-                </div> */}
+                
               </div>
               <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
                 <p>Deutsche Hochschule für Medizin College Bahirdar Website.</p>

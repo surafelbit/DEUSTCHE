@@ -6,6 +6,7 @@ import PageLoader from "./components/ui/PageLoader";
 
 // Lazy load all components for code splitting
 const LandingPage = React.lazy(() => import("./pages/public/LandingPage"));
+const LearnMore = React.lazy(() => import("./pages/public/LearnMore"));
 const LoginPage = React.lazy(() => import("./pages/public/LoginPage"));
 const RegisterPage = React.lazy(() => import("./pages/public/RegisterPage"));
 const ForgotPasswordPage = React.lazy(() => import("./pages/public/ForgotPasswordPage"));
@@ -112,6 +113,7 @@ function App() {
           <Routes>
           {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/learn-more" element={<LearnMore />} />
           {/* <Route path="/login" element={<LoginPage />} /> */}
           <Route path="/login" element={<SigningUp />} />
           {/* <Route path="/some" element={<TenColumnEditableTablePage />} /> */}
