@@ -1,19 +1,67 @@
 import axios from "axios";
-const apiClient = axios.create({
-  baseURL:
-    "https://deutschemedizin-collage-backend-production.up.railway.app/api",
 
-  // baseURL: "https://growing-crayfish-firstly.ngrok-free.app/api",
+const noAuthEndpoints = [
+  '/enums/genders',
+  '/enums/marital-statuses',
+  '/impairments',
+  '/woreda',
+  '/zone',
+  '/region',
+  '/school-backgrounds',
+  '/departments',
+  '/program-modality',
+  '/class-years',
+  '/semesters',
+];
+
+const apiClient = axios.create({
+  baseURL: "https://growing-crayfish-firstly.ngrok-free.app/api",
   headers: {
-    // Global header to bypass Ngrok browser warning which can cause 403
     "ngrok-skip-browser-warning": "true",
   },
 });
+
 apiClient.interceptors.request.use((config) => {
+  // Check if the current endpoint is in the no-auth list
+  const requiresAuth = !noAuthEndpoints.some(endpoint => {
+    // Check if the config URL ends with the no-auth endpoint
+    return config.url?.endsWith(endpoint);
+  });
+  
+  console.log(`Request to ${config.url}, requires auth: ${requiresAuth}`);
+  
   const token = localStorage.getItem("xy9a7b");
-  if (token && config.headers.requiresAuth !== false) {
+  if (token && requiresAuth) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('Token attached to request');
+  } else if (!requiresAuth) {
+    console.log('No auth required for this endpoint');
+    // Explicitly remove Authorization header for no-auth endpoints
+    delete config.headers.Authorization;
+  } else {
+    console.log('No token found or auth not required');
   }
+  
   return config;
 });
+
+// Response interceptor to handle 401 errors
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log(`Response from ${response.config.url}: ${response.status}`);
+    return response;
+  },
+  (error) => {
+    console.error('API Error:', error.response?.status, error.response?.data);
+    if (error.response?.status === 401) {
+      // Handle token expiration - redirect to login or clear token
+      localStorage.removeItem("xy9a7b");
+      console.error("Authentication failed: Token expired or invalid");
+      // You can add redirect logic here if needed
+      // window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default apiClient;
