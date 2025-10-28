@@ -2,9 +2,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import apiService from "@/components/api/apiService";
 import endPoints from "@/components/api/endPoints";
-// import EditableTableApplicant, {
-//   DataTypes,
-// } from "@/components/Extra/EditableTableApplicant";
 import EditableTable, { type DataTypes } from "@/components/Extra/EditableTable";
 type ApplicantRow = DataTypes;
 export default function RegistrarApplications() {
