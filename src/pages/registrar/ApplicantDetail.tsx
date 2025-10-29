@@ -92,39 +92,45 @@ export default function ApplicantDetail() {
   }, []);
 
   // Helper function to get display name from ID/code
-  const getDisplayName = (type: string, idOrCode: any) => {
+  const getDisplayName = (type: string, idOrCode: string | number | undefined) => {
     if (!idOrCode) return "N/A";
     
     switch (type) {
-      case 'department':
+      case 'department': {
         const department = dropdownData.departments.find(
-          (dept: any) => dept.dptID === idOrCode || dept.id === idOrCode
+          (dept: { dptID?: string; id?: string; deptName?: string }) =>
+            dept.dptID === idOrCode || dept.id === idOrCode
         );
-        return department?.deptName || `Department ${idOrCode}`;
+        return department?.deptName || idOrCode;
+      }
       
-      case 'programModality':
+      case 'programModality': {
         const modality = dropdownData.programModalities.find(
-          (mod: any) => mod.modalityCode === idOrCode
+          (mod: { modalityCode?: string; modality?: string }) => mod.modalityCode === idOrCode
         );
-        return modality?.modality || `Modality ${idOrCode}`;
+        return modality?.modality || idOrCode;
+      }
       
-      case 'schoolBackground':
+      case 'schoolBackground': {
         const background = dropdownData.schoolBackgrounds.find(
-          (bg: any) => bg.id === idOrCode
+          (bg: { id?: string; background?: string }) => bg.id === idOrCode
         );
-        return background?.background || `Background ${idOrCode}`;
+        return background?.background ||  idOrCode;
+      }
       
-      case 'classYear':
+      case 'classYear': {
         const classYear = dropdownData.classYears.find(
-          (cy: any) => cy.id === idOrCode
+          (cy: { id?: string; classYear?: string }) => cy.id === idOrCode
         );
-        return classYear?.classYear || `Year ${idOrCode}`;
+        return classYear?.classYear ||  idOrCode;
+      }
       
-      case 'semester':
+      case 'semester': {
         const semester = dropdownData.semesters.find(
-          (sem: any) => sem.academicPeriodCode === idOrCode
+          (sem: { academicPeriodCode?: string; academicPeriod?: string }) => sem.academicPeriodCode === idOrCode
         );
         return semester?.academicPeriod || `Semester ${idOrCode}`;
+      }
       
       default:
         return idOrCode;
@@ -423,13 +429,9 @@ export default function ApplicantDetail() {
             <div className="flex items-center space-x-2 text-sm">
               <MapPin className="h-4 w-4 text-gray-500" />
               <span>
-                {applicantData.currentAddressWoreda},{" "}
-                {applicantData.currentAddressRegion}
+                {applicantData.currentAddressWoredaCode},{" "}
+                {applicantData.currentAddressRegionCode}
               </span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <Calendar className="h-4 w-4 text-gray-500" />
-              <span>Application: September 2023</span>
             </div>
           </CardContent>
         </Card>
