@@ -24,6 +24,8 @@ const endPoints = {
   BatchClassYearSemesters: "/bcsy",
   batches: "/batches",
   courses: "/courses/single",
+  allCourses: "/courses", 
+  courseById: "/courses/:id",
   regions: "/region",
   allWoreda: "/woreda",
   allZones: "/zone",

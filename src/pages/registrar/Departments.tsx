@@ -1,16 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  BookOpen,
-  Calculator,
-  FlaskConical,
-  Stethoscope,
-  HeartPulse,
-  Pill,
-  School,
-  Users,
-  Globe,
-} from "lucide-react";
+import { BookOpen,  Stethoscope,  HeartPulse, School, Users, Globe } from "lucide-react";
 import apiService from "@/components/api/apiService";
 import endPoints from "@/components/api/endPoints";
 
@@ -50,69 +40,37 @@ const programTypes = [
   },
 ];
 
-const fakeDepartments: Department[] = [
-  {
-    dptID: 1,
-    deptName: "Nursing",
-    totalCrHr: 120,
-    departmentCode: "NUR",
-    icon: <HeartPulse className="w-10 h-10" />,
-    color: "from-green-500 to-emerald-600",
-    programType: "regular",
-    departmentHead: "Dr. Emily Chen", // Add department head
-  },
-  {
-    dptID: 2,
-    deptName: "Medicine",
-    totalCrHr: 180,
-    departmentCode: "MED",
-    icon: <Stethoscope className="w-10 h-10" />,
-    color: "from-red-500 to-pink-600",
-    programType: "regular",
-    departmentHead: "Prof. Michael Rodriguez",
-  },
-  {
-    dptID: 3,
-    deptName: "Computer Science",
-    totalCrHr: 140,
-    departmentCode: "CS",
-    icon: <BookOpen className="w-10 h-10" />,
-    color: "from-indigo-500 to-purple-600",
-    programType: "regular",
-    departmentHead: "Dr. James Wilson",
-  },
-  {
-    dptID: 4,
-    deptName: "Nursing (Extension)",
-    totalCrHr: 120,
-    departmentCode: "NUR-EXT",
-    icon: <HeartPulse className="w-10 h-10" />,
-    color: "from-green-500 to-emerald-600",
-    programType: "extension",
-    departmentHead: "Dr. Lisa Thompson",
-  },
-  {
-    dptID: 5,
-    deptName: "Business Administration (Extension)",
-    totalCrHr: 130,
-    departmentCode: "BUS-EXT",
-    icon: <Users className="w-10 h-10" />,
-    color: "from-orange-500 to-orange-600",
-    programType: "extension",
-    departmentHead: "Prof. Robert Brown",
-  },
-  // Distance programs don't have department heads as per requirement
-  {
-    dptID: 6,
-    deptName: "Computer Science (Distance)",
-    totalCrHr: 140,
-    departmentCode: "CS-DIS",
-    icon: <BookOpen className="w-10 h-10" />,
-    color: "from-indigo-500 to-purple-600",
-    programType: "distance",
-    // No department head for distance programs
-  },
-];
+const getDepartmentIcon = (deptName: string) => {
+  const name = deptName.toLowerCase();
+  if (name.includes('nursing')) return <HeartPulse className="w-10 h-10" />;
+  if (name.includes('medicine')) return <Stethoscope className="w-10 h-10" />;
+  if (name.includes('computer')) return <BookOpen className="w-10 h-10" />;
+  if (name.includes('business')) return <Users className="w-10 h-10" />;
+  return <BookOpen className="w-10 h-10" />;
+};
+
+const getDepartmentColor = (deptName: string, programType: string) => {
+  const name = deptName.toLowerCase();
+  if (name.includes('nursing')) return "from-green-500 to-emerald-600";
+  if (name.includes('medicine')) return "from-red-500 to-pink-600";
+  if (name.includes('computer')) return "from-indigo-500 to-purple-600";
+  if (name.includes('business')) return "from-orange-500 to-orange-600";
+  
+  // Default colors based on program type
+  if (programType === 'regular') return "from-blue-500 to-blue-600";
+  if (programType === 'extension') return "from-green-500 to-green-600";
+  if (programType === 'distance') return "from-purple-500 to-purple-600";
+  
+  return "from-gray-500 to-gray-600";
+};
+
+const getProgramType = (departmentCode: string, deptName: string) => {
+  if (departmentCode.includes('EXT') || deptName.toLowerCase().includes('extension')) 
+    return 'extension';
+  if (departmentCode.includes('DIS') || deptName.toLowerCase().includes('distance')) 
+    return 'distance';
+  return 'regular';
+};
 
 export default function RegistrarDepartments() {
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -122,24 +80,38 @@ export default function RegistrarDepartments() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // For now: load fake data
-    setDepartments(fakeDepartments);
-    setIsLoading(false);
-
-    // Later: replace with API
-    const getter = async () => {
+    const fetchDepartments = async () => {
       try {
         setIsLoading(true);
         const response = await apiService.get(endPoints.departments);
-        setDepartments(response);
-        console.log(response);
+        
+        // Transform API response to match our Department interface
+        const transformedDepartments: Department[] = response.map((dept: any) => {
+          const programType = getProgramType(dept.departmentCode, dept.deptName);
+          return {
+            dptID: dept.dptID,
+            deptName: dept.deptName,
+            totalCrHr: dept.totalCrHr,
+            departmentCode: dept.departmentCode,
+            icon: getDepartmentIcon(dept.deptName),
+            color: getDepartmentColor(dept.deptName, programType),
+            programType: programType,
+            departmentHead: dept.departmentHead || "Not Assigned", // You might need to fetch this separately
+          };
+        });
+        
+        setDepartments(transformedDepartments);
+        console.log("Fetched departments:", transformedDepartments);
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching departments:", err);
+        // Fallback to empty array if API fails
+        setDepartments([]);
       } finally {
         setIsLoading(false);
       }
     };
-    // getter(); // Uncomment when ready to use API
+
+    fetchDepartments();
   }, []);
 
   useEffect(() => {

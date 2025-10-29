@@ -3,122 +3,40 @@ import { useParams, useLocation , useNavigate} from "react-router-dom";
 import apiService from "../../../src/components/api/apiService";
 import endPoints from "../../../src/components/api/endPoints";
 
-// ⚡ Example data (later you can fetch from backend)
-const departmentData = {
-  "NUR": {
-    id: "NUR",
-    name: "Nursing",
-    description: "All Nursing courses for undergraduates.",
-    programType: "regular",
-    years: [
-      {
-        id: "year1",
-        name: "1st Year",
-        semesters: [
-          {
-            id: "sem1",
-            name: "Semester 1",
-            courses: [
-              {
-                id: "c1",
-                name: "Anatomy & Physiology I",
-                code: "NUR101",
-                creditHours: 4,
-                prerequisites: [],
-                teacher: "Dr. Sarah Johnson",
-              },
-              {
-                id: "c2",
-                name: "Fundamentals of Nursing",
-                code: "NUR102",
-                creditHours: 3,
-                prerequisites: [],
-                teacher: "Dr. Sarah Johnson",
-              },
-            ],
-          },
-          {
-            id: "sem2",
-            name: "Semester 2",
-            courses: [
-              {
-                id: "c3",
-                name: "Anatomy & Physiology II",
-                code: "NUR201",
-                creditHours: 4,
-                prerequisites: ["NUR101"],
-              },
-              {
-                id: "c4",
-                name: "Medical-Surgical Nursing I",
-                code: "NUR202",
-                creditHours: 3,
-                prerequisites: ["NUR102"],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  "NUR-EXT": {
-    id: "NUR-EXT",
-    name: "Nursing (Extension)",
-    description: "Nursing courses for extension programs.",
-    programType: "extension",
-    years: [
-      {
-        id: "year1",
-        name: "1st Year",
-        semesters: [
-          {
-            id: "sem1",
-            name: "Semester 1",
-            courses: [
-              {
-                id: "c1",
-                name: "Extension Nursing Fundamentals",
-                code: "NUREXT101",
-                creditHours: 4,
-                prerequisites: [],
-                teacher: "Dr. Sarah Johnson",
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  "CS-DIS": {
-    id: "CS-DIS",
-    name: "Computer Science (Distance)",
-    description: "Computer Science courses for distance learning.",
-    programType: "distance",
-    years: [
-      {
-        id: "year1",
-        name: "1st Year",
-        semesters: [
-          {
-            id: "sem1",
-            name: "Semester 1",
-            courses: [
-              {
-                id: "c1",
-                name: "Online Programming Fundamentals",
-                code: "CSDIS101",
-                creditHours: 3,
-                prerequisites: [],
-                teacher: "Dr. Sarah Johnson",
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  // Add other departments as needed...
-};
+interface Course {
+  cid: number;
+  ccode: string;
+  ctitle: string;
+  theoryHrs: number;
+  labHrs: number;
+  category: {
+    catID: number;
+    catName: string;
+  };
+  department: {
+    dptID: number;
+    deptName: string;
+    departmentCode: string;
+  };
+  prerequisites: any[];
+  classYear: {
+    id: number;
+    classYear: string;
+  };
+  semester: {
+    academicPeriodCode: string;
+    academicPeriod: string;
+  };
+  teacher?: string; // You might need to add this field to your API
+}
+
+interface DepartmentInfo {
+  id: string;
+  name: string;
+  description: string;
+  programType: string;
+  courses: Course[];
+}
 
 // Program type display names
 const programTypeNames = {
@@ -128,22 +46,25 @@ const programTypeNames = {
 };
 
 export default function DepartmentDetail() {
-  const { id } = useParams();
+
+ const { id } = useParams();
   const location = useLocation();
   const programType = location.state?.programType || "regular";
   const navigate = useNavigate();
   
-  const dept = id ? departmentData[id] : null;
   const [searchTerm, setSearchTerm] = useState("");
-  const [department, setDepartment] = useState(dept);
+  const [department, setDepartment] = useState<DepartmentInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingCourse, setEditingCourse] = useState(null);
+  const [editingCourse, setEditingCourse] = useState<any>(null);
   const [editValues, setEditValues] = useState({
     code: "",
     name: "",
     creditHours: "",
     prerequisites: [],
+    teacher: "",
   });
+
   const [newCourse, setNewCourse] = useState({
     yearId: "",
     semesterId: "",
@@ -158,16 +79,84 @@ export default function DepartmentDetail() {
     prerequisiteIds: [],
   });
 
+    useEffect(() => {
+      const fetchDepartmentCourses = async () => {
+        if (!id) return;
+        
+        try {
+          setIsLoading(true);
+          const allCourses = await apiService.get(endPoints.allCourses);
+          
+          // Filter courses by department code
+          const departmentCourses = allCourses.filter((course: Course) => 
+            course.department.departmentCode === id
+          );
+
+          // Group courses by year and semester
+          const groupedCourses = departmentCourses.reduce((acc: any, course: Course) => {
+            const year = course.classYear.classYear;
+            const semester = course.semester.academicPeriod;
+            
+            if (!acc[year]) {
+              acc[year] = {};
+            }
+            if (!acc[year][semester]) {
+              acc[year][semester] = [];
+            }
+            
+            acc[year][semester].push({
+              id: course.cid.toString(),
+              name: course.ctitle,
+              code: course.ccode,
+              creditHours: course.theoryHrs + course.labHrs,
+              prerequisites: course.prerequisites.map((p: any) => p.ccode || p.prerequisiteCode),
+              teacher: course.teacher || "Not Assigned",
+              theoryHrs: course.theoryHrs,
+              labHrs: course.labHrs,
+              category: course.category.catName,
+            });
+            
+            return acc;
+          }, {});
+          
+                  // Transform to the expected department structure
+          const departmentInfo: DepartmentInfo = {
+            id: id,
+            name: departmentCourses[0]?.department.deptName || id,
+            description: `All ${departmentCourses[0]?.department.deptName || id} courses for ${programType} programs.`,
+            programType: programType,
+            courses: departmentCourses,
+            // Transform grouped data for display
+            years: Object.entries(groupedCourses).map(([year, semesters]: [string, any]) => ({
+              id: `year${year}`,
+              name: `${year} Year`,
+              semesters: Object.entries(semesters).map(([semester, courses]: [string, any]) => ({
+                id: `sem${Object.keys(semesters).indexOf(semester) + 1}`,
+                name: semester,
+                courses: courses,
+              })),
+            })),
+          };
+
+          setDepartment(departmentInfo);
+        } catch (error) {
+          console.error("Error fetching department courses:", error);
+          setDepartment(null);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchDepartmentCourses();
+    }, [id, programType]);
+
+
   // Get all courses for prerequisite selection
-  const allCourses = department?.years?.flatMap((year) =>
-    year.semesters.flatMap((sem) => sem.courses)
-  ) || [];
+    const allCourses = department?.courses || [];
 
   // Handle adding course
   const handleAddCourse = async () => {
     const {
-      yearId,
-      semesterId,
       cTitle,
       cCode,
       theoryHrs,
@@ -180,8 +169,6 @@ export default function DepartmentDetail() {
     } = newCourse;
 
     if (
-      !yearId ||
-      !semesterId ||
       !cTitle ||
       !cCode ||
       !theoryHrs ||
@@ -197,8 +184,8 @@ export default function DepartmentDetail() {
 
     try {
       const response = await apiService.post(endPoints.courses, {
-        cTitle,
-        cCode,
+        ctitle: cTitle,
+        ccode: cCode,
         theoryHrs: parseInt(theoryHrs),
         labHrs: parseInt(labHrs),
         cCategoryID: parseInt(cCategoryID),
@@ -208,50 +195,9 @@ export default function DepartmentDetail() {
         prerequisiteIds: prerequisiteIds.map((id) => parseInt(id)),
       });
 
-      if (response.data) {
-        setDepartment((prev) => ({
-          ...prev,
-          years: prev.years.map((year) =>
-            year.id === yearId
-              ? {
-                  ...year,
-                  semesters: year.semesters.map((sem) =>
-                    sem.id === semesterId
-                      ? {
-                          ...sem,
-                          courses: [
-                            ...sem.courses,
-                            {
-                              id: response.data.id || Date.now().toString(),
-                              code: cCode,
-                              name: cTitle,
-                              creditHours:
-                                parseInt(theoryHrs) + parseInt(labHrs),
-                              prerequisites: prerequisiteIds,
-                            },
-                          ],
-                        }
-                      : sem
-                  ),
-                }
-              : year
-          ),
-        }));
-
-        setNewCourse({
-          yearId: "",
-          semesterId: "",
-          cTitle: "",
-          cCode: "",
-          theoryHrs: "",
-          labHrs: "",
-          cCategoryID: "",
-          departmentID: "",
-          classYearID: "",
-          semesterID: "",
-          prerequisiteIds: [],
-        });
-        setIsFormOpen(false);
+      if (response) {
+        // Refresh the department data to show the new course
+        window.location.reload();
       }
     } catch (error) {
       console.error("Error adding course:", error);
@@ -316,13 +262,21 @@ export default function DepartmentDetail() {
     setEditValues({ code: "", name: "", creditHours: "", prerequisites: [] });
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   if (!department) {
     return (
       <div className="p-10 text-center">
         <h1 className="text-3xl font-bold text-red-600">
           Department Not Found
         </h1>
-        <p className="text-gray-600 mt-2">The requested department does not exist.</p>
+        <p className="text-gray-600 mt-2">The requested department does not exist or has no courses.</p>
       </div>
     );
   }
@@ -330,23 +284,24 @@ export default function DepartmentDetail() {
   return (
     <div className="p-10 space-y-10">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-blue-700 p-8 rounded-2xl shadow-lg text-white">
-        <div className="flex justify-between items-start">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-4xl font-bold">{department.name}</h1>
-              <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
-                {programTypeNames[programType]}
-              </span>
+        <div className="bg-gradient-to-r from-blue-500 to-blue-700 p-8 rounded-2xl shadow-lg text-white">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-4xl font-bold">{department.name}</h1>
+                <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
+                  {programTypeNames[programType as keyof typeof programTypeNames]}
+                </span>
+              </div>
+              <p className="mt-2 text-lg opacity-90">{department.description}</p>
+              <p className="mt-1 text-blue-100">Total Courses: {department.courses.length}</p>
             </div>
-            <p className="mt-2 text-lg opacity-90">{department.description}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-blue-100">Department Code: {department.id}</p>
-            <p className="text-blue-100">Program Type: {programTypeNames[programType]}</p>
+            <div className="text-right">
+              <p className="text-blue-100">Department Code: {department.id}</p>
+              <p className="text-blue-100">Program Type: {programTypeNames[programType as keyof typeof programTypeNames]}</p>
+            </div>
           </div>
         </div>
-      </div>
       
         <div className="flex justify-between items-center mb-6">
           <button
@@ -524,7 +479,7 @@ export default function DepartmentDetail() {
       )}
 
       {/* Years & Semesters */}
-      {department.years.map((year) => (
+      {department.years && department.years.map((year) => (
         <div key={year.id} className="space-y-6">
           <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
             {year.name}
@@ -552,9 +507,12 @@ export default function DepartmentDetail() {
                     <tr className="bg-gray-100 dark:bg-gray-800 text-left">
                       <th className="p-3 border">Course Code</th>
                       <th className="p-3 border">Course Name</th>
-                      <th className="p-3 border">Credit Hours</th>
-                      <th className="p-3 border">Prerequisites</th>
+                      <th className="p-3 border">Theory Hrs</th>
+                      <th className="p-3 border">Lab Hrs</th>
+                      <th className="p-3 border">Total Credits</th>
+                      <th className="p-3 border">Category</th>
                       <th className="p-3 border">Teacher</th>
+                      <th className="p-3 border">Prerequisites</th>
                       <th className="p-3 border">Actions</th>
                     </tr>
                   </thead>
@@ -562,151 +520,38 @@ export default function DepartmentDetail() {
                     {filteredCourses.map((course) => (
                       <tr
                         key={course.id}
-                        className={`transition-all duration-300 ease-in-out ${
-                          editingCourse && editingCourse.id === course.id
-                            ? "scale-105 bg-blue-50 dark:bg-blue-900/30 shadow-lg border border-blue-200 dark:border-blue-700 z-10 relative"
-                            : "hover:scale-102 hover:bg-gray-50 dark:hover:bg-gray-800 hover:shadow-md hover:z-10"
-                        }`}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
-                        {editingCourse && editingCourse.id === course.id ? (
-                          <>
-                            <td className="p-3 border">
-                              <input
-                                type="text"
-                                value={editValues.code}
-                                onChange={(e) =>
-                                  setEditValues({
-                                    ...editValues,
-                                    code: e.target.value,
-                                  })
-                                }
-                                className="w-full border px-2 py-1 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="p-3 border">
-                              <input
-                                type="text"
-                                value={editValues.name}
-                                onChange={(e) =>
-                                  setEditValues({
-                                    ...editValues,
-                                    name: e.target.value,
-                                  })
-                                }
-                                className="w-full border px-2 py-1 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="p-3 border">
-                              <input
-                                type="number"
-                                value={editValues.creditHours}
-                                onChange={(e) =>
-                                  setEditValues({
-                                    ...editValues,
-                                    creditHours: e.target.value,
-                                  })
-                                }
-                                className="w-full border px-2 py-1 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
-                              />
-                            </td>
-                            <td className="p-3 border">
-                              <div className="relative">
-                                <select
-                                  multiple
-                                  value={editValues.prerequisites}
-                                  onChange={(e) => {
-                                    const selected = Array.from(
-                                      e.target.selectedOptions,
-                                      (option) => option.value
-                                    );
-                                    setEditValues({
-                                      ...editValues,
-                                      prerequisites: selected.includes("")
-                                        ? []
-                                        : selected.filter((val) => val !== ""),
-                                    });
-                                  }}
-                                  className="w-full border px-2 py-1 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
-                                >
-                                  <option value="" disabled>
-                                    Hold Ctrl/Cmd to select multiple
-                                    prerequisites
-                                  </option>
-                                  <option value="">No Prerequisites</option>
-                                  {allCourses
-                                    .filter((c) => c.id !== course.id)
-                                    .map((c) => (
-                                      <option key={c.id} value={c.code}>
-                                        {c.code} - {c.name}
-                                      </option>
-                                    ))}
-                                </select>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                  Hold Ctrl (Windows) or Cmd (Mac) to select
-                                  multiple courses
-                                </p>
-                              </div>
-                            </td>
-                            <td className="p-3 border">
-                              <input
-                                type="text"
-                                value={editValues.teacher}
-                                onChange={(e) =>
-                                  setEditValues({
-                                    ...editValues,
-                                    teacher: e.target.value,
-                                  })
-                                }
-                                className="w-full border px-2 py-1 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-blue-500"
-                                placeholder="Teacher name"
-                              />
-                            </td>
-                          ) : (
-                            <td className="p-3 border">{course.teacher || "Not Assigned"}</td>
-                            <td className="p-3 border flex space-x-2">
-                              <button
-                                onClick={() =>
-                                  handleUpdateCourse(year.id, sem.id, course.id)
-                                }
-                                className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition dark:bg-blue-500 dark:hover:bg-blue-600"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={handleCancelEdit}
-                                className="bg-gray-600 text-white px-2 py-1 rounded hover:bg-gray-700 transition dark:bg-gray-500 dark:hover:bg-gray-600"
-                              >
-                                Cancel
-                              </button>
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="p-3 border font-mono">
-                              {course.code}
-                            </td>
-                            <td className="p-3 border">{course.name}</td>
-                            <td className="p-3 border text-center">
-                              {course.creditHours}
-                            </td>
-                            <td className="p-3 border">
-                              {course.prerequisites.length > 0
-                                ? course.prerequisites.join(", ")
-                                : "None"}
-                            </td>
-                            <td className="p-3 border">{course.teacher || "Not Assigned"}</td>
-                            <td className="p-3 border">
-                              <button
-                                onClick={() =>
-                                  handleEditCourse(year.id, sem.id, course)
-                                }
-                                className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition dark:bg-yellow-400 dark:hover:bg-yellow-500"
-                              >
-                                Edit
-                              </button>
-                            </td>
-                          </>
-                        )}
+                        <td className="p-3 border font-mono">{course.code}</td>
+                        <td className="p-3 border">{course.name}</td>
+                        <td className="p-3 border text-center">{course.theoryHrs}</td>
+                        <td className="p-3 border text-center">{course.labHrs}</td>
+                        <td className="p-3 border text-center">{course.creditHours}</td>
+                        <td className="p-3 border">{course.category}</td>
+                        <td className="p-3 border">{course.teacher}</td>
+                        <td className="p-3 border">
+                          {course.prerequisites.length > 0
+                            ? course.prerequisites.join(", ")
+                            : "None"}
+                        </td>
+                        <td className="p-3 border">
+                          <button
+                            onClick={() => {
+                              // You can implement edit functionality here
+                              setEditingCourse(course);
+                              setEditValues({
+                                code: course.code,
+                                name: course.name,
+                                creditHours: course.creditHours.toString(),
+                                prerequisites: course.prerequisites,
+                                teacher: course.teacher,
+                              });
+                            }}
+                            className="bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600 transition"
+                          >
+                            Edit
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
