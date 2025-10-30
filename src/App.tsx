@@ -69,7 +69,7 @@ const RegistrarAssessments = React.lazy(
 );
 const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
 const DepartmentDetail = React.lazy(
-  () => import("./pages/registrar/DepartmentDetail")
+  () => import("./pages/registrar/DepartmentDetail.tsx")
 );
 const StudentDetail = React.lazy(
   () => import("./pages/registrar/StudentDetail")
@@ -92,6 +92,7 @@ const AcademicYearEditor = React.lazy(
 const ImpairmentEditor = React.lazy(
   () => import("./pages/registrar/settings/ImpairmentEditor")
 );
+
 
 const CourseCategoriesEditor = React.lazy(
   () => import("./pages/registrar/settings/CourseCategoriesEditor")
