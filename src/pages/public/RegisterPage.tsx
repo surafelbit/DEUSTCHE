@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import apiClient from "./apiClient"; // Import the axios instance
 
 const StudentRegistrationForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -70,49 +71,48 @@ const StudentRegistrationForm = () => {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [dragActive, setDragActive] = useState(false);
 
-  // Fetch dropdown data
+  // Fetch dropdown data using apiClient
   useEffect(() => {
-    const fetchDropdownData = async () => {
+const fetchDropdownData = async () => {
+  try {
+    const endpoints = [
+      { key: 'genders', url: '/enums/genders' },
+      { key: 'maritalStatuses', url: '/enums/marital-statuses' },
+      { key: 'impairments', url: '/impairments' },
+      { key: 'woredas', url: '/woreda' },
+      { key: 'zones', url: '/zone' },
+      { key: 'regions', url: '/region' },
+      { key: 'schoolBackgrounds', url: '/school-backgrounds' },
+      { key: 'departments', url: '/departments' },
+      { key: 'programModalities', url: '/program-modality' },
+      { key: 'classYears', url: '/class-years' },
+      { key: 'semesters', url: '/semesters' },
+    ];
+
+    const promises = endpoints.map(async ({ key, url }) => {
       try {
-        const endpoints = [
-          { key: 'genders', url: '/api/enums/genders' },
-          { key: 'maritalStatuses', url: '/api/enums/marital-statuses' },
-          { key: 'impairments', url: '/api/impairments' },
-          { key: 'woredas', url: '/api/woreda' },
-          { key: 'zones', url: '/api/zone' },
-          { key: 'regions', url: '/api/region' },
-          { key: 'schoolBackgrounds', url: '/api/school-backgrounds' },
-          { key: 'departments', url: '/api/departments' },
-          { key: 'programModalities', url: '/api/program-modality' },
-          { key: 'classYears', url: '/api/class-years' },
-          { key: 'semesters', url: '/api/semesters' },
-        ];
-
-        const promises = endpoints.map(async ({ key, url }) => {
-          try {
-            const response = await fetch(`http://localhost:8081${url}`);
-            if (response.ok) {
-              const data = await response.json();
-              return { key, data };
-            }
-            return { key, data: [] };
-          } catch (error) {
-            console.error(`Error fetching ${key}:`, error);
-            return { key, data: [] };
-          }
-        });
-
-        const results = await Promise.all(promises);
-        const newDropdownData: any = {};
-        results.forEach(({ key, data }) => {
-          newDropdownData[key] = data;
-        });
-
-        setDropdownData(newDropdownData);
-      } catch (error) {
-        console.error('Error fetching dropdown data:', error);
+        console.log(`Fetching ${key} from ${url}`);
+        const response = await apiClient.get(url);
+        console.log(`Successfully fetched ${key}:`, response.status);
+        return { key, data: response.data };
+      } catch (error: any) {
+        console.error(`Error fetching ${key}:`, error.response?.status, error.message);
+        // Return empty array but log the error
+        return { key, data: [] };
       }
-    };
+    });
+
+    const results = await Promise.all(promises);
+    const newDropdownData: any = {};
+    results.forEach(({ key, data }) => {
+      newDropdownData[key] = data;
+    });
+
+    setDropdownData(newDropdownData);
+  } catch (error) {
+    console.error('Error in fetchDropdownData:', error);
+  }
+};
 
     fetchDropdownData();
   }, []);
@@ -283,14 +283,16 @@ const StudentRegistrationForm = () => {
         formDataToSend.append('document', formData.document);
       }
 
-      const response = await fetch('http://localhost:8081/api/applicants/register', {
-        method: 'POST',
-        body: formDataToSend,
+      // Use apiClient for the registration endpoint (this will include auth token)
+      const response = await apiClient.post('/applicants/register', formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
 
-      const result = await response.json();
+      const result = response.data;
 
-      if (response.ok) {
+      if (response.status === 200) {
         setMessage({ 
           type: 'success', 
           text: result.message || 'Student application submitted successfully!' 
@@ -340,11 +342,18 @@ const StudentRegistrationForm = () => {
           text: result.error || 'An error occurred while submitting the application.' 
         });
       }
-    } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Network error. Please check your connection and try again.' 
-      });
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        setMessage({ 
+          type: 'error', 
+          text: 'Authentication failed. Please log in again.' 
+        });
+      } else {
+        setMessage({ 
+          type: 'error', 
+          text: error.response?.data?.error || 'Network error. Please check your connection and try again.' 
+        });
+      }
     } finally {
       setLoading(false);
     }

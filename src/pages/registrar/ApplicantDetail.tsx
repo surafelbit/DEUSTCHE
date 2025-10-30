@@ -8,7 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,7 +23,6 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
-// import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useModal } from "@/hooks/Modal";
@@ -32,82 +30,133 @@ import apiService from "@/components/api/apiService";
 import endPoints from "@/components/api/endPoints";
 import LoadingSpinner from "@/designs/LoadingSpinner";
 import UserNotFound from "@/designs/UserNotFound";
+
 export default function ApplicantDetail() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<string | null>(null); // Tracks acceptance/rejection status
-  const [remarks, setRemarks] = useState(""); // Stores remarks for acceptance/rejection
-  const [password, setPassword] = useState(""); // Stores new password
-  const [confirmPassword, setConfirmPassword] = useState(""); // Stores confirm password
-  const [passwordError, setPasswordError] = useState(""); // Stores password error message
+  const [status, setStatus] = useState<string | null>(null);
+  const [remarks, setRemarks] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [applicantData, setApplicant] = useState<any>();
   const [loading, setIsLoading] = useState(true);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [dropdownData, setDropdownData] = useState({
+    departments: [],
+    programModalities: [],
+    schoolBackgrounds: [],
+    classYears: [],
+    semesters: [],
+  });
+  
   const { id } = useParams();
-  console.log(id);
-  // Modal for acceptance extra form
   const { openModal, closeModal } = useModal() as any;
   const [actionBusy, setActionBusy] = useState(false);
-  // const applicantData = {
-  //   firstNameAMH: "አበበ",
-  //   firstNameENG: "Abebe",
-  //   fatherNameAMH: "ከበደ",
-  //   fatherNameENG: "Kebede",
-  //   grandfatherNameAMH: "ወልደ",
-  //   grandfatherNameENG: "Welde",
-  //   motherNameAMH: "ልደት",
-  //   motherNameENG: "Lidet",
-  //   motherFatherNameAMH: "ታደሰ",
-  //   motherFatherNameENG: "Tadesse",
-  //   gender: "Male",
-  //   age: 20,
-  //   phoneNumber: "+251912345678",
-  //   dateOfBirthEC: "15/06/2005",
-  //   dateOfBirthGC: "1997-02-22",
-  //   placeOfBirthWoreda: "Yeka",
-  //   placeOfBirthZone: "Addis Ababa",
-  //   placeOfBirthRegion: "Addis Ababa",
-  //   currentAddressWoreda: "Bole",
-  //   currentAddressZone: "Addis Ababa",
-  //   currentAddressRegion: "Addis Ababa",
-  //   email: "abebe.kebede@example.com",
-  //   maritalStatus: "Single",
-  //   impairment: "None",
-  //   schoolBackground: "Public",
-  //   studentPhoto:
-  //     "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAAAAAAAD/2wBDAAoHBwkHBgoJCAkLCwoMDxkQDw4ODx4WFxIZJCAmJSMgIyIOJj4kLCIuNDIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy",
-  //   contactPersonFirstNameAMH: "ሰለሞን",
-  //   contactPersonFirstNameENG: "Solomon",
-  //   contactPersonLastNameAMH: "ገብረ",
-  //   contactPersonLastNameENG: "Gebre",
-  //   contactPersonPhoneNumber: "+251987654321",
-  //   contactPersonRelation: "Brother",
-  //   departmentEnrolled: "Computer Science",
-  //   programModality: "Regular",
-  //   grade12ExamResult:
-  //     "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAAAAAAAD/2wBDAAoHBwkHBgoJCAkLCwoMDxkQDw4ODx4WFxIZJCAmJSMgIyIOJj4kLCIuNDIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy",
-  // };
-  // setApplicant(applicantData);
+
+  // Fetch dropdown data for mapping IDs to names
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const endpoints = [
+          { key: 'departments', url: '/departments' },
+          { key: 'programModalities', url: '/program-modality' },
+          { key: 'schoolBackgrounds', url: '/school-backgrounds' },
+          { key: 'classYears', url: '/class-years' },
+          { key: 'semesters', url: '/semesters' },
+        ];
+
+        const promises = endpoints.map(async ({ key, url }) => {
+          try {
+            const response = await apiService.get(url);
+            return { key, data: response.data || [] };
+          } catch (error) {
+            console.error(`Error fetching ${key}:`, error);
+            return { key, data: [] };
+          }
+        });
+
+        const results = await Promise.all(promises);
+        const newDropdownData: any = {};
+        results.forEach(({ key, data }) => {
+          newDropdownData[key] = data;
+        });
+
+        setDropdownData(newDropdownData);
+      } catch (error) {
+        console.error('Error fetching dropdown data:', error);
+      }
+    };
+
+    fetchDropdownData();
+  }, []);
+
+  // Helper function to get display name from ID/code
+  const getDisplayName = (type: string, idOrCode: string | number | undefined) => {
+    if (!idOrCode) return "N/A";
+    
+    switch (type) {
+      case 'department': {
+        const department = dropdownData.departments.find(
+          (dept: { dptID?: string; id?: string; deptName?: string }) =>
+            dept.dptID === idOrCode || dept.id === idOrCode
+        );
+        return department?.deptName || idOrCode;
+      }
+      
+      case 'programModality': {
+        const modality = dropdownData.programModalities.find(
+          (mod: { modalityCode?: string; modality?: string }) => mod.modalityCode === idOrCode
+        );
+        return modality?.modality || idOrCode;
+      }
+      
+      case 'schoolBackground': {
+        const background = dropdownData.schoolBackgrounds.find(
+          (bg: { id?: string; background?: string }) => bg.id === idOrCode
+        );
+        return background?.background ||  idOrCode;
+      }
+      
+      case 'classYear': {
+        const classYear = dropdownData.classYears.find(
+          (cy: { id?: string; classYear?: string }) => cy.id === idOrCode
+        );
+        return classYear?.classYear ||  idOrCode;
+      }
+      
+      case 'semester': {
+        const semester = dropdownData.semesters.find(
+          (sem: { academicPeriodCode?: string; academicPeriod?: string }) => sem.academicPeriodCode === idOrCode
+        );
+        return semester?.academicPeriod || `Semester ${idOrCode}`;
+      }
+      
+      default:
+        return idOrCode;
+    }
+  };
 
   useEffect(() => {
     async function getter() {
       try {
-        setIsLoading(true); // Set loading to true
+        setIsLoading(true);
         const url = endPoints.applicantDetail.replace(":id", id as string);
         const response = await apiService.get(url);
         setApplicant(response);
       } catch (error) {
         console.error("Error fetching applicant data:", error);
       } finally {
-        setIsLoading(false); // Set loading to false
+        setIsLoading(false);
       }
     }
     getter();
   }, [id]);
-  // Load applicant photo and document as blobs
+
   useEffect(() => {
     let revokedPhotoUrl: string | null = null;
     let revokedDocumentUrl: string | null = null;
+    
     async function loadBlobs() {
       if (!id) return;
       try {
@@ -149,7 +198,6 @@ export default function ApplicantDetail() {
       if (revokedDocumentUrl) URL.revokeObjectURL(revokedDocumentUrl);
     };
   }, [id]);
-  // Removed unused effect
 
   async function callUpdateStatus(payload: any) {
     if (!id) return;
@@ -161,7 +209,6 @@ export default function ApplicantDetail() {
         payload,
         { headers: { requiresAuth: true } }
       );
-      // Update local UI state when backend confirms
       setStatus(payload.status === "ACCEPTED" ? "accepted" : payload.status === "REJECTED" ? "rejected" : payload.status);
       if (response) {
         setApplicant((prev: any) => ({ ...(prev || {}), applicationStatus: payload.status }));
@@ -292,7 +339,6 @@ export default function ApplicantDetail() {
   }
 
   async function handleRejectClick() {
-    // Optional: prompt for remark if empty
     const payload: any = { status: "REJECTED" };
     if (remarks && remarks.trim()) payload.remark = remarks.trim();
     const ok = await callUpdateStatus(payload);
@@ -312,14 +358,15 @@ export default function ApplicantDetail() {
     }
     setPasswordError("");
     alert("Password successfully set!");
-    // Here you would typically send the password to a backend API
   };
+
   if (loading) {
     return <LoadingSpinner />;
   }
   if (!applicantData) {
     return <UserNotFound username="Applicant" />;
   }
+
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       <div className="flex justify-between items-center">
@@ -348,8 +395,8 @@ export default function ApplicantDetail() {
               <Avatar className="w-32 h-32">
                 <AvatarImage src={photoUrl || applicantData?.studentPhoto} />
                 <AvatarFallback className="text-2xl">
-                  {applicantData.firstNameENG[0]}
-                  {applicantData.fatherNameENG[0]}
+                  {applicantData.firstNameENG?.[0]}
+                  {applicantData.fatherNameENG?.[0]}
                 </AvatarFallback>
               </Avatar>
               <Button
@@ -364,10 +411,10 @@ export default function ApplicantDetail() {
               {applicantData.firstNameENG} {applicantData.fatherNameENG}
             </CardTitle>
             <CardDescription>
-              {applicantData.departmentEnrolled} Applicant
+              {getDisplayName('department', applicantData.departmentEnrolledId)} Applicant
             </CardDescription>
             <Badge variant="secondary" className="mt-2">
-              {applicantData.programModality}
+              {getDisplayName('programModality', applicantData.programModalityCode)}
             </Badge>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -382,13 +429,9 @@ export default function ApplicantDetail() {
             <div className="flex items-center space-x-2 text-sm">
               <MapPin className="h-4 w-4 text-gray-500" />
               <span>
-                {applicantData.currentAddressWoreda},{" "}
-                {applicantData.currentAddressRegion}
+                {applicantData.currentAddressWoredaCode},{" "}
+                {applicantData.currentAddressRegionCode}
               </span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <Calendar className="h-4 w-4 text-gray-500" />
-              <span>Application: September 2023</span>
             </div>
           </CardContent>
         </Card>
@@ -561,7 +604,7 @@ export default function ApplicantDetail() {
               <Label htmlFor="departmentEnrolled">Department Applied</Label>
               <Input
                 id="departmentEnrolled"
-                value={applicantData.departmentEnrolled}
+                value={getDisplayName('department', applicantData.departmentEnrolledId)}
                 readOnly
               />
             </div>
@@ -569,7 +612,7 @@ export default function ApplicantDetail() {
               <Label htmlFor="programModality">Program Modality</Label>
               <Input
                 id="programModality"
-                value={applicantData.programModality}
+                value={getDisplayName('programModality', applicantData.programModalityCode)}
                 readOnly
               />
             </div>
@@ -577,7 +620,7 @@ export default function ApplicantDetail() {
               <Label htmlFor="schoolBackground">School Background</Label>
               <Input
                 id="schoolBackground"
-                value={applicantData.schoolBackground}
+                value={getDisplayName('schoolBackground', applicantData.schoolBackgroundId)}
                 readOnly
               />
             </div>
@@ -588,7 +631,7 @@ export default function ApplicantDetail() {
               <Label htmlFor="classYear">Academic Year</Label>
               <Input
                 id="classYear"
-                value={applicantData.classYearName || "N/A"}
+                value={getDisplayName('classYear', applicantData.classYearId)}
                 readOnly
               />
             </div>
@@ -596,15 +639,15 @@ export default function ApplicantDetail() {
               <Label htmlFor="semester">Semester</Label>
               <Input
                 id="semester"
-                value={applicantData.semesterName || "N/A"}
+                value={getDisplayName('semester', applicantData.semesterCode)}
                 readOnly
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="departmentName">Department</Label>
+              <Label htmlFor="departmentName">Department ID</Label>
               <Input
                 id="departmentName"
-                value={applicantData.departmentEnrolledName || "N/A"}
+                value={applicantData.departmentEnrolledId || "N/A"}
                 readOnly
               />
             </div>
@@ -614,11 +657,15 @@ export default function ApplicantDetail() {
 
           <div className="space-y-2">
             <Label htmlFor="grade12ExamResult">Grade 12 Exam Result</Label>
-            <img
-              src={applicantData.grade12ExamResult}
-              alt="Grade 12 Exam Result"
-              className="w-64 h-36 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700"
-            />
+            {applicantData.grade12ExamResult ? (
+              <img
+                src={applicantData.grade12ExamResult}
+                alt="Grade 12 Exam Result"
+                className="w-64 h-36 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700"
+              />
+            ) : (
+              <div className="text-sm text-gray-500">No grade 12 result available</div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -736,15 +783,6 @@ export default function ApplicantDetail() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* <div className="space-y-2">
-            <Label htmlFor="remarks">Remarks</Label>
-            <Textarea
-              id="remarks"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Enter remarks for acceptance or rejection"
-            />
-          </div> */}
           <div className="flex space-x-4">
             <Button
               variant="default"
