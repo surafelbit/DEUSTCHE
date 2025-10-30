@@ -16,6 +16,7 @@ import {
   Layers,
   Menu,
   Settings,
+  UserPlus,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -46,6 +47,7 @@ export default function RegistrarLayout() {
   const navigation = [
     { name: "Dashboard", href: "/registrar/dashboard", icon: LayoutDashboard },
     // { name: "Applications", href: "/registrar/applications", icon: FileText },
+    { name: "Add New Student", href: "/registrar/add-student", icon: UserPlus },
     { name: "Students", href: "/registrar/students", icon: Users },
     { name: "Departments", href: "/registrar/departments", icon: Layers },
     // { name: "Courses", href: "/registrar/courses", icon: BookOpen },

@@ -1,5 +1,6 @@
 import axios from "axios";
 
+
 const noAuthEndpoints = [
   '/enums/genders',
   '/enums/marital-statuses',
