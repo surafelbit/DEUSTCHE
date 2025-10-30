@@ -49,7 +49,7 @@ const RegistrarStudents = React.lazy(() => import("./pages/registrar/Students"))
 const RegistrarCourses = React.lazy(() => import("./pages/registrar/Courses"));
 const RegistrarAssessments = React.lazy(() => import("./pages/registrar/Assessments"));
 const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
-const DepartmentDetail = React.lazy(() => import("./pages/registrar/DepartmentDetail"));
+const DepartmentDetail = React.lazy(() => import("./pages/registrar/DepartmentDetail.tsx"));
 const StudentDetail = React.lazy(() => import("./pages/registrar/StudentDetail"));
 const ApplicantDetail = React.lazy(() => import("./pages/registrar/ApplicantDetail"));
 const CustomStudentTable = React.lazy(() => import("./pages/registrar/CustomStudentTable"));
