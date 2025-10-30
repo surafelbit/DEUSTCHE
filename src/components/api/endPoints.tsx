@@ -4,7 +4,10 @@ const endPoints = {
   applicantsRegister:
     "https://deutschemedizin-collage-backend-production.up.railway.app/api/applicants/register", // POST
   registrarApplicantRegister: "/auth/register/student",
+  studentStatus: "/student-statuses",
+  batchClassSemsterYear: "/bcsy",
   applicantsList: "/applicants", // GET
+
   applicantDetail: "/applicants/:id", // GET
   applicantUpdateStatus: "/applicants/:id/status", // PUT
   applicantPhoto: "/applicants/:id/photo", // GET

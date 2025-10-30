@@ -3268,17 +3268,17 @@ const EducationalInformationStep = ({ formData, setFormData, dropdowns }) => {
           </label>
 
           <div className="flex gap-x-10">
-            {["hasPassedExitExam", "hasNotPassedExitExam"].map((s) => (
-              <label key={s} className="flex items-center">
+            {[true, false].map((s, index) => (
+              <label key={index} className="flex items-center">
                 <input
                   type="radio"
                   name="hasPassedExitExam"
                   value={s}
-                  checked={formData.hasPassedExitExam === s} // fixed: should match the field name
+                  checked={formData.hasPassedExitExam == s} // fixed: should match the field name
                   onChange={handleInputChange}
                   className="mr-2"
                 />
-                {s}
+                {index == 0 ? "Passed Exit Exam" : "Failed Exit Exam"}
               </label>
             ))}
           </div>
@@ -3334,8 +3334,8 @@ const EducationalInformationStep = ({ formData, setFormData, dropdowns }) => {
           </label>
 
           <div className="flex gap-x-10">
-            {["IsTransfer", "Not Transfer"].map((s) => (
-              <label key={s} className="flex items-center">
+            {[true, false].map((s, index) => (
+              <label key={index} className="flex items-center">
                 <input
                   type="radio"
                   name="isTransfer"
@@ -3344,7 +3344,7 @@ const EducationalInformationStep = ({ formData, setFormData, dropdowns }) => {
                   onChange={handleInputChange}
                   className="mr-2"
                 />
-                {s}
+                {index == 0 ? "is transfer" : "not transfer"}
               </label>
             ))}
           </div>
@@ -3454,12 +3454,34 @@ const EducationalInformationStep = ({ formData, setFormData, dropdowns }) => {
             )}
           </div>
         </section>
-
+        {/* <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+            Information about Impairment (if any): (Optional)
+          </label>
+          <select
+            name="impairmentCode"
+            value={formData.impairmentCode}
+            onChange={handleInputChange}
+            className="w-full bg-white dark:bg-black px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select Impairment</option>
+            {dropdowns.impairments.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div> */}
         {[
           {
-            label: "Select Your Department *",
+            label: "Select Department Your*",
             name: "departmentEnrolledId",
             options: dropdowns.departments,
+          },
+          {
+            label: "Select Students Status",
+            name: "studentRecentStatusId",
+            options: dropdowns.studentStatus,
           },
           {
             label: "Select Program Modality *",
@@ -3467,15 +3489,20 @@ const EducationalInformationStep = ({ formData, setFormData, dropdowns }) => {
             options: dropdowns.programModalities,
           },
           {
-            label: "Select Class Year *",
-            name: "classYearId",
-            options: dropdowns.classYears,
+            label: "Select Batch Class Year And Semester",
+            name: "batchClassYearSemesterId",
+            options: dropdowns.batchClassSemsterYear,
           },
-          {
-            label: "Select Semester *",
-            name: "semesterCode",
-            options: dropdowns.semesters,
-          },
+          // {
+          //   label: "Select Class Year *",
+          //   name: "classYearId",
+          //   options: dropdowns.classYears,
+          // },
+          // {
+          //   label: "Select Semester *",
+          //   name: "semesterCode",
+          //   options: dropdowns.semesters,
+          // },
         ].map((field) => (
           <div key={field.name} className="mb-6">
             <label className="block text-sm font-semibold text-gray-800 dark:text-white mb-2">
@@ -3514,7 +3541,10 @@ const ReviewSubmitStep = ({
     e.preventDefault();
     await onSubmit(formData);
   };
-
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -3566,7 +3596,63 @@ const ReviewSubmitStep = ({
         {/* <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
           6. STATEMENT BY THE APPLICANT
         </h3> */}
-
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+            Date of Enrollment:
+          </label>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs text-gray-500 dark:text-gray-100 mb-1">
+                Ethiopian Calendar (E.C)
+              </label>
+              <div className="grid grid-cols-3 gap-4">
+                <input
+                  type="text"
+                  name="dateEnrolledDateEC"
+                  placeholder="Date"
+                  value={formData.dateEnrolledDateEC}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
+                  name="dateEnrolledMonthEC"
+                  placeholder="Month"
+                  value={formData.dateEnrolledMonthEC}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
+                  name="dateEnrolledYearEC"
+                  placeholder="Year"
+                  value={formData.dateEnrolledYearEC}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 dark:text-gray-100 mb-1">
+                Gregorian Calendar (G.C) *
+              </label>
+              {/* <input
+                type="date"
+                name="dateEnrolledGc"
+                value={formData.dateEnrolledGc}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              /> */}
+              <input
+                type="date"
+                name="dateEnrolledGC"
+                value={formData.dateEnrolledGC}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
             Enter a few remark about this regestartion here{" "}
@@ -3575,7 +3661,7 @@ const ReviewSubmitStep = ({
           <textarea
             name="remark"
             value={formData.studentDescription}
-            // onChange={handleInputChange}
+            onChange={handleInputChange}
             placeholder="Enter remarks about the student..."
             className="w-full h-32 px-4 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
           />
@@ -3707,6 +3793,10 @@ const AddStudent = () => {
           birthDateEC: "",
           birthMonthEC: "",
           birthYearEC: "",
+          dateEnrolledDateEC: "",
+          dateEnrolledMonthEC: "",
+          dateEnrolledYearEC: "",
+          dateEnrolledGC: "",
           birthDateGC: "",
           placeOfBirthRegionCode: "",
           placeOfBirthZoneCode: "",
@@ -3728,20 +3818,21 @@ const AddStudent = () => {
           emergencyfirstNameAMH: "",
           emergencylastNameAMH: "",
           contactPersonRelation: "",
+          studentRecentStatusId: "",
+          batchClassYearSemesterId: "",
           contactPersonPhoneNumber: "",
           schoolBackgroundId: "",
           document: null,
           departmentEnrolledId: "",
           remark: "",
-          studentRecentStatusId: "",
           isTransfer: "",
           exitExamUserID: "",
           exitExamScore: "",
-          isStudentPassExitExam: "",
+          hasPassedExitExam: "",
           grade12Result: "",
           programModalityCode: "",
-          classYearId: "",
-          semesterCode: "",
+          //  classYearId: "",
+          // semesterCode: "",
         };
   });
 
@@ -3767,15 +3858,17 @@ const AddStudent = () => {
   const [dropdowns, setDropdowns] = useState({
     departments: [],
     impairments: [],
-    semesters: [],
+    studentStatus: [],
+    // semesters: [],
     schoolBackgrounds: [],
     programModalities: [],
-    classYears: [],
+    // classYears: [],
     regions: [],
     birthZones: [],
     birthWoredas: [],
     currentZones: [],
     currentWoredas: [],
+    batchClassSemsterYear: [],
   });
 
   useEffect(() => {
@@ -3784,19 +3877,24 @@ const AddStudent = () => {
         const [
           departments,
           impairments,
-          semesters,
+          studentStatus,
+          // semesters,
           schoolBackgrounds,
           programModalities,
           regions,
-          classYears,
+          batchClassSemsterYear,
+          // classYears,
         ] = await Promise.all([
           apiService.get(endPoints.departments),
           apiService.get(endPoints.impairments),
-          apiService.get(endPoints.semesters),
+
+          apiService.get(endPoints.studentStatus),
+          // apiService.get(endPoints.semesters),
           apiService.get(endPoints.schoolBackgrounds),
           apiService.get(endPoints.programModality),
           apiService.get(endPoints.regions),
-          apiService.get(endPoints.classYears),
+          apiService.get(endPoints.batchClassSemsterYear),
+          // apiService.get(endPoints.classYears),
         ]);
 
         setDropdowns({
@@ -3804,16 +3902,24 @@ const AddStudent = () => {
             value: d.dptID,
             label: d.deptName,
           })),
+          batchClassSemsterYear: (batchClassSemsterYear || []).map((i) => ({
+            value: i.bcsyId,
+            label: i.name,
+          })),
           impairments: (impairments || [])
             .map((i) => ({
               value: i?.impairmentCode ?? i?.disabilityCode,
               label: i?.impairment ?? i?.disability,
             }))
             .filter((o) => o.value && o.label),
-          semesters: (semesters || []).map((s) => ({
-            value: s.academicPeriodCode,
-            label: s.academicPeriod,
+          studentStatus: (studentStatus || []).map((s) => ({
+            value: s.id,
+            label: s.statusName,
           })),
+          // semesters: (semesters || []).map((s) => ({
+          //   value: s.academicPeriodCode,
+          //   label: s.academicPeriod,
+          // })),
           schoolBackgrounds: (schoolBackgrounds || []).map((b) => ({
             value: b.id,
             label: b.background,
@@ -3822,10 +3928,10 @@ const AddStudent = () => {
             value: m.modalityCode,
             label: m.modality,
           })),
-          classYears: (classYears || []).map((y) => ({
-            value: y.id,
-            label: y.classYear,
-          })),
+          // classYears: (classYears || []).map((y) => ({
+          //   value: y.id,
+          //   label: y.classYear,
+          // })),
           regions: (regions || []).map((r) => ({
             value: r.regionCode,
             label: r.region,
@@ -3912,6 +4018,8 @@ const AddStudent = () => {
   };
 
   const handleSubmit = async (data) => {
+    //  const formDataObj = new FormData();
+
     setIsSubmitting(true);
     setErrorMessage("");
 
@@ -3943,6 +4051,12 @@ const AddStudent = () => {
         data.birthMonthEC,
         data.birthDateEC
       ),
+      dateEnrolledEC: dateOrNull(
+        data.dateEnrolledDateEC,
+        data.dateEnrolledMonthEC,
+        data.dateEnrolledYearEC
+      ),
+      dateEnrolledGC: nullIfEmpty(data.dateEnrolledGC),
       dateOfBirthGC: data.birthDateGC || null,
       placeOfBirthWoredaCode: nullIfEmpty(data.placeOfBirthWoredaCode),
       placeOfBirthZoneCode: nullIfEmpty(data.placeOfBirthZoneCode),
@@ -3960,10 +4074,11 @@ const AddStudent = () => {
       contactPersonLastNameENG: nullIfEmpty(data.emergencylastName),
       contactPersonPhoneNumber: nullIfEmpty(data.contactPersonPhoneNumber),
       contactPersonRelation: nullIfEmpty(data.contactPersonRelation),
+      batchClassYearSemesterId: "13",
       departmentEnrolledId: intOrNull(data.departmentEnrolledId),
       programModalityCode: nullIfEmpty(data.programModalityCode),
-      classYearId: intOrNull(data.classYearId),
-      semesterCode: nullIfEmpty(data.semesterCode),
+      //classYearId: intOrNull(data.classYearId),
+      // semesterCode: nullIfEmpty(data.semesterCode),
       username: nullIfEmpty(data.username),
       password: nullIfEmpty(data.password),
       remark: nullIfEmpty(data.remark),
@@ -3971,27 +4086,49 @@ const AddStudent = () => {
       isTransfer: nullIfEmpty(data.isTransfer),
       exitExamUserID: nullIfEmpty(data.exitExamUserID),
       exitExamScore: nullIfEmpty(data.exitExamScore),
-      hasStudentPassExitExam: nullIfEmpty(data.hasStudentPassExitExam),
+      hasPassedExitExam: nullIfEmpty(data.hasPassedExitExam),
       grade12Result: nullIfEmpty(data.grade12Result),
     };
 
     const cleaned = Object.fromEntries(
       Object.entries(jsonBody).filter(([_, v]) => v !== null)
     );
-
+    // formDataObj.append(
+    //   "data",
+    //   new Blob([JSON.stringify(body)], { type: "application/json" })
+    // );
     form.append(
       "data",
       new Blob([JSON.stringify(cleaned)], { type: "application/json" })
     );
-
-    if (data.studentPhoto) form.append("studentPhoto", data.studentPhoto);
-    if (data.document) form.append("document", data.document);
+    // if (formData.studentPhoto && formData.studentPhoto instanceof File) {
+    //   formDataObj.append("studentPhoto", formData.studentPhoto);
+    // }
+    // if (data.studentPhoto) form.append("studentPhoto", data.studentPhoto);
+    //       if (formData.document && formData.document instanceof File) {
+    //     formDataObj.append("document", formData.document);
+    //   }
+    //if (data.document) form.append("document", data.document);
 
     try {
+      console.log(form, cleaned);
       const resp = await apiService.post(
         endPoints.registrarApplicantRegister,
-        form
+        form,
+        {
+          responseType: "blob",
+          headers: {
+            requiresAuth: true,
+          },
+        }
       );
+      //       const response = await apiService.post(
+      //   endPoints.applicantsRegister,
+      //   formDataObj,
+      //   {
+      //     // headers: { requiresAuth: false }
+      //   }
+      // );
       toast({
         title: "Success",
         description: "Student registered successfully.",
@@ -3999,6 +4136,7 @@ const AddStudent = () => {
       localStorage.removeItem("registrarRegistrationFormData");
       localStorage.removeItem("registrarRegistrationCurrentStep");
     } catch (err) {
+      console.log(err);
       let msg = "An error occurred.";
       if (err.response?.data?.message) msg = err.response.data.message;
       else if (err.message) msg = err.message;
