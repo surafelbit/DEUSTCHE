@@ -32,10 +32,10 @@ const endPoints = {
   allRegion: "/region",
   zonesByRegion: "/zone/region",
   woredasByZone: "/woreda/zone",
-  notifications: "/notifications/me", // GET
-  notificationsLatest: "/notifications/me/latest", // GET
-  markNotificationRead: "/notifications/:id/read", // PATCH
-  markAllNotificationsRead: "/notifications/me/read-all", // PATCH
+  notifications: "/notifications/me", 
+  notificationsLatest: "/notifications/me/latest", 
+  markNotificationRead: "/notifications/:id/read", 
+  markAllNotificationsRead: "/notifications/me/read-all",
 };
 
 export default endPoints;
