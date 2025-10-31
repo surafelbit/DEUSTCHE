@@ -388,7 +388,9 @@ export default function ApplicantDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
         {/* Profile Picture and Basic Info */}
+        
         <Card className="lg:col-span-1">
           <CardHeader className="text-center">
             <div className="relative mx-auto">
