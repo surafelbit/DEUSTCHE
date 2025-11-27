@@ -34,7 +34,10 @@ interface DepartmentInfo {
   id: string;
   name: string;
   description: string;
-  programType: string;
+  programLevelCode: string;
+  modalityCode: string;
+  programLevelName: string;
+  modalityName: string;
   courses: Course[];
   years?: {
     id: string;
@@ -47,19 +50,38 @@ interface DepartmentInfo {
   }[];
 }
 
-// Program type display names
-const programTypeNames = {
-  regular: "Regular",
-  extension: "Extension",
-  distance: "Distance",
-};
-
 export default function DepartmentDetail() {
   const { id } = useParams();
   const location = useLocation();
-  const programType = location.state?.programType || "regular";
   const navigate = useNavigate();
-  
+
+  const { programLevelCode = "", modalityCode = "" } = (location.state as any) || {};
+
+  const getLevelName = (code: string) => {
+    const map: Record<string, string> = {
+      DEG: "Bachelor's Degree",
+      DIP: "Diploma",
+      MSC: "Master's Degree",
+      PHD: "PhD",
+      TVET: "TVET",
+    };
+    return map[code] || code || "Unknown Level";
+  };
+
+  const getModalityName = (code: string) => {
+    if (!code) return "Unknown";
+    if (code.includes("REG")) return "Regular";
+    if (code.includes("EXT")) return "Extension";
+    if (code.includes("DIS")) return "Distance";
+    if (code.includes("SUM")) return "Summer";
+    if (code.includes("EVE")) return "Evening";
+    return code.split("-")[0] || "Unknown";
+  };
+
+  const programLevelName = getLevelName(programLevelCode);
+  const modalityName = getModalityName(modalityCode);
+  const fullProgramDisplay = `${modalityName} – ${programLevelName}`;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [department, setDepartment] = useState<DepartmentInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,7 +114,6 @@ export default function DepartmentDetail() {
     prerequisiteIds: [] as number[],
   });
 
-  // Fetch department ID from department code
   const [departmentId, setDepartmentId] = useState<number | null>(null);
   const [departmentCoursesForPrerequisites, setDepartmentCoursesForPrerequisites] = useState<Course[]>([]);
 
@@ -114,11 +135,9 @@ export default function DepartmentDetail() {
     }
   }, [id]);
 
-  // Fetch courses for prerequisites
   useEffect(() => {
     const fetchCoursesForPrerequisites = async () => {
       if (!departmentId) return;
-      
       try {
         const courses = await apiService.get(`/courses/department/${departmentId}`);
         setDepartmentCoursesForPrerequisites(courses);
@@ -135,31 +154,23 @@ export default function DepartmentDetail() {
   useEffect(() => {
     const fetchDepartmentCourses = async () => {
       if (!departmentId) return;
-      
+
       try {
         setIsLoading(true);
-        // Use the new endpoint to get courses by department ID
         const departmentCourses = await apiService.get(`/courses/department/${departmentId}`);
-        
-        console.log("Department courses:", departmentCourses);
 
         if (!departmentCourses || departmentCourses.length === 0) {
           setDepartment(null);
           return;
         }
 
-        // Group courses by year and semester
         const groupedCourses = departmentCourses.reduce((acc: any, course: Course) => {
           const year = course.classYear?.classYear || "Unknown";
           const semester = course.semester?.academicPeriod || "Unknown Semester";
-          
-          if (!acc[year]) {
-            acc[year] = {};
-          }
-          if (!acc[year][semester]) {
-            acc[year][semester] = [];
-          }
-          
+
+          if (!acc[year]) acc[year] = {};
+          if (!acc[year][semester]) acc[year][semester] = [];
+
           acc[year][semester].push({
             id: course.cid.toString(),
             name: course.ctitle,
@@ -170,18 +181,20 @@ export default function DepartmentDetail() {
             theoryHrs: course.theoryHrs,
             labHrs: course.labHrs,
             category: course.category?.catName || "Unknown",
-            originalCourse: course // Keep original course data for editing
+            originalCourse: course,
           });
-          
+
           return acc;
         }, {});
-        
-        // Transform to the expected department structure
+
         const departmentInfo: DepartmentInfo = {
           id: id || "",
           name: departmentCourses[0]?.department.deptName || id || "",
-          description: `All ${departmentCourses[0]?.department.deptName || id} courses for ${programType} programs.`,
-          programType: programType,
+          description: `All ${departmentCourses[0]?.department.deptName || id} courses`,
+          programLevelCode,
+          modalityCode,
+          programLevelName,
+          modalityName,
           courses: departmentCourses,
           years: Object.entries(groupedCourses).map(([year, semesters]: [string, any]) => ({
             id: `year${year}`,
@@ -195,8 +208,7 @@ export default function DepartmentDetail() {
         };
 
         setDepartment(departmentInfo);
-        
-        // Auto-expand first year
+
         if (departmentInfo.years && departmentInfo.years.length > 0) {
           setExpandedYears(new Set([departmentInfo.years[0].id]));
         }
@@ -211,18 +223,14 @@ export default function DepartmentDetail() {
     if (departmentId) {
       fetchDepartmentCourses();
     }
-  }, [departmentId, id, programType]);
+  }, [departmentId, id, programLevelCode, modalityCode]);
 
-  // Toggle year expansion
   const toggleYear = (yearId: string) => {
     const newExpandedYears = new Set(expandedYears);
     if (newExpandedYears.has(yearId)) {
       newExpandedYears.delete(yearId);
-      // Also collapse all semesters in this year
       const newExpandedSemesters = new Set(expandedSemesters);
-      department?.years
-        ?.find(year => year.id === yearId)
-        ?.semesters.forEach(sem => newExpandedSemesters.delete(sem.id));
+      department?.years?.find(y => y.id === yearId)?.semesters.forEach(s => newExpandedSemesters.delete(s.id));
       setExpandedSemesters(newExpandedSemesters);
     } else {
       newExpandedYears.add(yearId);
@@ -230,7 +238,6 @@ export default function DepartmentDetail() {
     setExpandedYears(newExpandedYears);
   };
 
-  // Toggle semester expansion
   const toggleSemester = (semesterId: string) => {
     const newExpandedSemesters = new Set(expandedSemesters);
     if (newExpandedSemesters.has(semesterId)) {
@@ -241,7 +248,6 @@ export default function DepartmentDetail() {
     setExpandedSemesters(newExpandedSemesters);
   };
 
-  // Get filtered courses for a semester based on search term
   const getFilteredCourses = (courses: any[]) => {
     return courses.filter(course =>
       course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -249,10 +255,6 @@ export default function DepartmentDetail() {
     );
   };
 
-  // Get all courses for prerequisite selection
-  const allCourses = department?.courses || [];
-
-  // Handle adding course
   const handleAddCourse = async () => {
     const {
       cTitle,
@@ -266,50 +268,35 @@ export default function DepartmentDetail() {
       prerequisiteIds,
     } = newCourse;
 
-    if (
-      !cTitle ||
-      !cCode ||
-      !theoryHrs ||
-      !labHrs ||
-      !cCategoryID ||
-      !departmentID ||
-      !classYearID ||
-      !semesterID
-    ) {
+    if (!cTitle || !cCode || !theoryHrs || !labHrs || !cCategoryID || !departmentID || !classYearID || !semesterID) {
       alert("Please fill in all required fields");
       return;
     }
 
     try {
       const response = await apiService.post(endPoints.courses, {
-        cTitle: cTitle,
-        cCode: cCode,
+        cTitle,
+        cCode,
         theoryHrs: parseInt(theoryHrs),
         labHrs: parseInt(labHrs),
         cCategoryID: parseInt(cCategoryID),
         departmentID: parseInt(departmentID),
         classYearID: parseInt(classYearID),
         semesterID: parseInt(semesterID),
-        prerequisiteIds: prerequisiteIds,
+        prerequisiteIds,
       });
 
       if (response) {
         alert("Course added successfully!");
-        // Refresh the data
         window.location.reload();
       }
     } catch (error: any) {
-      console.error("Error adding course:", error);
-      alert(error.response?.data?.error || "Failed to add course. Please try again.");
+      alert(error.response?.data?.error || "Failed to add course");
     }
   };
 
-  // Handle start editing
   const handleEditCourse = (course: any) => {
-    setEditingCourse({ 
-      id: course.id,
-      originalCourse: course.originalCourse 
-    });
+    setEditingCourse({ id: course.id, originalCourse: course.originalCourse });
     setEditValues({
       code: course.code,
       name: course.name,
@@ -324,7 +311,6 @@ export default function DepartmentDetail() {
     });
   };
 
-  // Handle update course
   const handleUpdateCourse = async (courseId: string) => {
     if (!editValues.code || !editValues.name || !editValues.theoryHrs || !editValues.labHrs) {
       alert("Please fill in all required fields");
@@ -346,63 +332,32 @@ export default function DepartmentDetail() {
 
       if (response.message === "Course updated successfully") {
         alert("Course updated successfully!");
-        // Close edit section immediately
         setEditingCourse(null);
-        setEditValues({ 
-          code: "", 
-          name: "", 
-          theoryHrs: "", 
-          labHrs: "", 
-          cCategoryID: "", 
-          departmentID: "", 
-          classYearID: "", 
-          semesterID: "", 
-          prerequisiteIds: [], 
-          teacher: "" 
-        });
-        // Refresh the data
         window.location.reload();
       }
     } catch (error: any) {
-      console.error("Error updating course:", error);
-      alert(error.response?.data?.error || "Failed to update course. Please try again.");
+      alert(error.response?.data?.error || "Failed to update course");
     }
   };
 
-  // Handle delete course
   const handleDeleteCourse = async (courseId: string) => {
-    if (!confirm("Are you sure you want to delete this course?")) {
-      return;
-    }
+    if (!confirm("Are you sure you want to delete this course?")) return;
 
     try {
       const response = await apiService.delete(`/courses/${courseId}`);
-      
       if (response.message === "Course deleted successfully") {
         alert("Course deleted successfully!");
-        // Refresh the data
         window.location.reload();
       }
     } catch (error: any) {
-      console.error("Error deleting course:", error);
-      alert(error.response?.data?.error || "Failed to delete course. Please try again.");
+      alert(error.response?.data?.error || "Failed to delete course");
     }
   };
 
-  // Handle cancel edit
   const handleCancelEdit = () => {
     setEditingCourse(null);
-    setEditValues({ 
-      code: "", 
-      name: "", 
-      theoryHrs: "", 
-      labHrs: "", 
-      cCategoryID: "", 
-      departmentID: "", 
-      classYearID: "", 
-      semesterID: "", 
-      prerequisiteIds: [], 
-      teacher: "" 
+    setEditValues({
+      code: "", name: "", theoryHrs: "", labHrs: "", cCategoryID: "", departmentID: "", classYearID: "", semesterID: "", prerequisiteIds: [], teacher: ""
     });
   };
 
@@ -417,9 +372,7 @@ export default function DepartmentDetail() {
   if (!department) {
     return (
       <div className="p-10 text-center">
-        <h1 className="text-3xl font-bold text-red-600">
-          Department Not Found
-        </h1>
+        <h1 className="text-3xl font-bold text-red-600">Department Not Found</h1>
         <p className="text-gray-600 mt-2">The requested department does not exist or has no courses.</p>
       </div>
     );
@@ -427,27 +380,25 @@ export default function DepartmentDetail() {
 
   return (
     <div className="p-6 space-y-8">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 rounded-3xl shadow-2xl text-white">
         <div className="flex justify-between items-start">
           <div>
             <div className="flex items-center gap-4 mb-3">
               <h1 className="text-5xl font-bold drop-shadow-lg">{department.name}</h1>
-              <span className="px-4 py-2 bg-white/20 rounded-full text-sm font-semibold backdrop-blur-sm">
-                {programTypeNames[programType as keyof typeof programTypeNames]}
+              <span className="px-6 py-2 bg-white/20 rounded-full text-lg font-bold backdrop-blur-sm">
+                {fullProgramDisplay}
               </span>
             </div>
             <p className="mt-3 text-xl opacity-95">{department.description}</p>
-            <div className="flex gap-6 mt-4">
-              <p className="text-blue-100 font-medium">📚 Total Courses: {department.courses.length}</p>
-              <p className="text-blue-100 font-medium">🏛 Department Code: {department.id}</p>
-              <p className="text-blue-100 font-medium">🎯 Program Type: {programTypeNames[programType as keyof typeof programTypeNames]}</p>
+            <div className="flex gap-6 mt-6">
+              <p className="text-blue-100 font-medium">Total Courses: {department.courses.length}</p>
+              <p className="text-blue-100 font-medium">Dept Code: {department.id}</p>
+              <p className="text-blue-100 font-medium">Level: {programLevelName} | Mode: {modalityName}</p>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Back Button */}
+
       <div className="flex justify-between items-center">
         <button
           onClick={() => navigate(-1)}
@@ -456,14 +407,12 @@ export default function DepartmentDetail() {
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          <span className="font-semibold">Back to Programs</span>
+          <span className="font-semibold">Back to Departments</span>
         </button>
       </div>
 
-      {/* Search and Actions Section */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
         <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
-          {/* Search Input */}
           <div className="flex-1 max-w-lg">
             <div className="relative">
               <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -479,7 +428,6 @@ export default function DepartmentDetail() {
             </div>
           </div>
 
-          {/* Add Course Button */}
           <button
             onClick={() => setIsFormOpen(!isFormOpen)}
             className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
@@ -502,7 +450,6 @@ export default function DepartmentDetail() {
           </button>
         </div>
 
-        {/* Add Course Form (Collapsible) */}
         {isFormOpen && (
           <div className="mt-6 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-8 rounded-2xl shadow-inner border border-gray-200 dark:border-gray-700">
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-3">
@@ -512,97 +459,22 @@ export default function DepartmentDetail() {
               Add New Course
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <input
-                type="text"
-                placeholder="Course Title *"
-                value={newCourse.cTitle}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, cTitle: e.target.value })
-                }
-                className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
-              <input
-                type="text"
-                placeholder="Course Code *"
-                value={newCourse.cCode}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, cCode: e.target.value })
-                }
-                className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
-              <input
-                type="number"
-                placeholder="Theory Hours *"
-                value={newCourse.theoryHrs}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, theoryHrs: e.target.value })
-                }
-                className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
-              <input
-                type="number"
-                placeholder="Lab Hours *"
-                value={newCourse.labHrs}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, labHrs: e.target.value })
-                }
-                className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
-              <input
-                type="number"
-                placeholder="Category ID *"
-                value={newCourse.cCategoryID}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, cCategoryID: e.target.value })
-                }
-                className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
-              <input
-                type="number"
-                placeholder="Department ID *"
-                value={newCourse.departmentID}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, departmentID: e.target.value })
-                }
-                className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
-              <input
-                type="number"
-                placeholder="Class Year ID *"
-                value={newCourse.classYearID}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, classYearID: e.target.value })
-                }
-                className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
-              <input
-                type="number"
-                placeholder="Semester ID *"
-                value={newCourse.semesterID}
-                onChange={(e) =>
-                  setNewCourse({ ...newCourse, semesterID: e.target.value })
-                }
-                className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
+              <input type="text" placeholder="Course Title *" value={newCourse.cTitle} onChange={(e) => setNewCourse({ ...newCourse, cTitle: e.target.value })} className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" />
+              <input type="text" placeholder="Course Code *" value={newCourse.cCode} onChange={(e) => setNewCourse({ ...newCourse, cCode: e.target.value })} className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" />
+              <input type="number" placeholder="Theory Hours *" value={newCourse.theoryHrs} onChange={(e) => setNewCourse({ ...newCourse, theoryHrs: e.target.value })} className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" />
+              <input type="number" placeholder="Lab Hours *" value={newCourse.labHrs} onChange={(e) => setNewCourse({ ...newCourse, labHrs: e.target.value })} className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" />
+              <input type="number" placeholder="Category ID *" value={newCourse.cCategoryID} onChange={(e) => setNewCourse({ ...newCourse, cCategoryID: e.target.value })} className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" />
+              <input type="number" placeholder="Department ID *" value={newCourse.departmentID} onChange={(e) => setNewCourse({ ...newCourse, departmentID: e.target.value })} className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" />
+              <input type="number" placeholder="Class Year ID *" value={newCourse.classYearID} onChange={(e) => setNewCourse({ ...newCourse, classYearID: e.target.value })} className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" />
+              <input type="number" placeholder="Semester ID *" value={newCourse.semesterID} onChange={(e) => setNewCourse({ ...newCourse, semesterID: e.target.value })} className="border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" />
               <div className="relative col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                  Prerequisites (Hold Ctrl/Cmd to select multiple)
-                </label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Prerequisites (Hold Ctrl/Cmd to select multiple)</label>
                 <select
                   multiple
                   value={newCourse.prerequisiteIds.map(String)}
-                  onChange={(e) =>
-                    setNewCourse({
-                      ...newCourse,
-                      prerequisiteIds: Array.from(
-                        e.target.selectedOptions,
-                        (option) => parseInt(option.value)
-                      ).filter((val) => !isNaN(val)),
-                    })
-                  }
+                  onChange={(e) => setNewCourse({ ...newCourse, prerequisiteIds: Array.from(e.target.selectedOptions, option => parseInt(option.value)).filter(val => !isNaN(val)) })}
                   className="w-full border-2 border-gray-200 dark:border-gray-700 px-4 py-3 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 min-h-[120px]"
                 >
-                  <option value="" disabled>Select prerequisites (hold Ctrl/Cmd for multiple)</option>
                   {departmentCoursesForPrerequisites.map((course) => (
                     <option key={course.cid} value={course.cid}>
                       {course.ccode} - {course.ctitle}
@@ -626,85 +498,53 @@ export default function DepartmentDetail() {
         )}
       </div>
 
-      {/* Years and Semesters Accordion */}
       {department.years && department.years.length > 0 ? (
         <div className="space-y-6">
-          <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100 text-center">
-            Academic Structure
-          </h2>
+          <h2 className="text-4xl font-bold text-gray-800 dark:text-gray-100 text-center">Academic Structure</h2>
           {department.years.map((year) => (
             <div key={year.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300 hover:shadow-xl">
-              {/* Year Header */}
               <button
                 onClick={() => toggleYear(year.id)}
                 className="w-full p-8 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-300 flex justify-between items-center group"
               >
                 <div className="flex items-center gap-6">
-                  <div className={`p-3 rounded-2xl bg-blue-100 dark:bg-blue-900/30 transition-transform duration-300 group-hover:scale-110 ${
-                    expandedYears.has(year.id) ? 'rotate-90' : ''
-                  }`}>
-                    <svg
-                      className={`w-8 h-8 text-blue-600 dark:text-blue-400 transform transition-transform duration-300 ${
-                        expandedYears.has(year.id) ? "rotate-90" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
+                  <div className={`p-3 rounded-2xl bg-blue-100 dark:bg-blue-900/30 transition-transform duration-300 group-hover:scale-110 ${expandedYears.has(year.id) ? 'rotate-90' : ''}`}>
+                    <svg className={`w-8 h-8 text-blue-600 dark:text-blue-400 transform transition-transform duration-300 ${expandedYears.has(year.id) ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
                   <div className="text-left">
-                    <h3 className="text-3xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {year.name}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 mt-2">
-                      Expand to view semesters and courses
-                    </p>
+                    <h3 className="text-3xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{year.name}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mt-2">Expand to view semesters and courses</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {year.semesters.reduce((total, sem) => total + sem.courses.length, 0)}
-                    </div>
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{year.semesters.reduce((total, sem) => total + sem.courses.length, 0)}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">Total Courses</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {year.semesters.length}
-                    </div>
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{year.semesters.length}</div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">Semesters</div>
                   </div>
                 </div>
               </button>
 
-              {/* Year Content - Semesters */}
               {expandedYears.has(year.id) && (
                 <div className="border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
                   {year.semesters.map((semester) => (
                     <div key={semester.id} className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
-                      {/* Semester Header */}
                       <button
                         onClick={() => toggleSemester(semester.id)}
                         className="w-full p-6 pl-16 text-left hover:bg-white dark:hover:bg-gray-800 transition-all duration-300 flex justify-between items-center group"
                       >
                         <div className="flex items-center gap-5">
                           <div className="p-2 rounded-xl bg-green-100 dark:bg-green-900/30 transition-transform duration-300 group-hover:scale-110">
-                            <svg
-                              className={`w-5 h-5 text-green-600 dark:text-green-400 transform transition-transform duration-300 ${
-                                expandedSemesters.has(semester.id) ? "rotate-90" : ""
-                              }`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
+                            <svg className={`w-5 h-5 text-green-600 dark:text-green-400 transform transition-transform duration-300 ${expandedSemesters.has(semester.id) ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                           </div>
-                          <h4 className="text-xl font-semibold text-gray-700 dark:text-gray-300 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                            {semester.name}
-                          </h4>
+                          <h4 className="text-xl font-semibold text-gray-700 dark:text-gray-300 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">{semester.name}</h4>
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full text-sm font-semibold">
@@ -713,15 +553,12 @@ export default function DepartmentDetail() {
                         </div>
                       </button>
 
-                      {/* Semester Content - Courses */}
                       {expandedSemesters.has(semester.id) && (
                         <div className="bg-white dark:bg-gray-800 p-6">
                           {getFilteredCourses(semester.courses).length === 0 ? (
                             <div className="text-center py-12">
-                              <div className="text-gray-400 dark:text-gray-500 text-6xl mb-4">📚</div>
-                              <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">
-                                No courses found
-                              </h3>
+                              <div className="text-gray-400 dark:text-gray-500 text-6xl mb-4">No courses found</div>
+                              <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">No courses found</h3>
                               <p className="text-gray-500 dark:text-gray-500">
                                 {searchTerm ? 'No courses match your search criteria.' : 'No courses available for this semester.'}
                               </p>
@@ -746,235 +583,118 @@ export default function DepartmentDetail() {
                                   {getFilteredCourses(semester.courses).map((course, index) => (
                                     <tr
                                       key={course.id}
-                                      className={`transition-all duration-300 ${
-                                        editingCourse && editingCourse.id === course.id
-                                          ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700"
-                                          : index % 2 === 0 
-                                            ? "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700" 
-                                            : "bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                      } border-b border-gray-100 dark:border-gray-700 last:border-b-0`}
+                                      className={`transition-all duration-300 ${editingCourse && editingCourse.id === course.id ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-700" : index % 2 === 0 ? "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700" : "bg-gray-50 dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-700"} border-b border-gray-100 dark:border-gray-700 last:border-b-0`}
                                     >
                                       {editingCourse && editingCourse.id === course.id ? (
                                         <>
+                                          <td className="p-4"><input type="text" value={editValues.code} onChange={(e) => setEditValues({ ...editValues, code: e.target.value })} className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" /></td>
+                                          <td className="p-4"><input type="text" value={editValues.name} onChange={(e) => setEditValues({ ...editValues, name: e.target.value })} className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" /></td>
+                                          <td className="p-4"><input type="number" value={editValues.theoryHrs} onChange={(e) => setEditValues({ ...editValues, theoryHrs: e.target.value })} className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" /></td>
+                                          <td className="p-4"><input type="number" value={editValues.labHrs} onChange={(e) => setEditValues({ ...editValues, labHrs: e.target.value })} className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" /></td>
+                                          <td className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">{(parseInt(editValues.theoryHrs || '0') + parseInt(editValues.labHrs || '0'))}</td>
+                                          <td className="p-4"><input type="number" value={editValues.cCategoryID} onChange={(e) => setEditValues({ ...editValues, cCategoryID: e.target.value })} className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" placeholder="Category ID" /></td>
+                                          <td className="p-4"><input type="text" value={editValues.teacher} onChange={(e) => setEditValues({ ...editValues, teacher: e.target.value })} className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300" placeholder="Teacher name" /></td>
                                           <td className="p-4">
-                                            <input
-                                              type="text"
-                                              value={editValues.code}
-                                              onChange={(e) =>
-                                                setEditValues({
-                                                  ...editValues,
-                                                  code: e.target.value,
-                                                })
-                                              }
-                                              className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-                                            />
-                                          </td>
-                                          <td className="p-4">
-                                            <input
-                                              type="text"
-                                              value={editValues.name}
-                                              onChange={(e) =>
-                                                setEditValues({
-                                                  ...editValues,
-                                                  name: e.target.value,
-                                                })
-                                              }
-                                              className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-                                            />
+                                            <select
+                                              multiple
+                                              value={editValues.prerequisiteIds.map(String)}
+                                              onChange={(e) => setEditValues({ ...editValues, prerequisiteIds: Array.from(e.target.selectedOptions, option => parseInt(option.value)).filter(val => !isNaN(val)) })}
+                                              className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 min-h-[80px]"
+                                            >
+                                              {departmentCoursesForPrerequisites.map((prereqCourse) => (
+                                                <option key={prereqCourse.cid} value={prereqCourse.cid}>
+                                                  {prereqCourse.ccode} - {prereqCourse.ctitle}
+                                                </option>
+                                              ))}
+                                            </select>
                                           </td>
                                           <td className="p-4">
-                                            <input
-                                              type="number"
-                                              value={editValues.theoryHrs}
-                                              onChange={(e) =>
-                                                setEditValues({
-                                                  ...editValues,
-                                                  theoryHrs: e.target.value,
-                                                })
-                                              }
-                                              className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-                                            />
+                                            <div className="flex gap-2 justify-center">
+                                              <button onClick={() => handleUpdateCourse(course.originalCourse?.cid || course.id)} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Save
+                                              </button>
+                                              <button onClick={handleCancelEdit} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                                Cancel
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <td className="p-4 font-mono font-bold text-blue-700 dark:text-blue-300">{course.code}</td>
+                                          <td className="p-4 font-semibold text-gray-800 dark:text-gray-200">{course.name}</td>
+                                          <td className="p-4 text-center font-bold text-gray-700 dark:text-gray-300">{course.theoryHrs}</td>
+                                          <td className="p-4 text-center font-bold text-gray-700 dark:text-gray-300">{course.labHrs}</td>
+                                          <td className="p-4 text-center font-bold text-green-600 dark:text-green-400 text-lg">{course.creditHours}</td>
+                                          <td className="p-4">
+                                            <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm font-semibold">{course.category}</span>
                                           </td>
                                           <td className="p-4">
-                                            <input
-                                              type="number"
-                                              value={editValues.labHrs}
-                                              onChange={(e) =>
-                                                setEditValues({
-                                                  ...editValues,
-                                                  labHrs: e.target.value,
-                                                })
-                                              }
-                                              className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-                                            />
-                                          </td>
-                                          <td className="p-4 text-center font-semibold text-gray-700 dark:text-gray-300">
-                                            {(parseInt(editValues.theoryHrs || '0') + parseInt(editValues.labHrs || '0'))}
+                                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${course.teacher && course.teacher !== "Not Assigned" ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300"}`}>
+                                              {course.teacher}
+                                            </span>
                                           </td>
                                           <td className="p-4">
-                                            <input
-                                              type="number"
-                                              value={editValues.cCategoryID}
-                                              onChange={(e) =>
-                                                setEditValues({
-                                                  ...editValues,
-                                                  cCategoryID: e.target.value,
-                                                })
-                                              }
-                                              className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-                                              placeholder="Category ID"
-                                            />
+                                            {course.prerequisites.length > 0 ? (
+                                              <div className="flex flex-wrap gap-1">
+                                                {course.prerequisites.map((prereq: string, index: number) => (
+                                                  <span key={index} className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium">
+                                                    {prereq}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            ) : (
+                                              <span className="text-gray-400 dark:text-gray-500 text-sm">None</span>
+                                            )}
                                           </td>
                                           <td className="p-4">
-                                            <input
-                                              type="text"
-                                              value={editValues.teacher}
-                                              onChange={(e) =>
-                                                setEditValues({
-                                                  ...editValues,
-                                                  teacher: e.target.value,
-                                                })
-                                              }
-                                              className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-                                              placeholder="Teacher name"
-                                            />
+                                            <div className="flex gap-2 justify-center">
+                                              <button onClick={() => handleEditCourse(course)} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                                Edit
+                                              </button>
+                                              <button onClick={() => handleDeleteCourse(course.originalCourse?.cid || course.id)} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                                Delete
+                                              </button>
+                                            </div>
                                           </td>
-<td className="p-4">
-  <select
-    multiple
-    value={editValues.prerequisiteIds.map(String)}
-    onChange={(e) =>
-      setEditValues({
-        ...editValues,
-        prerequisiteIds: Array.from(
-          e.target.selectedOptions,
-          (option) => parseInt(option.value)
-        ).filter((val) => !isNaN(val)),
-      })
-    }
-    className="w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 min-h-[80px]"
-  >
-    <option value="" disabled>Select prerequisites (hold Ctrl/Cmd for multiple)</option>
-    {departmentCoursesForPrerequisites.map((prereqCourse) => (
-      <option key={prereqCourse.cid} value={prereqCourse.cid}>
-        {prereqCourse.ccode} - {prereqCourse.ctitle}
-      </option>
-    ))}
-  </select>
-</td>
-<td className="p-4">
-  <div className="flex gap-2 justify-center">
-    <button
-      onClick={() => handleUpdateCourse(course.originalCourse?.cid || course.id)}
-      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
-    >
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
-      Save
-    </button>
-    <button
-      onClick={handleCancelEdit}
-      className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
-    >
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-      </svg>
-      Cancel
-    </button>
-  </div>
-</td>
-</>
-) : (
-<>
-<td className="p-4 font-mono font-bold text-blue-700 dark:text-blue-300">{course.code}</td>
-<td className="p-4 font-semibold text-gray-800 dark:text-gray-200">{course.name}</td>
-<td className="p-4 text-center font-bold text-gray-700 dark:text-gray-300">{course.theoryHrs}</td>
-<td className="p-4 text-center font-bold text-gray-700 dark:text-gray-300">{course.labHrs}</td>
-<td className="p-4 text-center font-bold text-green-600 dark:text-green-400 text-lg">
-  {course.creditHours}
-</td>
-<td className="p-4">
-  <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm font-semibold">
-    {course.category}
-  </span>
-</td>
-<td className="p-4">
-  <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-    course.teacher && course.teacher !== "Not Assigned" 
-      ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" 
-      : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300"
-  }`}>
-    {course.teacher}
-  </span>
-</td>
-<td className="p-4">
-  {course.prerequisites.length > 0 ? (
-    <div className="flex flex-wrap gap-1">
-      {course.prerequisites.map((prereq: string, index: number) => (
-        <span
-          key={index}
-          className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium"
-        >
-          {prereq}
-        </span>
-      ))}
+                                        </>
+                                      )}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 p-12 rounded-2xl border-2 border-yellow-200 dark:border-yellow-800 text-center">
+          <div className="text-yellow-500 dark:text-yellow-400 text-8xl mb-6">No Academic Structure Available</div>
+          <h3 className="text-3xl font-bold text-yellow-800 dark:text-yellow-200 mb-4">No Academic Structure Available</h3>
+          <p className="text-yellow-600 dark:text-yellow-400 text-lg max-w-2xl mx-auto">
+            There are no courses organized by year and semester for this department yet. Start by adding new courses using the "Create New Course" button above.
+          </p>
+        </div>
+      )}
     </div>
-  ) : (
-    <span className="text-gray-400 dark:text-gray-500 text-sm">None</span>
-  )}
-</td>
-<td className="p-4">
-  <div className="flex gap-2 justify-center">
-    <button
-      onClick={() => handleEditCourse(course)}
-      className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
-    >
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-      </svg>
-      Edit
-    </button>
-    <button
-      onClick={() => handleDeleteCourse(course.originalCourse?.cid || course.id)}
-      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center gap-2"
-    >
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-      </svg>
-      Delete
-    </button>
-  </div>
-</td>
-</>
-)}
-</tr>
-))}
-</tbody>
-</table>
-</div>
-)}
-</div>
-)}
-</div>
-))}
-</div>
-)}
-</div>
-))}
-</div>
-) : (
-<div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 p-12 rounded-2xl border-2 border-yellow-200 dark:border-yellow-800 text-center">
-<div className="text-yellow-500 dark:text-yellow-400 text-8xl mb-6">📚</div>
-<h3 className="text-3xl font-bold text-yellow-800 dark:text-yellow-200 mb-4">
-  No Academic Structure Available
-</h3>
-<p className="text-yellow-600 dark:text-yellow-400 text-lg max-w-2xl mx-auto">
-  There are no courses organized by year and semester for this department yet.
-  Start by adding new courses using the "Create New Course" button above.
-</p>
-</div>
-)}
-</div>
-);
+  );
 }
