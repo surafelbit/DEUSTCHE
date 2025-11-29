@@ -15,50 +15,60 @@ export default function RegistrarStudents() {
   const [loading, setLoading] = useState(true);
   const objectUrlRefs = useRef<string[]>([]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        setLoading(true);
-        const list = await apiService.get(endPoints.students);
-        const mapped: DataTypes[] = (list || []).map((s: any) => {
-          const englishName = [s.firstNameENG, s.fatherNameENG, s.grandfatherNameENG]
-            .filter(Boolean)
-            .join(" ");
-          const amharicName = [s.firstNameAMH, s.fatherNameAMH, s.grandfatherNameAMH]
-            .filter(Boolean)
-            .join(" ");
-          return {
-            key: String(s.id),
-            id: String(s.id),
-            name: englishName || "-",
-            amharicName: amharicName || "-",
-            year: Number(s.batchClassYearSemesterId) || 0,
-            batch: String(s.batchClassYearSemesterId || "-"),
-            status: "Student",
-            department: String(s.departmentEnrolledId || "-"),
-            photo: "",
-          } as DataTypes;
-        });
+useEffect(() => {
+  let cancelled = false;
 
-        // fetch optional photos if backend supports it later
-        const withPhotos = await Promise.all(
-          mapped.map(async (row) => row)
-        );
-        if (!cancelled) setStudents(withPhotos);
-      } catch (_) {
-        if (!cancelled) setStudents([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  async function load() {
+    try {
+      setLoading(true);
+      const list = await apiService.get(endPoints.students);
+
+      const mapped: DataTypes[] = (list || []).map((s: any) => {
+        // Build full names
+        const englishName = [s.firstNameENG, s.fatherNameENG, s.grandfatherNameENG]
+          .filter(Boolean)
+          .join(" ");
+
+        const amharicName = [s.firstNameAMH, s.fatherNameAMH, s.grandfatherNameAMH]
+          .filter(Boolean)
+          .join(" ");
+
+        // Fix base64 photo
+        const photoUrl = s.studentPhoto
+          ? `data:image/jpeg;base64,${s.studentPhoto}`
+          : undefined;
+
+        return {
+          key: String(s.id),
+          id: s.username || String(s.id), // use username if available
+          name: englishName || "No Name",
+          amharicName: amharicName || "ስም የለም",
+          status: s.studentRecentStatus || "Unknown",
+          departmentEnrolled: s.departmentEnrolled || "-",
+          department: s.departmentEnrolled || "-", // mapped for DataTypes
+          batchClassYearSemester: s.batchClassYearSemester || "-",
+          batch: s.batchClassYearSemester || s.batch || "-", // mapped for DataTypes
+          year: s.academicYear || s.year || "-", // mapped for DataTypes
+          photo: photoUrl,
+          isDisabled: s.accountStatus === "DISABLED",
+        } as DataTypes;
+      });
+
+      if (!cancelled) setStudents(mapped);
+    } catch (err) {
+      console.error("Failed to load students:", err);
+      if (!cancelled) setStudents([]);
+    } finally {
+      if (!cancelled) setLoading(false);
     }
-    load();
-    return () => {
-      cancelled = true;
-      objectUrlRefs.current.forEach((u) => URL.revokeObjectURL(u));
-      objectUrlRefs.current = [];
-    };
-  }, []);
+  }
+
+  load();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   const filteredData = useMemo(() => {
     const list = students;

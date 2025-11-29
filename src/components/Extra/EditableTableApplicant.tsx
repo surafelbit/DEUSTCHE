@@ -158,9 +158,8 @@ const EditableTableApplicant: React.FC<EditableTableProps> = ({
         </span>
       ),
     },
-    { title: "Batch", dataIndex: "batch", width: "12%" },
-    { title: "Year", dataIndex: "year", width: "10%" },
-    { title: "Department", dataIndex: "department", width: "11%" },
+    { title: "Batch", dataIndex: "batchClassYearSemester", width: "12%" },
+    { title: "Department", dataIndex: "departmentEnrolled", width: "11%" },
     {
       title: "Account Status",
       dataIndex: "accountStatus",
