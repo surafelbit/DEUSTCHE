@@ -93,14 +93,15 @@ const ImpairmentEditor = React.lazy(
   () => import("./pages/registrar/settings/ImpairmentEditor")
 );
 
-
 const CourseCategoriesEditor = React.lazy(
   () => import("./pages/registrar/settings/CourseCategoriesEditor")
 );
 const NotificationsPage = React.lazy(
   () => import("./pages/registrar/NotificationsPage")
 );
-
+const Transcript_Generate = React.lazy(
+  () => import("./pages/registrar/Transcript_Generate")
+);
 // Finance Pages
 const FinanceLayout = React.lazy(() => import("./layouts/FinanceLayout"));
 const FinanceDashboard = React.lazy(() => import("./pages/finance/Dashboard"));
@@ -286,6 +287,7 @@ function App() {
               <Route path="batches" element={<RegistrarBatches />} />
               <Route path="tables" element={<CustomStudentTable />} />
               <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="transcripts" element={<Transcript_Generate />} />
             </Route>
 
             {/* Finance Routes */}
