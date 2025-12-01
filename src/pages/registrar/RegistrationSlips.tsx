@@ -12,18 +12,24 @@ import endPoints from "@/components/api/endPoints";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from 'xlsx';
+
+// Mock toast for now - replace with actual toast library if needed
 const toast = {
   success: (msg: string) => {
     if (typeof window !== "undefined") {
       console.log("Success:", msg);
+      // You can add actual toast notification here
+      alert(msg);
     }
   },
   error: (msg: string) => {
     if (typeof window !== "undefined") {
       console.error("Error:", msg);
+      alert(msg);
     }
   },
 };
+
 interface Student {
   id: number;
   fullName: string;
@@ -84,9 +90,12 @@ export default function RegistrationSlips() {
     // Initialize with sample courses
     setRegistrationCourses(sampleCourses);
     
-    // Fetch students (you'll need to implement this)
+    // Fetch students and courses
     fetchStudents();
     fetchCourses();
+    
+    // Initialize payment receipt number
+    setPaymentReceiptNo(`PAY-${Date.now().toString().slice(-6)}`);
   }, []);
 
   const fetchStudents = async () => {
@@ -102,6 +111,8 @@ export default function RegistrationSlips() {
         { id: 1, fullName: "John Doe", studentId: "STU001", department: "Medicine", yearOfStudy: "Year 3", semester: "Semester 2", age: 22, sex: "Male", batch: "2022" },
         { id: 2, fullName: "Jane Smith", studentId: "STU002", department: "Medicine", yearOfStudy: "Year 3", semester: "Semester 2", age: 23, sex: "Female", batch: "2022" },
         { id: 3, fullName: "Robert Johnson", studentId: "STU003", department: "Medicine", yearOfStudy: "Year 4", semester: "Semester 1", age: 24, sex: "Male", batch: "2021" },
+        { id: 4, fullName: "Emily Brown", studentId: "STU004", department: "Medicine", yearOfStudy: "Year 2", semester: "Semester 1", age: 21, sex: "Female", batch: "2023" },
+        { id: 5, fullName: "Michael Wilson", studentId: "STU005", department: "Medicine", yearOfStudy: "Year 5", semester: "Semester 2", age: 25, sex: "Male", batch: "2020" },
       ];
       setStudents(sampleStudents);
       setFilteredStudents(sampleStudents);
@@ -119,6 +130,8 @@ export default function RegistrationSlips() {
         { id: 1, courseCode: "MED101", courseTitle: "Anatomy", creditHours: 4, lectureHours: 3, labHours: 1 },
         { id: 2, courseCode: "MED102", courseTitle: "Physiology", creditHours: 3, lectureHours: 2, labHours: 1 },
         { id: 3, courseCode: "MED103", courseTitle: "Biochemistry", creditHours: 3, lectureHours: 3, labHours: 0 },
+        { id: 4, courseCode: "MED104", courseTitle: "Pharmacology", creditHours: 4, lectureHours: 3, labHours: 1 },
+        { id: 5, courseCode: "MED105", courseTitle: "Pathology", creditHours: 4, lectureHours: 3, labHours: 1 },
       ];
       setCourses(sampleCoursesData);
     }
@@ -191,37 +204,9 @@ export default function RegistrationSlips() {
     const right = 15;
     const usableWidth = pageWidth - left - right;
 
-    // try to load logo
     let headerY = 15;
-    try {
-      const loadImage = (src: string) =>
-        new Promise<HTMLImageElement>((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = src;
-        });
-      const img = await loadImage("/assets/companylogo.jpg");
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        const imgData = canvas.toDataURL("image/jpeg");
-        const imgW = 30; // mm
-        const imgH = (img.naturalHeight / img.naturalWidth) * imgW;
-        const imgX = (pageWidth - imgW) / 2;
-        const imgY = 10;
-        doc.addImage(imgData, "JPEG", imgX, imgY, imgW, imgH);
-        headerY = imgY + imgH + 4;
-      }
-    } catch {
-      headerY = 15;
-    }
-
-    // header texts (keep compact so content stays on one page)
+    
+    // Add header texts
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
     doc.text("DEUTSCHE HOCHSCHULE FÜR MEDIZIN", pageWidth / 2, headerY, { align: "center" });
@@ -238,7 +223,7 @@ export default function RegistrationSlips() {
     doc.setLineWidth(0.5);
     doc.line(left, sepY, pageWidth - right, sepY);
 
-    // Student info - wrap where necessary (but keep concise)
+    // Student info
     doc.setFontSize(10);
     let curY = sepY + 8;
     const wrap = (text: string, x: number, y: number, maxW: number, fontSize = 10, lineHeight = 5) => {
@@ -257,7 +242,7 @@ export default function RegistrationSlips() {
       usableWidth
     );
 
-    // ID / Age / Sex on one line if possible
+    // ID / Age / Sex on one line
     const idLine = `ID No.: ${selectedStudent.studentId}    Age: ${selectedStudent.age}    Sex: ${selectedStudent.sex}`;
     doc.setFontSize(10);
     doc.text(idLine, left, curY + 6);
@@ -267,15 +252,12 @@ export default function RegistrationSlips() {
     const payLine = `Payment Receipt No.: ${paymentReceiptNo}    Academic Year: ${academicYear}    Enrollment Type: ${enrollmentType}`;
     doc.text(payLine, left, curY + 2);
 
-    // Course registration table - keep unchanged
+    // Course registration table
     doc.setFontSize(12);
-    // place the intro line right after the student/payment block
     const introY = curY + 8;
-    // ensure intro isn't too high (near header) and not overlapping previous content
     const introTextY = Math.max(introY, 70);
     doc.text("I am applying to be registered for the following courses.", left, introTextY);
 
-    // pick a table start Y that is at least the original 95 but also below the intro text
     const tableStartY = Math.max(95, introTextY + 6);
 
     const tableData = registrationCourses.map((course, index) => [
@@ -298,7 +280,7 @@ export default function RegistrationSlips() {
       margin: { left: 14, right: 14 },
     });
 
-    // Footer signatures - keep single lines, do not wrap them
+    // Footer signatures
     const finalY = (doc as any).lastAutoTable.finalY + 20;
     doc.setFontSize(10);
     doc.text("Student signature _____________________", left, finalY);
@@ -307,14 +289,12 @@ export default function RegistrationSlips() {
 
     const financeText = "Finance Head _____________________ Signature _____________________ Date _____________________";
     const deptText = "Department Head _____________________ Signature _____________________ Date _____________________";
-    // signatures must remain on single lines; reduce font size slightly if too wide
     const sigFontSize = 9;
     doc.setFontSize(sigFontSize);
-    // fit on one line by truncating spacing if necessary (still one line)
     doc.text(financeText, left, finalY + 12, { maxWidth: usableWidth });
     doc.text(deptText, left, finalY + 22, { maxWidth: usableWidth });
 
-    // Notes - allow wrapping and ensure everything stays on the same page.
+    // Notes
     const notesStartY = finalY + 32;
     const notes = [
       "NB.",
@@ -324,7 +304,6 @@ export default function RegistrationSlips() {
       "4. The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.",
     ];
 
-    // try to fit notes by decreasing font size if needed, but do not create a new page
     let notesFont = 9;
     let linesCount = 0;
     const bottomMargin = 12;
@@ -334,7 +313,7 @@ export default function RegistrationSlips() {
         const lines = (doc as any).splitTextToSize(n, usableWidth);
         linesCount += lines.length;
       }
-      const neededHeight = linesCount * (notesFont * 0.9); // approx line height
+      const neededHeight = linesCount * (notesFont * 0.9);
       if (notesStartY + neededHeight + bottomMargin <= pageHeight) break;
       notesFont -= 1;
     }
@@ -429,7 +408,51 @@ export default function RegistrationSlips() {
   };
 
   const handlePrint = () => {
-    window.print();
+    if (!selectedStudent) {
+      toast.error("Please select a student first");
+      return;
+    }
+    
+    // Create HTML for printing
+    const printContent = document.getElementById('slip-preview')?.innerHTML;
+    if (printContent) {
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Registration Slip - ${selectedStudent.fullName}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              .print-header { text-align: center; margin-bottom: 20px; }
+              .print-header h1 { font-size: 18px; font-weight: bold; margin: 5px 0; }
+              .print-header h2 { font-size: 14px; margin: 3px 0; }
+              .print-header h3 { font-size: 12px; font-weight: bold; margin: 8px 0; }
+              .print-info { margin-bottom: 15px; font-size: 11px; }
+              .print-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10px; }
+              .print-table th { background-color: #4a90e2; color: white; padding: 6px; border: 1px solid #ddd; }
+              .print-table td { padding: 6px; border: 1px solid #ddd; }
+              .print-signatures { margin-top: 30px; font-size: 10px; }
+              .print-notes { margin-top: 20px; font-size: 9px; }
+            </style>
+          </head>
+          <body>
+            ${printContent}
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(() => window.close(), 1000);
+              };
+            </script>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+    } else {
+      window.print();
+    }
   };
 
   return (
@@ -445,24 +468,25 @@ export default function RegistrationSlips() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={generatePDF} variant="outline">
+          <Button onClick={generatePDF} variant="outline" disabled={!selectedStudent}>
             <Download className="mr-2 h-4 w-4" />
             PDF
           </Button>
-          <Button onClick={generateExcel} variant="outline">
+          <Button onClick={generateExcel} variant="outline" disabled={!selectedStudent}>
             <FileText className="mr-2 h-4 w-4" />
             Excel
           </Button>
-          <Button onClick={handlePrint}>
+          <Button onClick={handlePrint} disabled={!selectedStudent}>
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Top Section: Student and Course Selection Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - Student Search */}
-        <Card className="lg:col-span-1">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
@@ -483,7 +507,7 @@ export default function RegistrationSlips() {
               />
             </div>
 
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            <div className="space-y-2 max-h-80 overflow-y-auto">
               {filteredStudents.map((student) => (
                 <Card
                   key={student.id}
@@ -526,8 +550,8 @@ export default function RegistrationSlips() {
           </CardContent>
         </Card>
 
-        {/* Middle Column - Course Selection */}
-        <Card className="lg:col-span-1">
+        {/* Right Column - Course Selection */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="h-5 w-5" />
@@ -603,7 +627,7 @@ export default function RegistrationSlips() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleAddCourse}>
+                <Button onClick={handleAddCourse} disabled={!selectedCourse}>
                   <Plus className="h-4 w-4" />
                   Add
                 </Button>
@@ -617,96 +641,101 @@ export default function RegistrationSlips() {
                   Total: {calculateTotals().total} credit hours
                 </span>
               </div>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Lecture</TableHead>
-                    <TableHead>Lab</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {registrationCourses.map((course) => (
-                    <TableRow key={course.id}>
-                      <TableCell className="font-medium">{course.courseCode}</TableCell>
-                      <TableCell>{course.courseTitle}</TableCell>
-                      <TableCell>{course.lectureHours}</TableCell>
-                      <TableCell>{course.labHours}</TableCell>
-                      <TableCell>{course.totalHours}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveCourse(course.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Right Column - Preview */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Slip Preview
-            </CardTitle>
-            <CardDescription>
-              Preview of the registration slip
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-lg p-4 bg-white dark:bg-gray-800 space-y-4">
-              {/* Slip Preview Header */}
-              <div className="text-center border-b pb-4">
-                <div className="font-bold text-lg">DEUTSCHE HOCHSCHULE FÜR MEDIZIN</div>
-                <div className="text-sm">Deutsche Hochschule für Medizin College</div>
-                <div className="font-bold mt-2">OFFICE OF REGISTRAR</div>
-                <div className="font-bold">COURSE REGISTRATION SLIP</div>
-              </div>
-
-              {/* Student Info */}
-              <div className="space-y-2 text-sm">
-                <div><strong>Full Name of Student:</strong> {selectedStudent?.fullName || "________________"}</div>
-                <div><strong>Date of Registration:</strong> {dateOfRegistration}</div>
-                <div>
-                  <strong>Department:</strong> {selectedStudent?.department || "Medicine"}, 
-                  <strong> Year Of Study:</strong> {selectedStudent?.yearOfStudy || "Year 3"}, 
-                  <strong> Semester:</strong> {selectedStudent?.yearOfStudy || "Year"} Based
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div><strong>ID No.:</strong> {selectedStudent?.studentId || "______"}</div>
-                  <div><strong>Age:</strong> {selectedStudent?.age || "___"}</div>
-                  <div><strong>Sex:</strong> {selectedStudent?.sex || "___"}</div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div><strong>Payment Receipt No.:</strong> {paymentReceiptNo || "______"}</div>
-                  <div><strong>Academic Year:</strong> {academicYear}</div>
-                  <div><strong>Enrollment Type:</strong> {enrollmentType}</div>
-                </div>
-              </div>
-
-              {/* Course Table Preview */}
-              <div className="text-sm">
-                <div className="font-bold mb-2">I am applying to be registered for the following courses.</div>
+              <div className="max-h-60 overflow-y-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12">R.No.</TableHead>
+                      <TableHead className="w-16">Code</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead className="w-16">Lecture</TableHead>
+                      <TableHead className="w-16">Lab</TableHead>
+                      <TableHead className="w-16">Total</TableHead>
+                      <TableHead className="w-20">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {registrationCourses.map((course) => (
+                      <TableRow key={course.id}>
+                        <TableCell className="font-medium text-xs">{course.courseCode}</TableCell>
+                        <TableCell className="text-xs">{course.courseTitle}</TableCell>
+                        <TableCell className="text-xs">{course.lectureHours}</TableCell>
+                        <TableCell className="text-xs">{course.labHours}</TableCell>
+                        <TableCell className="text-xs">{course.totalHours}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveCourse(course.id)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Trash2 className="h-3 w-3 text-red-500" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bottom Section: Full Width Slip Preview */}
+      <Card className="w-full" id="slip-preview">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Registration Slip Preview
+          </CardTitle>
+          <CardDescription>
+            Preview of the registration slip - This will be used for printing
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="border rounded-lg p-6 bg-white dark:bg-gray-800 space-y-6">
+            {/* Slip Preview Header */}
+            <div className="text-center border-b pb-4">
+              <div className="font-bold text-lg">DEUTSCHE HOCHSCHULE FÜR MEDIZIN</div>
+              <div className="text-sm">Deutsche Hochschule für Medizin College</div>
+              <div className="font-bold mt-2">OFFICE OF REGISTRAR</div>
+              <div className="font-bold">COURSE REGISTRATION SLIP</div>
+            </div>
+
+            {/* Student Info */}
+            <div className="space-y-3 text-sm">
+              <div><strong>Full Name of Student:</strong> {selectedStudent?.fullName || "________________"}</div>
+              <div><strong>Date of Registration:</strong> {dateOfRegistration}</div>
+              <div>
+                <strong>Department:</strong> {selectedStudent?.department || "Medicine"}, 
+                <strong> Year Of Study:</strong> {selectedStudent?.yearOfStudy || "Year 3"}, 
+                <strong> Semester:</strong> Year Based
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div><strong>ID No.:</strong> {selectedStudent?.studentId || "______"}</div>
+                <div><strong>Age:</strong> {selectedStudent?.age || "___"}</div>
+                <div><strong>Sex:</strong> {selectedStudent?.sex || "___"}</div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div><strong>Payment Receipt No.:</strong> {paymentReceiptNo || "______"}</div>
+                <div><strong>Academic Year:</strong> {academicYear}</div>
+                <div><strong>Enrollment Type:</strong> {enrollmentType}</div>
+              </div>
+            </div>
+
+            {/* Course Table Preview */}
+            <div className="text-sm">
+              <div className="font-bold mb-3">I am applying to be registered for the following courses.</div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">R.No.</TableHead>
                       <TableHead>COURSE CODE</TableHead>
                       <TableHead>COURSE TITLE</TableHead>
-                      <TableHead>Lecture</TableHead>
-                      <TableHead>Lab/prac</TableHead>
-                      <TableHead>Total</TableHead>
+                      <TableHead className="w-20">Lecture</TableHead>
+                      <TableHead className="w-20">Lab/prac</TableHead>
+                      <TableHead className="w-20">Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -721,7 +750,7 @@ export default function RegistrationSlips() {
                       </TableRow>
                     ))}
                     {registrationCourses.length > 0 && (
-                      <TableRow className="font-bold">
+                      <TableRow className="font-bold bg-gray-100 dark:bg-gray-700">
                         <TableCell colSpan={3}>Total</TableCell>
                         <TableCell>{calculateTotals().lectureTotal}</TableCell>
                         <TableCell>{calculateTotals().labTotal}</TableCell>
@@ -731,30 +760,42 @@ export default function RegistrationSlips() {
                   </TableBody>
                 </Table>
               </div>
-
-              {/* Signatures Preview */}
-              <div className="text-sm space-y-4 mt-4">
-                <div className="flex justify-between">
-                  <span>Student signature _____________________</span>
-                  <div className="flex gap-4">
-                    <span>Total</span>
-                    <span>{calculateTotals().total}</span>
-                  </div>
-                </div>
-                <div>Finance Head _____________________ Signature _____________________ Date _____________________</div>
-                <div>Department Head _____________________ Signature _____________________ Date _____________________</div>
-              </div>
-
-              {!selectedStudent && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  <User className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>Select a student to preview registration slip</p>
-                </div>
-              )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
+
+            {/* Signatures Preview */}
+            <div className="text-sm space-y-4 mt-6">
+              <div className="flex justify-between items-center">
+                <div>Student signature _____________________</div>
+                <div className="flex items-center gap-4">
+                  <span>Total</span>
+                  <span className="font-bold">{calculateTotals().total}</span>
+                </div>
+              </div>
+              <div>Finance Head _____________________ Signature _____________________ Date _____________________</div>
+              <div>Department Head _____________________ Signature _____________________ Date _____________________</div>
+            </div>
+
+            {/* Notes */}
+            <div className="text-xs space-y-2 mt-8 p-4 bg-gray-50 dark:bg-gray-900 rounded">
+              <div className="font-bold">NB.</div>
+              <ol className="list-decimal pl-5 space-y-1">
+                <li>A student is not allowed to be registered for a course (s) if he/has an "I" or "F" grade (s) for its prerequisites (s).</li>
+                <li>This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self.</li>
+                <li>The semester total load to be taken must not be less than 12 and greater than 22 C.L. He for regular program.</li>
+                <li>The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.</li>
+              </ol>
+            </div>
+
+            {!selectedStudent && (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400 border-2 border-dashed rounded-lg">
+                <User className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <p className="text-lg">Select a student to preview registration slip</p>
+                <p className="text-sm mt-2">Search and select a student from the top panel to see the slip preview here</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
