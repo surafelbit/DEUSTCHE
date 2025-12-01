@@ -8,11 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Label } from "@/components/ui/label";
 import apiService from "@/components/api/apiService";
 import endPoints from "@/components/api/endPoints";
+
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from 'xlsx';
 const toast = {
   success: (msg: string) => {
     if (typeof window !== "undefined") {
-      // lightweight fallback: log to console and optionally show an alert in dev
-      // remove alert if you don't want user-facing popups
       console.log("Success:", msg);
     }
   },
@@ -22,10 +24,6 @@ const toast = {
     }
   },
 };
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from 'xlsx';
-
 interface Student {
   id: number;
   fullName: string;
@@ -179,91 +177,177 @@ export default function RegistrationSlips() {
     return { lectureTotal, labTotal, total };
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     if (!selectedStudent) {
       toast.error("Please select a student first");
       return;
     }
 
     const { lectureTotal, labTotal, total } = calculateTotals();
-    const doc = new jsPDF();
-    
-    // Add header
-    doc.setFontSize(16);
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const left = 15;
+    const right = 15;
+    const usableWidth = pageWidth - left - right;
+
+    // try to load logo
+    let headerY = 15;
+    try {
+      const loadImage = (src: string) =>
+        new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = src;
+        });
+      const img = await loadImage("/assets/companylogo.jpg");
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const imgData = canvas.toDataURL("image/jpeg");
+        const imgW = 30; // mm
+        const imgH = (img.naturalHeight / img.naturalWidth) * imgW;
+        const imgX = (pageWidth - imgW) / 2;
+        const imgY = 10;
+        doc.addImage(imgData, "JPEG", imgX, imgY, imgW, imgH);
+        headerY = imgY + imgH + 4;
+      }
+    } catch {
+      headerY = 15;
+    }
+
+    // header texts (keep compact so content stays on one page)
     doc.setFont("helvetica", "bold");
-    doc.text("DEUTSCHE HOCHSCHULE FÜR MEDIZIN", 105, 15, { align: "center" });
-    
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "normal");
-    doc.text("Deutsche Hochschule für Medizin College", 105, 22, { align: "center" });
-    
     doc.setFontSize(14);
+    doc.text("DEUTSCHE HOCHSCHULE FÜR MEDIZIN", pageWidth / 2, headerY, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10.5);
+    doc.text("Deutsche Hochschule für Medizin College", pageWidth / 2, headerY + 6, { align: "center" });
     doc.setFont("helvetica", "bold");
-    doc.text("OFFICE OF REGISTRAR", 105, 30, { align: "center" });
-    doc.text("COURSE REGISTRATION SLIP", 105, 37, { align: "center" });
-    
-    // Add line separator
-    doc.setLineWidth(0.5);
-    doc.line(10, 42, 200, 42);
-    
-    // Student information
-    doc.setFontSize(11);
-    doc.text(`Full Name of Student: ${selectedStudent.fullName}`, 15, 50);
-    doc.text(`Date of Registration: ${dateOfRegistration}`, 15, 57);
-    
-    doc.text(`Department: ${selectedStudent.department}, Year Of Study: ${selectedStudent.yearOfStudy}, Semester: ${selectedStudent.yearOfStudy} Based`, 15, 64);
-    
-    doc.text(`ID No.: ${selectedStudent.studentId}`, 15, 71);
-    doc.text(`Age: ${selectedStudent.age}`, 100, 71);
-    doc.text(`Sex: ${selectedStudent.sex}`, 150, 71);
-    
-    doc.text(`Payment Receipt No.: ${paymentReceiptNo}`, 15, 78);
-    doc.text(`Academic Year: ${academicYear}`, 100, 78);
-    doc.text(`Enrollment Type: ${enrollmentType}`, 150, 78);
-    
-    // Course registration table
     doc.setFontSize(12);
-    doc.text("I am applying to be registered for the following courses.", 15, 88);
-    
+    doc.text("OFFICE OF REGISTRAR", pageWidth / 2, headerY + 12, { align: "center" });
+    doc.text("COURSE REGISTRATION SLIP", pageWidth / 2, headerY + 18, { align: "center" });
+
+    // separator
+    const sepY = headerY + 22;
+    doc.setLineWidth(0.5);
+    doc.line(left, sepY, pageWidth - right, sepY);
+
+    // Student info - wrap where necessary (but keep concise)
+    doc.setFontSize(10);
+    let curY = sepY + 8;
+    const wrap = (text: string, x: number, y: number, maxW: number, fontSize = 10, lineHeight = 5) => {
+      doc.setFontSize(fontSize);
+      const lines = (doc as any).splitTextToSize(text, maxW);
+      doc.text(lines, x, y);
+      return y + lines.length * lineHeight;
+    };
+
+    curY = wrap(`Full Name of Student: ${selectedStudent.fullName}`, left, curY, usableWidth);
+    curY = wrap(`Date of Registration: ${dateOfRegistration}`, left, curY + 2, usableWidth);
+    curY = wrap(
+      `Department: ${selectedStudent.department}, Year Of Study: ${selectedStudent.yearOfStudy}, Semester: ${selectedStudent.semester}`,
+      left,
+      curY + 2,
+      usableWidth
+    );
+
+    // ID / Age / Sex on one line if possible
+    const idLine = `ID No.: ${selectedStudent.studentId}    Age: ${selectedStudent.age}    Sex: ${selectedStudent.sex}`;
+    doc.setFontSize(10);
+    doc.text(idLine, left, curY + 6);
+    curY += 10;
+
+    // Payment / Academic / Enrollment on one line
+    const payLine = `Payment Receipt No.: ${paymentReceiptNo}    Academic Year: ${academicYear}    Enrollment Type: ${enrollmentType}`;
+    doc.text(payLine, left, curY + 2);
+
+    // Course registration table - keep unchanged
+    doc.setFontSize(12);
+    // place the intro line right after the student/payment block
+    const introY = curY + 8;
+    // ensure intro isn't too high (near header) and not overlapping previous content
+    const introTextY = Math.max(introY, 70);
+    doc.text("I am applying to be registered for the following courses.", left, introTextY);
+
+    // pick a table start Y that is at least the original 95 but also below the intro text
+    const tableStartY = Math.max(95, introTextY + 6);
+
     const tableData = registrationCourses.map((course, index) => [
       (106 + index).toString(),
       course.courseCode,
       course.courseTitle,
       course.lectureHours.toString(),
       course.labHours.toString(),
-      course.totalHours.toString()
+      course.totalHours.toString(),
     ]);
-    
-    // Add totals row
+
     tableData.push(["", "", "Total", lectureTotal.toString(), labTotal.toString(), total.toString()]);
-    
+
     autoTable(doc, {
-      startY: 95,
+      startY: tableStartY,
       head: [["R.No.", "COURSE CODE", "COURSE TITLE", "Lecture", "Lab/prac", "Total"]],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [66, 133, 244] },
       margin: { left: 14, right: 14 },
     });
-    
-    // Footer signatures
+
+    // Footer signatures - keep single lines, do not wrap them
     const finalY = (doc as any).lastAutoTable.finalY + 20;
-    doc.text("Student signature _____________________", 15, finalY);
-    doc.text("Total", 160, finalY);
-    doc.text(`${total}`, 190, finalY);
-    
-    doc.text("Finance Head _____________________ Signature _____________________ Date _____________________", 15, finalY + 15);
-    doc.text("Department Head _____________________ Signature _____________________ Date _____________________", 15, finalY + 25);
-    
-    // Notes
-    doc.setFontSize(9);
-    doc.text("NB.", 15, finalY + 40);
-    doc.text("1. A student is not allowed to be registered for a course (s) if he/she has an 'I' or 'F' grade (s) for its prerequisites (s).", 15, finalY + 45);
-    doc.text("2. This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self.", 15, finalY + 50);
-    doc.text("3. The semester total load to be taken must not be less than 12 and greater than 22 C.H. for regular program.", 15, finalY + 55);
-    doc.text("4. The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.", 15, finalY + 60);
-    
-    // Save the PDF
+    doc.setFontSize(10);
+    doc.text("Student signature _____________________", left, finalY);
+    doc.text("Total", pageWidth - right - 40, finalY);
+    doc.text(`${total}`, pageWidth - right - 10, finalY);
+
+    const financeText = "Finance Head _____________________ Signature _____________________ Date _____________________";
+    const deptText = "Department Head _____________________ Signature _____________________ Date _____________________";
+    // signatures must remain on single lines; reduce font size slightly if too wide
+    const sigFontSize = 9;
+    doc.setFontSize(sigFontSize);
+    // fit on one line by truncating spacing if necessary (still one line)
+    doc.text(financeText, left, finalY + 12, { maxWidth: usableWidth });
+    doc.text(deptText, left, finalY + 22, { maxWidth: usableWidth });
+
+    // Notes - allow wrapping and ensure everything stays on the same page.
+    const notesStartY = finalY + 32;
+    const notes = [
+      "NB.",
+      "1. A student is not allowed to be registered for a course(s) if he/she has an 'I' or 'F' grade(s) for its prerequisite(s).",
+      "2. This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self.",
+      "3. The semester total load to be taken must not be less than 12 and greater than 22 C.H. for regular program.",
+      "4. The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.",
+    ];
+
+    // try to fit notes by decreasing font size if needed, but do not create a new page
+    let notesFont = 9;
+    let linesCount = 0;
+    const bottomMargin = 12;
+    while (notesFont >= 7) {
+      linesCount = 0;
+      for (const n of notes) {
+        const lines = (doc as any).splitTextToSize(n, usableWidth);
+        linesCount += lines.length;
+      }
+      const neededHeight = linesCount * (notesFont * 0.9); // approx line height
+      if (notesStartY + neededHeight + bottomMargin <= pageHeight) break;
+      notesFont -= 1;
+    }
+
+    doc.setFontSize(notesFont);
+    let ny = notesStartY;
+    for (const n of notes) {
+      const lines = (doc as any).splitTextToSize(n, usableWidth);
+      doc.text(lines, left, ny);
+      ny += lines.length * (notesFont * 0.9);
+    }
+
+    // Save PDF
     doc.save(`Registration_Slip_${selectedStudent.studentId}.pdf`);
     toast.success("PDF generated successfully!");
   };
