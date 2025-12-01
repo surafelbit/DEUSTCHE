@@ -38,8 +38,8 @@
     "framer-motion": "^12.23.12",
     "heroicons": "^2.2.0",
     "i18next": "^25.3.2",
-    "jspdf": "^3.0.2",
-    "jspdf-autotable": "^5.0.2",
+    "jspdf": "2.5.1",
+    "jspdf-autotable": "3.8.2",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.542.0",
     "motion": "^12.23.12",
@@ -57,6 +57,7 @@
     "react-router-dom": "^7.7.1",
     "react-select": "^5.10.2",
     "react-to-print": "^3.1.1",
+    "react-hot-toast": "^2.4.1",
     "sonner": "^2.0.6",
     "tailwind-merge": "^3.3.1",
     "xlsx": "^0.18.5"
