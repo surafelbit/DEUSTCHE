@@ -50,23 +50,15 @@ const CreateTeacher = React.lazy(() => import("./pages/head/CreateTeacher"));
 
 // Registrar Pages
 const RegistrarLayout = React.lazy(() => import("./layouts/RegistrarLayout"));
-const RegistrarDashboard = React.lazy(
-  () => import("./pages/registrar/Dashboard")
-);
-const RegistrarApplications = React.lazy(
-  () => import("./pages/registrar/Applications")
-);
-const RegistrarDepartments = React.lazy(
-  () => import("./pages/registrar/Departments")
-);
-const RegistrarStudents = React.lazy(
-  () => import("./pages/registrar/Students")
-);
+const RegistrarDashboard = React.lazy(  () => import("./pages/registrar/Dashboard"));
+const RegistrarApplications = React.lazy(  () => import("./pages/registrar/Applications"));
+const RegistrarDepartments = React.lazy(  () => import("./pages/registrar/Departments"));
+const RegistrarStudents = React.lazy(  () => import("./pages/registrar/Students"));
+const RegistrationSlip = React.lazy(  () => import("./pages/registrar/RegistrationSlips"));
+
 const AddStudent = React.lazy(() => import("./pages/registrar/AddStudent"));
 const RegistrarCourses = React.lazy(() => import("./pages/registrar/Courses"));
-const RegistrarAssessments = React.lazy(
-  () => import("./pages/registrar/Assessments")
-);
+const RegistrarAssessments = React.lazy(  () => import("./pages/registrar/Assessments"));
 const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
 const DepartmentDetail = React.lazy(
   () => import("./pages/registrar/DepartmentDetail.tsx")
@@ -102,6 +94,17 @@ const NotificationsPage = React.lazy(
 const Transcript_Generate = React.lazy(
   () => import("./pages/registrar/Transcript_Generate")
 );
+const DepartmentDetail = React.lazy(  () => import("./pages/registrar/DepartmentDetail.tsx"));
+const StudentDetail = React.lazy(  () => import("./pages/registrar/StudentDetail"));
+const ApplicantDetail = React.lazy(  () => import("./pages/registrar/ApplicantDetail"));
+const CustomStudentTable = React.lazy(  () => import("./pages/registrar/CustomStudentTable"));
+const RejectedApplications = React.lazy(  () => import("./pages/registrar/RejectedApplications"));
+const LocationEditor = React.lazy(  () => import("./pages/registrar/settings/LocationEditor"));
+const AcademicYearEditor = React.lazy(  () => import("./pages/registrar/settings/AcademicYearEditor"));
+const ImpairmentEditor = React.lazy(  () => import("./pages/registrar/settings/ImpairmentEditor"));
+const CourseCategoriesEditor = React.lazy(  () => import("./pages/registrar/settings/CourseCategoriesEditor"));
+const NotificationsPage = React.lazy(  () => import("./pages/registrar/NotificationsPage"));
+
 // Finance Pages
 const FinanceLayout = React.lazy(() => import("./layouts/FinanceLayout"));
 const FinanceDashboard = React.lazy(() => import("./pages/finance/Dashboard"));
@@ -280,6 +283,7 @@ function App() {
                 element={<ApplicantDetail />}
               />
               <Route path="students" element={<RegistrarStudents />} />
+              <Route path="registration-slips" element={<RegistrationSlip />} />
               <Route path="add-student" element={<AddStudent />} />
               <Route path="assessments" element={<RegistrarAssessments />} />
               <Route path="scores" element={<BatchUpdateTable />} />
