@@ -4,7 +4,8 @@ const endPoints = {
   // Existing ones...
   login: "/auth/login",
   register: "/auth/register",
-  applicantsRegister: "https://deutschemedizin-collage-backend-production.up.railway.app/api/applicants/register",
+  applicantsRegister:
+    "https://deutschemedizin-collage-backend-production.up.railway.app/api/applicants/register",
   registrarApplicantRegister: "/auth/register/student",
   studentStatus: "/student-statuses",
   batchClassSemsterYear: "/bcsy",
@@ -22,6 +23,8 @@ const endPoints = {
   teachers: "/teachers",
   departments: "/departments",
   impairments: "/impairments",
+  specificImpairtment: "/impairments/:id",
+  singleImpairment: "/impairments/single",
   semesters: "/semesters",
   schoolBackgrounds: "/school-backgrounds",
   programModality: "/program-modality",
@@ -42,9 +45,9 @@ const endPoints = {
   notificationsLatest: "/notifications/me/latest",
   markNotificationRead: "/notifications/:id/read",
   markAllNotificationsRead: "/notifications/me/read-all",
-  programLevels: "/program-levels",  
+  programLevels: "/program-levels",
   programLevelByCode: "/program-levels/:id",
-  programModalities: "/program-modality",     
+  programModalities: "/program-modality",
   programModalityByCode: "/program-modality/:id",
 };
 
