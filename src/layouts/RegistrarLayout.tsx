@@ -17,7 +17,6 @@ import {
   Menu,
   Settings,
   UserPlus,
-  BookOpenIcon,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -56,11 +55,6 @@ export default function RegistrarLayout() {
       name: "Scores",
       href: "/registrar/scores",
       icon: ClipboardList,
-    },
-    {
-      name: "Transcript & Grade Report",
-      href: "/registrar/transcripts",
-      icon: BookOpenIcon,
     },
     { name: "Batches", href: "/registrar/batches", icon: Calendar },
     { 

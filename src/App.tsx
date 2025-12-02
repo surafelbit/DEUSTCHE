@@ -60,40 +60,6 @@ const AddStudent = React.lazy(() => import("./pages/registrar/AddStudent"));
 const RegistrarCourses = React.lazy(() => import("./pages/registrar/Courses"));
 const RegistrarAssessments = React.lazy(  () => import("./pages/registrar/Assessments"));
 const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
-const DepartmentDetail = React.lazy(
-  () => import("./pages/registrar/DepartmentDetail.tsx")
-);
-const StudentDetail = React.lazy(
-  () => import("./pages/registrar/StudentDetail")
-);
-const ApplicantDetail = React.lazy(
-  () => import("./pages/registrar/ApplicantDetail")
-);
-const CustomStudentTable = React.lazy(
-  () => import("./pages/registrar/CustomStudentTable")
-);
-const RejectedApplications = React.lazy(
-  () => import("./pages/registrar/RejectedApplications")
-);
-const LocationEditor = React.lazy(
-  () => import("./pages/registrar/settings/LocationEditor")
-);
-const AcademicYearEditor = React.lazy(
-  () => import("./pages/registrar/settings/AcademicYearEditor")
-);
-const ImpairmentEditor = React.lazy(
-  () => import("./pages/registrar/settings/ImpairmentEditor")
-);
-
-const CourseCategoriesEditor = React.lazy(
-  () => import("./pages/registrar/settings/CourseCategoriesEditor")
-);
-const NotificationsPage = React.lazy(
-  () => import("./pages/registrar/NotificationsPage")
-);
-const Transcript_Generate = React.lazy(
-  () => import("./pages/registrar/Transcript_Generate")
-);
 const DepartmentDetail = React.lazy(  () => import("./pages/registrar/DepartmentDetail.tsx"));
 const StudentDetail = React.lazy(  () => import("./pages/registrar/StudentDetail"));
 const ApplicantDetail = React.lazy(  () => import("./pages/registrar/ApplicantDetail"));
@@ -291,7 +257,6 @@ function App() {
               <Route path="batches" element={<RegistrarBatches />} />
               <Route path="tables" element={<CustomStudentTable />} />
               <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="transcripts" element={<Transcript_Generate />} />
             </Route>
 
             {/* Finance Routes */}
