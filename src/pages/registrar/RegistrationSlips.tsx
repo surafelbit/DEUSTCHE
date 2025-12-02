@@ -190,6 +190,7 @@ export default function RegistrationSlips() {
     return { lectureTotal, labTotal, total };
   };
 
+
   const generatePDF = async () => {
     if (!selectedStudent) {
       toast.error("Please select a student first");
@@ -205,7 +206,41 @@ export default function RegistrationSlips() {
     const usableWidth = pageWidth - left - right;
 
     let headerY = 15;
-    
+
+    // Load logo from /assets/companylogo.jpg and add to PDF (falls back silently if load fails)
+    try {
+      const fetchDataUrl = async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Image fetch failed");
+        const blob = await res.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      };
+
+      const dataUrl = await fetchDataUrl("/assets/companylogo.jpg");
+      // create an Image to get natural dimensions for correct aspect ratio
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = dataUrl;
+      });
+
+      const imgDisplayWidth = 28; // mm - adjust size as needed
+      const imgDisplayHeight = (img.naturalHeight / img.naturalWidth) * imgDisplayWidth;
+      const imgX = (pageWidth - imgDisplayWidth) / 2;
+      const imgY = 10;
+      doc.addImage(dataUrl, imgX, imgY, imgDisplayWidth, imgDisplayHeight);
+      headerY = imgY + imgDisplayHeight + 4;
+    } catch (e) {
+      // ignore image errors and continue without logo
+      headerY = 15;
+    }
+
     // Add header texts
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
@@ -330,6 +365,7 @@ export default function RegistrationSlips() {
     doc.save(`Registration_Slip_${selectedStudent.studentId}.pdf`);
     toast.success("PDF generated successfully!");
   };
+
 
   const generateExcel = () => {
     if (!selectedStudent) {
