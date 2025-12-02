@@ -8,6 +8,8 @@ import {
   ArrowLeft,
   Download,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type ReportCourse = {
   code: string;
@@ -32,6 +34,8 @@ type ReportRecord = {
   cgpa: number;
   earnedCredits: number;
   courses: ReportCourse[];
+  batch: string;
+  department: string;
 };
 
 type TranscriptCourse = {
@@ -60,6 +64,8 @@ type TranscriptRecord = {
     program: string;
     faculty: string;
     admissionDate: string;
+    batch: string;
+    department: string;
   };
   semesters: TranscriptSemester[];
 };
@@ -69,8 +75,10 @@ type SearchType = "report" | "transcript";
 export default function Transcript_Generate() {
   const [searchType, setSearchType] = useState<SearchType | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBatch, setSelectedBatch] = useState<string>(""); // "" = no batch selected yet
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all"); // "all" = all departments
 
-  // === DEMO BATCH DATA (replace with real data later) ===
+  // === DEMO BATCH DATA ===
 
   const baseReport: ReportRecord = {
     id: "DHMC/MRT-1821-16",
@@ -85,6 +93,8 @@ export default function Transcript_Generate() {
     enrollmentStatus: "Regular",
     cgpa: 3.91,
     earnedCredits: 142.0,
+    batch: "2024/2025",
+    department: "Radiology",
     courses: [
       {
         code: "ANAT 421",
@@ -138,14 +148,13 @@ export default function Transcript_Generate() {
         code: "ETHC 428",
         title: "Ethics & Research",
         credit: 2.0,
-        grade: "A",
+        grade: 4.0,
         point: 4.0,
         gp: 8.0,
       },
     ],
   };
 
-  // Example list of report records (batch)
   const reportBatch: ReportRecord[] = [
     baseReport,
     {
@@ -153,12 +162,17 @@ export default function Transcript_Generate() {
       id: "DHMC/MRT-1821-17",
       name: "Second Student Demo",
       cgpa: 3.55,
+      batch: "2024/2025",
+      department: "Radiology",
     },
     {
       ...baseReport,
       id: "DHMC/MRT-1821-18",
       name: "Third Student Demo",
       cgpa: 3.2,
+      batch: "2023/2024",
+      department: "Nursing",
+      program: "Nursing",
     },
   ];
 
@@ -171,6 +185,8 @@ export default function Transcript_Generate() {
       program: "Nursing",
       faculty: "Faculty of Nursing",
       admissionDate: "11-Oct-2021",
+      batch: "2021/2022",
+      department: "Nursing",
     },
     semesters: [
       {
@@ -299,7 +315,6 @@ export default function Transcript_Generate() {
     ],
   };
 
-  // Example list of transcript records (batch)
   const transcriptBatch: TranscriptRecord[] = [
     baseTranscript,
     {
@@ -308,6 +323,8 @@ export default function Transcript_Generate() {
         ...baseTranscript.student,
         id: "DHMC.NUR-75-15",
         name: "Second Transcript Demo",
+        batch: "2021/2022",
+        department: "Nursing",
       },
     },
     {
@@ -316,107 +333,218 @@ export default function Transcript_Generate() {
         ...baseTranscript.student,
         id: "DHMC.NUR-75-16",
         name: "Third Transcript Demo",
+        batch: "2020/2021",
+        department: "Radiology",
+        program: "Medical Radiology Technology",
       },
     },
   ];
 
-  // === FILTERED LISTS ===
+  // === BATCH & DEPARTMENT OPTIONS ===
+
+  const allReportBatches = Array.from(new Set(reportBatch.map((r) => r.batch)));
+  const allReportDepartments = Array.from(
+    new Set(reportBatch.map((r) => r.department))
+  );
+
+  const allTranscriptBatches = Array.from(
+    new Set(transcriptBatch.map((t) => t.student.batch))
+  );
+  const allTranscriptDepartments = Array.from(
+    new Set(transcriptBatch.map((t) => t.student.department))
+  );
+
+  const batches =
+    searchType === "report" ? allReportBatches : allTranscriptBatches;
+  const departments =
+    searchType === "report" ? allReportDepartments : allTranscriptDepartments;
+
+  // === FILTERED LISTS (batch + department + search) ===
 
   const filteredReports = useMemo(() => {
+    let list = reportBatch;
+
+    if (!selectedBatch) {
+      return [];
+    }
+
+    if (selectedBatch !== "all") {
+      list = list.filter((r) => r.batch === selectedBatch);
+    }
+
+    if (selectedDepartment !== "all") {
+      list = list.filter((r) => r.department === selectedDepartment);
+    }
+
     const term = searchTerm.toLowerCase();
-    if (!term) return reportBatch;
-    return reportBatch.filter(
+    if (!term) return list;
+
+    return list.filter(
       (r) =>
         r.id.toLowerCase().includes(term) ||
         r.name.toLowerCase().includes(term) ||
         r.program.toLowerCase().includes(term)
     );
-  }, [searchTerm, reportBatch]);
+  }, [searchTerm, selectedBatch, selectedDepartment, reportBatch]);
 
   const filteredTranscripts = useMemo(() => {
+    let list = transcriptBatch;
+
+    if (!selectedBatch) {
+      return [];
+    }
+
+    if (selectedBatch !== "all") {
+      list = list.filter((t) => t.student.batch === selectedBatch);
+    }
+
+    if (selectedDepartment !== "all") {
+      list = list.filter((t) => t.student.department === selectedDepartment);
+    }
+
     const term = searchTerm.toLowerCase();
-    if (!term) return transcriptBatch;
-    return transcriptBatch.filter(
+    if (!term) return list;
+
+    return list.filter(
       (t) =>
         t.student.id.toLowerCase().includes(term) ||
         t.student.name.toLowerCase().includes(term) ||
         t.student.program.toLowerCase().includes(term)
     );
-  }, [searchTerm, transcriptBatch]);
+  }, [searchTerm, selectedBatch, selectedDepartment, transcriptBatch]);
 
   const handleBackToChoice = () => {
     setSearchType(null);
     setSearchTerm("");
+    setSelectedBatch("");
+    setSelectedDepartment("all");
   };
 
-  const exportToExcel = async () => {
-    const { utils, writeFile } = await import(
-      "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.min.js"
-    );
-
-    if (!searchType) return;
+  const exportToPDF = () => {
+    if (!searchType || !selectedBatch) return;
 
     const isReport = searchType === "report";
+    const doc = new jsPDF("p", "mm", "a4");
 
-    const data = isReport
-      ? [
-          ["Report Cards"],
-          ...filteredReports.flatMap((r) => {
-            const totalCredits = r.courses.reduce((a, c) => a + c.credit, 0);
-            const totalGP = r.courses.reduce((a, c) => a + c.gp, 0);
-            const semesterGPA = Number((totalGP / totalCredits).toFixed(2));
-            return [
-              [
-                r.id,
-                r.name,
-                r.program,
-                "CGPA",
-                r.cgpa,
-                "Semester GPA",
-                semesterGPA,
-              ],
-              ["Code", "Title", "Credit", "Grade", "Point", "GP×CH"],
-              ...r.courses.map((c) => [
-                c.code,
-                c.title,
-                c.credit,
-                c.grade,
-                c.point,
-                c.gp,
-              ]),
-              [""],
-            ];
-          }),
-        ]
-      : [
-          ["Transcripts"],
-          ...filteredTranscripts.flatMap((t) => [
-            ["Student", t.student.id, t.student.name, t.student.program],
-            ...t.semesters.flatMap((s) => [
-              [s.year + " " + s.semester],
-              ["Code", "Title", "CH", "Grade", "Point"],
-              ...s.courses.map((c) => [
-                c.code,
-                c.title,
-                c.ch,
-                c.grade,
-                c.point,
-              ]),
-            ]),
-            [""],
-          ]),
-        ];
+    const list = isReport ? filteredReports : filteredTranscripts;
 
-    const ws = utils.aoa_to_sheet(data);
-    const wb = utils.book_new();
-    utils.book_append_sheet(wb, ws, "Result");
-    writeFile(
-      wb,
-      `${searchType === "report" ? "ReportCards" : "Transcripts"}-Filtered.xlsx`
-    );
+    if (list.length === 0) return;
+
+    list.forEach((item, index) => {
+      if (index > 0) {
+        doc.addPage();
+      }
+
+      if (isReport) {
+        const r = item as ReportRecord;
+
+        doc.setFontSize(14);
+        doc.text("DEUTSCHE HÖHERE MEDIZINISCHE HOCHSCHULE", 10, 15);
+        doc.setFontSize(11);
+        doc.text(`Report Card - ${r.academicYear} ${r.semester}`, 10, 22);
+
+        doc.setFontSize(10);
+        doc.text(`ID: ${r.id}`, 10, 30);
+        doc.text(`Name: ${r.name}`, 10, 36);
+        doc.text(`Program: ${r.program}`, 10, 42);
+        doc.text(`Batch: ${r.batch}`, 10, 48);
+        doc.text(`Department: ${r.department}`, 10, 54);
+        doc.text(`CGPA: ${r.cgpa}`, 120, 30);
+        doc.text(`Credits: ${r.earnedCredits}`, 120, 36);
+
+        const body = r.courses.map((c) => [
+          c.code,
+          c.title,
+          c.credit,
+          c.grade,
+          c.point.toFixed(2),
+          c.gp.toFixed(2),
+        ]);
+
+        autoTable(doc, {
+          startY: 60,
+          head: [["Code", "Title", "Credit", "Grade", "Point", "GP×CH"]],
+          body,
+          theme: "grid",
+          styles: { fontSize: 9 },
+        });
+
+        doc.text(
+          `Generated for batch ${selectedBatch}${
+            selectedDepartment !== "all" ? ` - ${selectedDepartment}` : ""
+          }`,
+          10,
+          290
+        );
+      } else {
+        const t = item as TranscriptRecord;
+
+        doc.setFontSize(14);
+        doc.text("DEUTSCHE HOCHSCHULE FÜR MEDIZIN", 10, 15);
+        doc.setFontSize(11);
+        doc.text("STUDENT ACADEMIC TRANSCRIPT", 10, 22);
+
+        doc.setFontSize(10);
+        doc.text(`ID: ${t.student.id}`, 10, 30);
+        doc.text(`Name: ${t.student.name}`, 10, 36);
+        doc.text(`Program: ${t.student.program}`, 10, 42);
+        doc.text(`Batch: ${t.student.batch}`, 10, 48);
+        doc.text(`Department: ${t.student.department}`, 10, 54);
+        doc.text(`Faculty: ${t.student.faculty}`, 10, 60);
+        doc.text(`Admission: ${t.student.admissionDate}`, 10, 66);
+
+        let currentY = 74;
+
+        t.semesters.forEach((s, sIndex) => {
+          if (sIndex > 0 && currentY > 220) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          doc.setFontSize(11);
+          doc.text(`${s.year} - ${s.semester} (GPA: ${s.gpa})`, 10, currentY);
+          currentY += 6;
+
+          const body = s.courses.map((c) => [
+            c.code,
+            c.title,
+            c.ch,
+            c.grade,
+            c.point,
+          ]);
+
+          autoTable(doc, {
+            startY: currentY,
+            head: [["Code", "Title", "CH", "Grade", "Point"]],
+            body,
+            theme: "grid",
+            styles: { fontSize: 9 },
+            margin: { left: 10, right: 10 },
+          });
+
+          // @ts-ignore: autoTable types
+          currentY = (doc as any).lastAutoTable.finalY + 10;
+        });
+
+        doc.text(
+          `Generated for batch ${selectedBatch}${
+            selectedDepartment !== "all" ? ` - ${selectedDepartment}` : ""
+          }`,
+          10,
+          290
+        );
+      }
+    });
+
+    const fileName =
+      searchType === "report"
+        ? "ReportCards-Filtered.pdf"
+        : "Transcripts-Filtered.pdf";
+
+    doc.save(fileName);
   };
 
-  // === INITIAL TYPE SELECTION SCREEN ===
+  // === TYPE SELECTION SCREEN ===
   if (!searchType) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center p-4">
@@ -446,7 +574,11 @@ export default function Transcript_Generate() {
               return (
                 <button
                   key={item.type}
-                  onClick={() => setSearchType(item.type)}
+                  onClick={() => {
+                    setSearchType(item.type);
+                    setSelectedBatch("");
+                    setSelectedDepartment("all");
+                  }}
                   className="flex items-center justify-center gap-2.5 px-5 py-3 rounded-lg border-2 font-medium text-sm transition-all bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
                 >
                   <Icon className="w-5 h-5" />
@@ -460,71 +592,122 @@ export default function Transcript_Generate() {
     );
   }
 
-  // === LIST VIEW WITH SEARCH / FILTER ===
+  // === MAIN LIST VIEW ===
   const isReport = searchType === "report";
+  const activeList = isReport ? filteredReports : filteredTranscripts;
+  const count = selectedBatch ? activeList.length : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8 transition-colors">
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <button
-            onClick={handleBackToChoice}
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-lg hover:underline"
-          >
-            <ArrowLeft className="w-5 h-5" /> Back to Type
-          </button>
-
-          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
-            <div className="relative flex-1 min-w-[220px]">
-              <input
-                type="text"
-                placeholder={`Search by ID, name or program (${
-                  isReport ? "Report" : "Transcript"
-                })`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-11 pr-4 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm sm:text-base focus:border-blue-600 dark:focus:border-blue-500 outline-none transition"
-              />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400" />
-            </div>
-
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <button
-              onClick={exportToExcel}
-              className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white font-semibold px-4 py-2.5 rounded-xl shadow transition text-sm sm:text-base"
+              onClick={handleBackToChoice}
+              className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-bold text-lg hover:underline"
             >
-              <Download className="w-5 h-5" /> Export Filtered
+              <ArrowLeft className="w-5 h-5" /> Back to Type
             </button>
+
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
+              <div className="relative flex-1 min-w-[220px]">
+                <input
+                  type="text"
+                  placeholder={`Search by ID, name or program (${
+                    isReport ? "Report" : "Transcript"
+                  })`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm sm:text-base focus:border-blue-600 dark:focus:border-blue-500 outline-none transition"
+                  disabled={!selectedBatch}
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </div>
+
+              <button
+                onClick={exportToPDF}
+                disabled={!selectedBatch || activeList.length === 0}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl shadow text-sm sm:text-base font-semibold transition ${
+                  !selectedBatch || activeList.length === 0
+                    ? "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white"
+                }`}
+              >
+                <Download className="w-5 h-5" /> Export Filtered (PDF)
+              </button>
+            </div>
+          </div>
+
+          {/* Batch + Department filters */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <select
+              value={selectedBatch}
+              onChange={(e) => setSelectedBatch(e.target.value)}
+              className="w-full sm:w-56 px-3 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm sm:text-base text-gray-800 dark:text-gray-100 focus:border-blue-600 dark:focus:border-blue-500 outline-none"
+            >
+              <option value="">Select batch to view records</option>
+              <option value="all">All Batches</option>
+              {batches.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className="w-full sm:w-56 px-3 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm sm:text-base text-gray-800 dark:text-gray-100 focus:border-blue-600 dark:focus:border-blue-500 outline-none"
+              disabled={!selectedBatch}
+            >
+              <option value="all">All Departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-          {isReport ? "Report Cards" : "Transcripts"} (
-          {isReport ? filteredReports.length : filteredTranscripts.length}{" "}
-          students)
-        </h2>
+        {!selectedBatch && (
+          <div className="mt-12 text-center text-gray-600 dark:text-gray-300">
+            <p className="text-lg">
+              Please select a batch above to view student records.
+            </p>
+          </div>
+        )}
 
-        {isReport ? (
-          <div className="space-y-8">
-            {filteredReports.map((r) => (
-              <ReportCardView key={r.id} reportData={r} />
-            ))}
-            {filteredReports.length === 0 && (
-              <p className="text-center text-gray-600 dark:text-gray-300 mt-8">
-                No students found for the current filter.
-              </p>
+        {selectedBatch && (
+          <>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+              {isReport ? "Report Cards" : "Transcripts"} ({count} students)
+            </h2>
+
+            {isReport ? (
+              <div className="space-y-8">
+                {filteredReports.map((r) => (
+                  <ReportCardView key={r.id} reportData={r} />
+                ))}
+                {filteredReports.length === 0 && (
+                  <p className="text-center text-gray-600 dark:text-gray-300 mt-8">
+                    No students found for current batch/department/search.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {filteredTranscripts.map((t) => (
+                  <TranscriptView key={t.student.id} transcript={t} />
+                ))}
+                {filteredTranscripts.length === 0 && (
+                  <p className="text-center text-gray-600 dark:text-gray-300 mt-8">
+                    No students found for current batch/department/search.
+                  </p>
+                )}
+              </div>
             )}
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {filteredTranscripts.map((t) => (
-              <TranscriptView key={t.student.id} transcript={t} />
-            ))}
-            {filteredTranscripts.length === 0 && (
-              <p className="text-center text-gray-600 dark:text-gray-300 mt-8">
-                No students found for the current filter.
-              </p>
-            )}
-          </div>
+          </>
         )}
       </div>
     </div>
@@ -571,6 +754,16 @@ function ReportCardView({ reportData }: { reportData: ReportRecord }) {
                 Program
               </td>
               <td className="px-4 py-3">{reportData.program}</td>
+            </tr>
+            <tr className="border-b border-yellow-300 dark:border-yellow-700">
+              <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+                Batch
+              </td>
+              <td className="px-4 py-3">{reportData.batch}</td>
+              <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+                Department
+              </td>
+              <td className="px-4 py-3">{reportData.department}</td>
             </tr>
             <tr>
               <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
@@ -711,8 +904,12 @@ function TranscriptView({ transcript }: { transcript: TranscriptRecord }) {
               <td className="px-3 py-2">{transcript.student.faculty}</td>
             </tr>
             <tr className="bg-cyan-100 dark:bg-cyan-900 border-2 border-black dark:border-gray-600">
+              <td className="px-3 py-2 font-bold">Batch</td>
+              <td className="px-3 py-2">{transcript.student.batch}</td>
+              <td className="px-3 py-2 font-bold">Department</td>
+              <td className="px-3 py-2">{transcript.student.department}</td>
               <td className="px-3 py-2 font-bold">Date of Admission</td>
-              <td colSpan={7} className="px-3 py-2">
+              <td colSpan={3} className="px-3 py-2">
                 {transcript.student.admissionDate}
               </td>
             </tr>
