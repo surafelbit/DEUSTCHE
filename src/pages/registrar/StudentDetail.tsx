@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -21,19 +21,27 @@ import {
   GraduationCap,
   Edit,
   Camera,
+  User,
+  Shield,
+  BookOpen,
+  Award,
+  FileText,
+  Home,
+  Briefcase,
+  Heart,
+  Users,
+  AlertCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import apiService from "@/components/api/apiService";
+import endPoints from "@/components/api/endPoints";
 
 export default function StudentProfile() {
   const location = useLocation();
-  let userRole;
-  if (location.pathname.includes("registrar")) {
-    userRole = "registrar";
-  } else {
-    userRole = "general-manager";
-  }
+  const { id } = useParams(); // Get student ID from URL params
   const navigate = useNavigate();
+  
   const [passwordForm, setPasswordForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
@@ -42,99 +50,113 @@ export default function StudentProfile() {
     confirmPassword: "",
   });
   const [error, setError] = useState("");
-  // const [userRole, setUserRole] = useState("registrar"); // Default to registrar
-  const [editableData, setEditableData] = useState({
-    firstNameAMH: "አበበ",
-    firstNameENG: "Abebe",
-    fatherNameAMH: "ከበደ",
-    fatherNameENG: "Kebede",
-    grandfatherNameAMH: "ወልደ",
-    grandfatherNameENG: "Welde",
-    motherNameAMH: "ልደት",
-    motherNameENG: "Lidet",
-    motherFatherNameAMH: "ታደሰ",
-    motherFatherNameENG: "Tadesse",
-    gender: "Male",
-    age: 20,
-    phoneNumber: "+251912345678",
-    dateOfBirthEC: "15/06/2005",
-    dateOfBirthGC: "1997-02-22",
-    placeOfBirthWoreda: "Yeka",
-    placeOfBirthZone: "Addis Ababa",
-    placeOfBirthRegion: "Addis Ababa",
-    currentAddressWoreda: "Bole",
-    currentAddressZone: "Addis Ababa",
-    currentAddressRegion: "Addis Ababa",
-    email: "abebe.kebede@example.com",
-    maritalStatus: "Single",
-    impairment: "None",
-    schoolBackground: "Public",
-    contactPersonFirstNameAMH: "ሰለሞን",
-    contactPersonFirstNameENG: "Solomon",
-    contactPersonLastNameAMH: "ገብረ",
-    contactPersonLastNameENG: "Gebre",
-    contactPersonPhoneNumber: "+251987654321",
-    contactPersonRelation: "Brother",
-    departmentEnrolled: "Computer Science",
-    programModality: "Regular",
-  });
+  const [loading, setLoading] = useState(true);
+  const [studentData, setStudentData] = useState<any>(null);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
+  const [zones, setZones] = useState<any[]>([]);
+  const [woredas, setWoredas] = useState<any[]>([]);
+  const [schoolBackgrounds, setSchoolBackgrounds] = useState<any[]>([]);
+  const [impairments, setImpairments] = useState<any[]>([]);
+  
+  let userRole;
+  if (location.pathname.includes("registrar")) {
+    userRole = "registrar";
+  } else {
+    userRole = "general-manager";
+  }
 
-  const originalData = {
-    firstNameAMH: "አበበ",
-    firstNameENG: "Abebe",
-    fatherNameAMH: "ከበደ",
-    fatherNameENG: "Kebede",
-    grandfatherNameAMH: "ወልደ",
-    grandfatherNameENG: "Welde",
-    motherNameAMH: "ልደት",
-    motherNameENG: "Lidet",
-    motherFatherNameAMH: "ታደሰ",
-    motherFatherNameENG: "Tadesse",
-    gender: "Male",
-    age: 20,
-    phoneNumber: "+251912345678",
-    dateOfBirthEC: "15/06/2005",
-    dateOfBirthGC: "1997-02-22",
-    placeOfBirthWoreda: "Yeka",
-    placeOfBirthZone: "Addis Ababa",
-    placeOfBirthRegion: "Addis Ababa",
-    currentAddressWoreda: "Bole",
-    currentAddressZone: "Addis Ababa",
-    currentAddressRegion: "Addis Ababa",
-    email: "abebe.kebede@example.com",
-    maritalStatus: "Single",
-    impairment: "None",
-    schoolBackground: "Public",
-    contactPersonFirstNameAMH: "ሰለሞን",
-    contactPersonFirstNameENG: "Solomon",
-    contactPersonLastNameAMH: "ገብረ",
-    contactPersonLastNameENG: "Gebre",
-    contactPersonPhoneNumber: "+251987654321",
-    contactPersonRelation: "Brother",
-    departmentEnrolled: "Computer Science",
-    programModality: "Regular",
+  const isEditable = userRole === "registrar";
+
+  useEffect(() => {
+    fetchStudentData();
+    fetchDropdownData();
+  }, [id]);
+
+  const fetchStudentData = async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      // Fetch student data
+      const response = await apiService.get(`${endPoints.students}/${id}`);
+      console.log("Student data:", response);
+      
+      // Process the response data
+      const processedData = {
+        ...response,
+        fullName: `${response.firstNameENG || ''} ${response.fatherNameENG || ''} ${response.grandfatherNameENG || ''}`.trim(),
+        amharicFullName: `${response.firstNameAMH || ''} ${response.fatherNameAMH || ''} ${response.grandfatherNameAMH || ''}`.trim(),
+        motherFullName: `${response.motherNameENG || ''} ${response.motherFatherNameENG || ''}`.trim(),
+        motherAmharicFullName: `${response.motherNameAMH || ''} ${response.motherFatherNameAMH || ''}`.trim(),
+        contactFullName: `${response.contactPersonFirstNameENG || ''} ${response.contactPersonLastNameENG || ''}`.trim(),
+        contactAmharicFullName: `${response.contactPersonFirstNameAMH || ''} ${response.contactPersonLastNameAMH || ''}`.trim(),
+        
+        // Format dates
+        dateOfBirthGC: response.dateOfBirthGC ? new Date(response.dateOfBirthGC).toISOString().split('T')[0] : '',
+        dateEnrolledGC: response.dateEnrolledGC ? new Date(response.dateEnrolledGC).toISOString().split('T')[0] : '',
+        
+        // Map values to readable format
+        gender: response.gender === 'MALE' ? 'Male' : response.gender === 'FEMALE' ? 'Female' : response.gender,
+        maritalStatus: response.maritalStatus ? 
+          response.maritalStatus.charAt(0) + response.maritalStatus.slice(1).toLowerCase() : 'Unknown',
+        
+        // Student photo URL
+        studentPhoto: response.studentPhoto ? 
+          `data:image/jpeg;base64,${response.studentPhoto}` : null,
+        
+        // Grade 12 result document
+        grade12Document: response.document ? 
+          `data:image/jpeg;base64,${response.document}` : null,
+      };
+      
+      setStudentData(processedData);
+    } catch (error) {
+      console.error("Error fetching student data:", error);
+      setError("Failed to load student data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const studentData = {
-    ...editableData,
-    studentPhoto:
-      "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAAAAAAAD/2wBDAAoHBwkHBgoJCAkLCwoMDxkQDw4ODx4WFxIZJCAmJSMgIyIOJj4kLCIuNDIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy",
-    grade12ExamResult:
-      "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAAAAAAAD/2wBDAAoHBwkHBgoJCAkLCwoMDxkQDw4ODx4WFxIZJCAmJSMgIyIOJj4kLCIuNDIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy",
+  const fetchDropdownData = async () => {
+    try {
+      // Fetch all dropdown data
+      const [depts, batchResp, regionsResp, backgroundsResp, impairmentsResp] = await Promise.all([
+        apiService.get(endPoints.departments),
+        apiService.get(endPoints.BatchClassYearSemesters),
+        apiService.get(endPoints.allRegion),
+        apiService.get(endPoints.schoolBackgrounds),
+        apiService.get(endPoints.impairments),
+      ]);
+      
+      setDepartments(depts || []);
+      setBatches(batchResp || []);
+      setRegions(regionsResp || []);
+      setSchoolBackgrounds(backgroundsResp || []);
+      setImpairments(impairmentsResp || []);
+      
+    } catch (error) {
+      console.error("Error fetching dropdown data:", error);
+    }
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (error) setError("");
   };
 
-  const handleEditChange = (e) => {
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setEditableData((prev) => ({ ...prev, [name]: value }));
+    setStudentData((prev: any) => ({ 
+      ...prev, 
+      [name]: value 
+    }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
       setError("Passwords do not match.");
@@ -144,318 +166,159 @@ export default function StudentProfile() {
       setError("Password must be at least 8 characters long.");
       return;
     }
-    console.log("Password change request:", {
-      ...formData,
-      studentId: studentData.firstNameENG,
-    });
-    alert(
-      `Password change request submitted for Student: ${studentData.firstNameENG}`
-    );
-    setFormData({ studentId: "", newPassword: "", confirmPassword: "" });
-    setPasswordForm(false);
+    
+    try {
+      // Call API to change password
+      await apiService.put(`${endPoints.students}/${id}/password`, {
+        newPassword: formData.newPassword
+      });
+      
+      alert(`Password changed successfully for student: ${studentData?.fullName}`);
+      setFormData({ studentId: "", newPassword: "", confirmPassword: "" });
+      setPasswordForm(false);
+    } catch (error) {
+      console.error("Error changing password:", error);
+      alert("Failed to change password. Please try again.");
+    }
   };
 
-  const handleSave = () => {
-    console.log("Updated student data:", editableData);
-    alert(`Profile updated for ${editableData.firstNameENG}`);
-    setEditMode(false);
+  const handleSave = async () => {
+    if (!studentData || !id) return;
+    
+    try {
+      // Prepare data for update (only include fields that can be updated)
+      const updateData = {
+        firstNameAMH: studentData.firstNameAMH,
+        firstNameENG: studentData.firstNameENG,
+        fatherNameAMH: studentData.fatherNameAMH,
+        fatherNameENG: studentData.fatherNameENG,
+        grandfatherNameAMH: studentData.grandfatherNameAMH,
+        grandfatherNameENG: studentData.grandfatherNameENG,
+        motherNameAMH: studentData.motherNameAMH,
+        motherNameENG: studentData.motherNameENG,
+        motherFatherNameAMH: studentData.motherFatherNameAMH,
+        motherFatherNameENG: studentData.motherFatherNameENG,
+        gender: studentData.gender.toUpperCase(),
+        age: parseInt(studentData.age),
+        phoneNumber: studentData.phoneNumber,
+        dateOfBirthGC: studentData.dateOfBirthGC,
+        dateOfBirthEC: studentData.dateOfBirthEC,
+        email: studentData.email,
+        maritalStatus: studentData.maritalStatus.toUpperCase(),
+        impairmentCode: studentData.impairmentCode,
+        schoolBackgroundId: parseInt(studentData.schoolBackgroundId),
+        contactPersonFirstNameAMH: studentData.contactPersonFirstNameAMH,
+        contactPersonFirstNameENG: studentData.contactPersonFirstNameENG,
+        contactPersonLastNameAMH: studentData.contactPersonLastNameAMH,
+        contactPersonLastNameENG: studentData.contactPersonLastNameENG,
+        contactPersonPhoneNumber: studentData.contactPersonPhoneNumber,
+        contactPersonRelation: studentData.contactPersonRelation,
+        departmentEnrolledId: parseInt(studentData.departmentEnrolledId),
+        programModalityCode: studentData.programModalityCode,
+      };
+      
+      // Call API to update student
+      await apiService.put(`${endPoints.students}/${id}`, updateData);
+      
+      alert(`Profile updated successfully for ${studentData.fullName}`);
+      setEditMode(false);
+      fetchStudentData(); // Refresh data
+    } catch (error) {
+      console.error("Error updating student:", error);
+      alert("Failed to update profile. Please try again.");
+    }
   };
 
   const handleCancel = () => {
-    setEditableData(originalData);
+    fetchStudentData(); // Reset to original data
     setEditMode(false);
   };
 
-  const [openYear, setOpenYear] = useState({ index: null });
-  const [openYears, setOpenYears] = useState({});
-  const [openSemesters, setOpenSemesters] = useState({});
-  const [selectedGradingSystem, setSelectedGradingSystem] = useState("system1");
-
-  const initialResult = [
-    {
-      year: 1,
-      semseters: [
-        {
-          id: "1",
-          courses: [
-            {
-              name: "Mathematics",
-              result: 95,
-              grade: "A",
-              credit: 4,
-              courseId: "MATH101",
-            },
-            {
-              name: "Physics",
-              result: 88,
-              grade: "B",
-              credit: 3,
-              courseId: "PHYS101",
-            },
-            {
-              name: "Chemistry",
-              result: 78,
-              grade: "C",
-              credit: 3,
-              courseId: "CHEM101",
-            },
-            {
-              name: "English",
-              result: 62,
-              grade: "D",
-              credit: 2,
-              courseId: "ENG101",
-            },
-          ],
-        },
-        {
-          id: "2",
-          courses: [
-            {
-              name: "Advanced Mathematics",
-              result: 92,
-              grade: "A",
-              credit: 4,
-              courseId: "MATH102",
-            },
-            {
-              name: "Mechanics",
-              result: 85,
-              grade: "B",
-              credit: 4,
-              courseId: "PHYS102",
-            },
-            {
-              name: "Organic Chemistry",
-              result: 70,
-              grade: "C",
-              credit: 3,
-              courseId: "CHEM102",
-            },
-          ],
-        },
-        {
-          id: "3",
-          courses: [
-            {
-              name: "Statistics",
-              result: 99,
-              grade: "A",
-              credit: 3,
-              courseId: "STAT101",
-            },
-            {
-              name: "Electronics",
-              result: 82,
-              grade: "B",
-              credit: 4,
-              courseId: "PHYS103",
-            },
-            {
-              name: "Literature",
-              result: 55,
-              grade: "F",
-              credit: 2,
-              courseId: "ENG102",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      year: 2,
-      semseters: [
-        {
-          id: "1",
-          courses: [
-            {
-              name: "Calculus",
-              result: 90,
-              grade: "A",
-              credit: 4,
-              courseId: "MATH201",
-            },
-            {
-              name: "Quantum Physics",
-              result: 84,
-              grade: "B",
-              credit: 4,
-              courseId: "PHYS201",
-            },
-            {
-              name: "Inorganic Chemistry",
-              result: 75,
-              grade: "C",
-              credit: 3,
-              courseId: "CHEM201",
-            },
-          ],
-        },
-        {
-          id: "2",
-          courses: [
-            {
-              name: "Linear Algebra",
-              result: 87,
-              grade: "B",
-              credit: 4,
-              courseId: "MATH202",
-            },
-            {
-              name: "Thermodynamics",
-              result: 80,
-              grade: "B",
-              credit: 3,
-              courseId: "PHYS202",
-            },
-            {
-              name: "Writing Composition",
-              result: 68,
-              grade: "D",
-              credit: 2,
-              courseId: "ENG201",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      year: 3,
-      semseters: [
-        {
-          id: "1",
-          courses: [
-            {
-              name: "Differential Equations",
-              result: 100,
-              grade: "A",
-              credit: 5,
-              courseId: "MATH301",
-            },
-            {
-              name: "Electromagnetism",
-              result: 83,
-              grade: "B",
-              credit: 4,
-              courseId: "PHYS301",
-            },
-            {
-              name: "Biochemistry",
-              result: 72,
-              grade: "C",
-              credit: 3,
-              courseId: "CHEM301",
-            },
-            {
-              name: "Technical Writing",
-              result: 60,
-              grade: "D",
-              credit: 2,
-              courseId: "ENG301",
-            },
-          ],
-        },
-        {
-          id: "2",
-          courses: [
-            {
-              name: "Probability",
-              result: 97,
-              grade: "A",
-              credit: 4,
-              courseId: "MATH302",
-            },
-            {
-              name: "Optics",
-              result: 79,
-              grade: "C",
-              credit: 3,
-              courseId: "PHYS302",
-            },
-            {
-              name: "Analytical Chemistry",
-              result: 65,
-              grade: "D",
-              credit: 3,
-              courseId: "CHEM302",
-            },
-          ],
-        },
-      ],
-    },
-  ];
-  const [displayedResult, setDisplayedResult] = useState(initialResult);
-
-  const gradingSystems = {
-    system1: (score) => {
-      if (score >= 90) return "A";
-      if (score >= 80) return "B";
-      if (score >= 70) return "C";
-      if (score >= 60) return "D";
-      return "F";
-    },
-    system2: (score) => {
-      if (score >= 90) return "A";
-      if (score >= 85) return "A-";
-      if (score >= 80) return "B+";
-      if (score >= 75) return "B";
-      if (score >= 70) return "B-";
-      if (score >= 65) return "C";
-      return "F";
-    },
-    system3: (score) => {
-      if (score >= 85) return "A";
-      if (score >= 75) return "B";
-      if (score >= 65) return "C";
-      if (score >= 60) return "D";
-      return "F";
-    },
+  // Function to get department name by ID
+  const getDepartmentName = (id: number) => {
+    const dept = departments.find(d => d.id === id);
+    return dept ? dept.departmentName : `Department ${id}`;
   };
 
-  useEffect(() => {
-    const updatedResult = initialResult.map((year) => ({
-      ...year,
-      semseters: year.semseters.map((semester) => ({
-        ...semester,
-        courses: semester.courses.map((course) => ({
-          ...course,
-          grade: gradingSystems[selectedGradingSystem](course.result),
-        })),
-      })),
-    }));
-    setDisplayedResult(updatedResult);
-  }, [selectedGradingSystem]);
+  // Function to get batch name by ID
+  const getBatchName = (id: number) => {
+    const batch = batches.find(b => b.id === id);
+    return batch ? batch.batchName : `Batch ${id}`;
+  };
 
-  // Determine if the profile is editable based on userRole
-  const isEditable = userRole === "registrar";
+  // Function to get region name by code
+  const getRegionName = (code: string) => {
+    const region = regions.find(r => r.regionCode === code);
+    return region ? region.regionName : code;
+  };
+
+  // Function to get school background name by ID
+  const getSchoolBackgroundName = (id: number) => {
+    const background = schoolBackgrounds.find(sb => sb.id === id);
+    return background ? background.schoolBackground : `Background ${id}`;
+  };
+
+  // Function to get impairment name by code
+  const getImpairmentName = (code: string) => {
+    const impairment = impairments.find(i => i.impairmentCode === code);
+    return impairment ? impairment.impairmentName : code || 'None';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  if (error || !studentData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6">
+        <AlertCircle className="h-16 w-16 text-red-500 mb-4" />
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          {error || "Student not found"}
+        </h2>
+        <Button onClick={() => navigate(-1)} className="mt-4">
+          Back to Student List
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8 bg-white dark:bg-gray-900">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-blue-600 dark:text-gray-100">
-          Student Profile
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold text-blue-600 dark:text-gray-100">
+            Student Profile
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Student ID: {studentData.id} | Username: {studentData.userId}
+          </p>
+        </div>
         <div className="flex space-x-2">
-          <Link
+          <Button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center text-blue-600 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+            variant="outline"
+            className="flex items-center"
           >
             <span className="mr-2">&larr;</span>
-            <span>Back to Student List</span>
-          </Link>
+            <span>Back to List</span>
+          </Button>
           {isEditable && (
             <>
               {editMode ? (
                 <>
                   <Button
                     onClick={handleSave}
-                    className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
+                    className="bg-green-600 hover:bg-green-700 text-white"
                   >
-                    Save
+                    Save Changes
                   </Button>
                   <Button
                     onClick={handleCancel}
-                    className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white"
+                    variant="destructive"
                   >
                     Cancel
                   </Button>
@@ -463,7 +326,7 @@ export default function StudentProfile() {
               ) : (
                 <Button
                   onClick={() => setEditMode(true)}
-                  className="bg-blue-600 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Edit className="mr-2 h-4 w-4" />
                   Edit Profile
@@ -473,60 +336,81 @@ export default function StudentProfile() {
           )}
         </div>
       </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Picture and Basic Info */}
         <Card className="lg:col-span-1 bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
           <CardHeader className="text-center">
             <div className="relative mx-auto">
-              <Avatar className="w-32 h-32">
-                <AvatarImage src={studentData.studentPhoto} />
-                <AvatarFallback className="text-2xl bg-blue-100 dark:bg-gray-700 text-blue-600 dark:text-gray-300">
-                  {studentData.firstNameENG[0]}
-                  {studentData.fatherNameENG[0]}
-                </AvatarFallback>
+              <Avatar className="w-32 h-32 border-4 border-blue-100 dark:border-gray-700">
+                {studentData.studentPhoto ? (
+                  <AvatarImage src={studentData.studentPhoto} />
+                ) : (
+                  <AvatarFallback className="text-3xl bg-blue-100 dark:bg-gray-700 text-blue-600 dark:text-gray-300">
+                    {studentData.firstNameENG?.[0] || 'S'}
+                    {studentData.fatherNameENG?.[0] || 'T'}
+                  </AvatarFallback>
+                )}
               </Avatar>
-              {isEditable && (
+              {isEditable && editMode && (
                 <Button
                   size="icon"
-                  variant="secondary"
-                  className="absolute bottom-0 right-0 rounded-full bg-blue-600 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
+                  className="absolute bottom-0 right-0 rounded-full bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Camera className="h-4 w-4" />
                 </Button>
               )}
             </div>
             <CardTitle className="mt-4 text-blue-600 dark:text-gray-100">
-              {studentData.firstNameENG} {studentData.fatherNameENG}
+              {studentData.fullName}
             </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400">
-              {studentData.departmentEnrolled} Student
+              {getDepartmentName(studentData.departmentEnrolledId)} Student
             </CardDescription>
-            <Badge
-              variant="secondary"
-              className="mt-2 bg-blue-100 dark:bg-gray-700 text-blue-600 dark:text-gray-300"
-            >
-              {studentData.programModality}
-            </Badge>
+            <div className="flex flex-wrap justify-center gap-2 mt-2">
+              <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300">
+                {studentData.programModalityCode || 'Regular'}
+              </Badge>
+              <Badge className={
+                studentData.documentStatus === 'COMPLETE' 
+                  ? "bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300"
+                  : "bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-300"
+              }>
+                {studentData.documentStatus || 'PENDING'}
+              </Badge>
+              {studentData.isTransfer && (
+                <Badge className="bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300">
+                  Transfer Student
+                </Badge>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <Mail className="h-4 w-4 text-blue-600 dark:text-gray-300" />
-              <span>{studentData.email}</span>
+            <div className="flex items-center space-x-2 text-sm">
+              <Mail className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
+              <span className="text-gray-600 dark:text-gray-400 break-all">{studentData.email}</span>
             </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <Phone className="h-4 w-4 text-blue-600 dark:text-gray-300" />
-              <span>{studentData.phoneNumber}</span>
+            <div className="flex items-center space-x-2 text-sm">
+              <Phone className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
+              <span className="text-gray-600 dark:text-gray-400">{studentData.phoneNumber}</span>
             </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <MapPin className="h-4 w-4 text-blue-600 dark:text-gray-300" />
-              <span>
-                {studentData.currentAddressWoreda},{" "}
-                {studentData.currentAddressRegion}
+            <div className="flex items-center space-x-2 text-sm">
+              <MapPin className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
+              <span className="text-gray-600 dark:text-gray-400">
+                {getRegionName(studentData.currentAddressRegionCode)}
               </span>
             </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <Calendar className="h-4 w-4 text-blue-600 dark:text-gray-300" />
-              <span>Enrolled: September 2023</span>
+            <div className="flex items-center space-x-2 text-sm">
+              <Calendar className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
+              <span className="text-gray-600 dark:text-gray-400">
+                Enrolled: {studentData.dateEnrolledGC || 'N/A'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 text-sm">
+              <Award className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
+              <span className="text-gray-600 dark:text-gray-400">
+                Grade 12: {studentData.grade12Result || 'N/A'}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -534,327 +418,176 @@ export default function StudentProfile() {
         {/* Personal Information */}
         <Card className="lg:col-span-2 bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
           <CardHeader>
-            <CardTitle className="text-blue-600 dark:text-gray-100">
+            <CardTitle className="text-blue-600 dark:text-gray-100 flex items-center">
+              <User className="mr-2 h-5 w-5" />
               Personal Information
             </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400">
-              Your personal details and contact information
+              Student's personal details and contact information
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Student Names */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="firstNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  First Name (Amharic)
+                <Label className="text-gray-700 dark:text-gray-300">
+                  Full Name (English)
                 </Label>
-                <Input
-                  id="firstNameAMH"
-                  name="firstNameAMH"
-                  value={editableData.firstNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.fullName}
+                </div>
               </div>
               <div className="space-y-2">
-                <Label
-                  htmlFor="firstNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  First Name (English)
+                <Label className="text-gray-700 dark:text-gray-300">
+                  Full Name (Amharic)
                 </Label>
-                <Input
-                  id="firstNameENG"
-                  name="firstNameENG"
-                  value={editableData.firstNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                  {studentData.amharicFullName}
+                </div>
               </div>
             </div>
 
+            <Separator className="bg-gray-200 dark:bg-gray-700" />
+
+            {/* Father and Grandfather Names */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="fatherNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Father's Name (Amharic)
-                </Label>
-                <Input
-                  id="fatherNameAMH"
-                  name="fatherNameAMH"
-                  value={editableData.fatherNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="fatherNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
+                <Label className="text-gray-700 dark:text-gray-300">
                   Father's Name (English)
                 </Label>
-                <Input
-                  id="fatherNameENG"
-                  name="fatherNameENG"
-                  value={editableData.fatherNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.fatherNameENG}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 dark:text-gray-300">
+                  Father's Name (Amharic)
+                </Label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                  {studentData.fatherNameAMH}
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="grandfatherNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Grandfather's Name (Amharic)
-                </Label>
-                <Input
-                  id="grandfatherNameAMH"
-                  name="grandfatherNameAMH"
-                  value={editableData.grandfatherNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="grandfatherNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
+                <Label className="text-gray-700 dark:text-gray-300">
                   Grandfather's Name (English)
                 </Label>
-                <Input
-                  id="grandfatherNameENG"
-                  name="grandfatherNameENG"
-                  value={editableData.grandfatherNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.grandfatherNameENG}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 dark:text-gray-300">
+                  Grandfather's Name (Amharic)
+                </Label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                  {studentData.grandfatherNameAMH}
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-gray-200 dark:bg-gray-700" />
+
+            {/* Mother's Information */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                <Heart className="mr-2 h-4 w-4" />
+                Mother's Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-700 dark:text-gray-300">
+                    Mother's Name (English)
+                  </Label>
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {studentData.motherFullName}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-700 dark:text-gray-300">
+                    Mother's Name (Amharic)
+                  </Label>
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                    {studentData.motherAmharicFullName}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-gray-200 dark:bg-gray-700" />
+
+            {/* Personal Details */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label className="text-gray-700 dark:text-gray-300">Gender</Label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.gender}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 dark:text-gray-300">Age</Label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.age}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 dark:text-gray-300">Marital Status</Label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.maritalStatus}
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="motherNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Mother's Name (Amharic)
-                </Label>
-                <Input
-                  id="motherNameAMH"
-                  name="motherNameAMH"
-                  value={editableData.motherNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
+                <Label className="text-gray-700 dark:text-gray-300">Date of Birth (GC)</Label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.dateOfBirthGC}
+                </div>
               </div>
               <div className="space-y-2">
-                <Label
-                  htmlFor="motherNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Mother's Name (English)
-                </Label>
-                <Input
-                  id="motherNameENG"
-                  name="motherNameENG"
-                  value={editableData.motherNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
+                <Label className="text-gray-700 dark:text-gray-300">Date of Birth (EC)</Label>
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.dateOfBirthEC}
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="motherFatherNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Mother's Father Name (Amharic)
-                </Label>
-                <Input
-                  id="motherFatherNameAMH"
-                  name="motherFatherNameAMH"
-                  value={editableData.motherFatherNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="motherFatherNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Mother's Father Name (English)
-                </Label>
-                <Input
-                  id="motherFatherNameENG"
-                  name="motherFatherNameENG"
-                  value={editableData.motherFatherNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
+            <Separator className="bg-gray-200 dark:bg-gray-700" />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="dateOfBirthGC"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Date of Birth (GC)
-                </Label>
-                <Input
-                  id="dateOfBirthGC"
-                  name="dateOfBirthGC"
-                  value={editableData.dateOfBirthGC}
-                  onChange={handleEditChange}
-                  type="date"
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
+            {/* Address Information */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center">
+                <Home className="mr-2 h-4 w-4" />
+                Address Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-700 dark:text-gray-300">Region</Label>
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {getRegionName(studentData.currentAddressRegionCode)}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-700 dark:text-gray-300">Zone</Label>
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {studentData.currentAddressZoneCode}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-700 dark:text-gray-300">Woreda</Label>
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {studentData.currentAddressWoredaCode}
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="gender"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Gender
-                </Label>
-                <Input
-                  id="gender"
-                  name="gender"
-                  value={editableData.gender}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-
-            <Separator className="bg-blue-200 dark:bg-gray-700" />
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="currentAddressWoreda"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Current Address (Woreda)
-              </Label>
-              <Input
-                id="currentAddressWoreda"
-                name="currentAddressWoreda"
-                value={editableData.currentAddressWoreda}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="currentAddressZone"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Current Address (Zone)
-              </Label>
-              <Input
-                id="currentAddressZone"
-                name="currentAddressZone"
-                value={editableData.currentAddressZone}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="currentAddressRegion"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Current Address (Region)
-              </Label>
-              <Input
-                id="currentAddressRegion"
-                name="currentAddressRegion"
-                value={editableData.currentAddressRegion}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="placeOfBirthWoreda"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Place of Birth (Woreda)
-              </Label>
-              <Input
-                id="placeOfBirthWoreda"
-                name="placeOfBirthWoreda"
-                value={editableData.placeOfBirthWoreda}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="placeOfBirthZone"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Place of Birth (Zone)
-              </Label>
-              <Input
-                id="placeOfBirthZone"
-                name="placeOfBirthZone"
-                value={editableData.placeOfBirthZone}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="placeOfBirthRegion"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Place of Birth (Region)
-              </Label>
-              <Input
-                id="placeOfBirthRegion"
-                name="placeOfBirthRegion"
-                value={editableData.placeOfBirthRegion}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
             </div>
           </CardContent>
         </Card>
       </div>
+
       {/* Academic Information */}
       <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
         <CardHeader>
@@ -863,463 +596,241 @@ export default function StudentProfile() {
             Academic Information
           </CardTitle>
           <CardDescription className="text-gray-600 dark:text-gray-400">
-            Your academic details and program information
+            Student's academic details and program information
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label
-                htmlFor="departmentEnrolled"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Department Enrolled
+              <Label className="text-gray-700 dark:text-gray-300">
+                Department
               </Label>
-              <Input
-                id="departmentEnrolled"
-                name="departmentEnrolled"
-                value={editableData.departmentEnrolled}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {getDepartmentName(studentData.departmentEnrolledId)}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label
-                htmlFor="programModality"
-                className="text-gray-700 dark:text-gray-300"
-              >
+              <Label className="text-gray-700 dark:text-gray-300">
+                Batch
+              </Label>
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {getBatchName(studentData.batchClassYearSemesterId)}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">
                 Program Modality
               </Label>
-              <Input
-                id="programModality"
-                name="programModality"
-                value={editableData.programModality}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {studentData.programModalityCode === 'RG' ? 'Regular' : 
+                 studentData.programModalityCode === 'EX' ? 'Extension' : 
+                 studentData.programModalityCode === 'DS' ? 'Distance' : 
+                 studentData.programModalityCode}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label
-                htmlFor="schoolBackground"
-                className="text-gray-700 dark:text-gray-300"
-              >
+              <Label className="text-gray-700 dark:text-gray-300">
                 School Background
               </Label>
-              <Input
-                id="schoolBackground"
-                name="schoolBackground"
-                value={editableData.schoolBackground}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {getSchoolBackgroundName(studentData.schoolBackgroundId)}
+              </div>
             </div>
           </div>
 
-          <Separator className="bg-blue-200 dark:bg-gray-700" />
-
-          <div className="space-y-2">
-            <Label
-              htmlFor="grade12ExamResult"
-              className="text-gray-700 dark:text-gray-300"
-            >
-              Document
-            </Label>
-            <img
-              src={studentData.document}
-              alt="Document"
-              className="w-64 h-36 object-cover rounded-lg border-2 border-blue-200 dark:border-gray-700"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">
+                Impairment
+              </Label>
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {getImpairmentName(studentData.impairmentCode)}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">
+                Grade 12 Result
+              </Label>
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {studentData.grade12Result || 'N/A'}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">
+                Exit Exam Status
+              </Label>
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {studentData.isStudentPassExitExam ? 'Passed' : 'Not Passed'}
+                {studentData.exitExamScore && ` (${studentData.exitExamScore})`}
+              </div>
+            </div>
           </div>
+
+          <Separator className="bg-gray-200 dark:bg-gray-700" />
+
+          {studentData.grade12Document && (
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300 flex items-center">
+                <FileText className="mr-2 h-4 w-4" />
+                Grade 12 Document
+              </Label>
+              <div className="flex items-center space-x-4">
+                <img
+                  src={studentData.grade12Document}
+                  alt="Grade 12 Document"
+                  className="w-64 h-36 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700"
+                />
+                <Button variant="outline" size="sm">
+                  Download Document
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
       {/* Emergency Contact */}
       <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
         <CardHeader>
-          <CardTitle className="text-blue-600 dark:text-gray-100">
+          <CardTitle className="text-blue-600 dark:text-gray-100 flex items-center">
+            <Users className="mr-2 h-5 w-5" />
             Emergency Contact
           </CardTitle>
           <CardDescription className="text-gray-600 dark:text-gray-400">
             Emergency contact information
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonFirstNameAMH"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Contact First Name (Amharic)
+              <Label className="text-gray-700 dark:text-gray-300">
+                Contact Person (English)
               </Label>
-              <Input
-                id="contactPersonFirstNameAMH"
-                name="contactPersonFirstNameAMH"
-                value={editableData.contactPersonFirstNameAMH}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {studentData.contactFullName}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonFirstNameENG"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Contact First Name (English)
+              <Label className="text-gray-700 dark:text-gray-300">
+                Contact Person (Amharic)
               </Label>
-              <Input
-                id="contactPersonFirstNameENG"
-                name="contactPersonFirstNameENG"
-                value={editableData.contactPersonFirstNameENG}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                {studentData.contactAmharicFullName}
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonLastNameAMH"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Contact Last Name (Amharic)
-              </Label>
-              <Input
-                id="contactPersonLastNameAMH"
-                name="contactPersonLastNameAMH"
-                value={editableData.contactPersonLastNameAMH}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonLastNameENG"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Contact Last Name (English)
-              </Label>
-              <Input
-                id="contactPersonLastNameENG"
-                name="contactPersonLastNameENG"
-                value={editableData.contactPersonLastNameENG}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonPhoneNumber"
-                className="text-gray-700 dark:text-gray-300"
-              >
+              <Label className="text-gray-700 dark:text-gray-300">
                 Phone Number
               </Label>
-              <Input
-                id="contactPersonPhoneNumber"
-                name="contactPersonPhoneNumber"
-                value={editableData.contactPersonPhoneNumber}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {studentData.contactPersonPhoneNumber}
+              </div>
             </div>
             <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonRelation"
-                className="text-gray-700 dark:text-gray-300"
-              >
+              <Label className="text-gray-700 dark:text-gray-300">
                 Relationship
               </Label>
-              <Input
-                id="contactPersonRelation"
-                name="contactPersonRelation"
-                value={editableData.contactPersonRelation}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {studentData.contactPersonRelation}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">
+                Remark
+              </Label>
+              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                {studentData.remark || 'No remarks'}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Admin Actions */}
       {isEditable && (
-        <Button
-          onClick={() => setPasswordForm(!passwordForm)}
-          className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
-        >
-          {passwordForm ? "Cancel" : "Change Password"}
-        </Button>
-      )}
-      {isEditable && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{
-            height: passwordForm ? "auto" : 0,
-            opacity: passwordForm ? 1 : 0,
-          }}
-          transition={{ duration: 0.3 }}
-          className="overflow-hidden"
-        >
-          <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-blue-600 dark:text-gray-100">
-                Change Password
-              </CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-400">
-                Update the student's password
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="newPassword"
-                      className="text-gray-700 dark:text-gray-300"
-                    >
-                      New Password
-                    </Label>
-                    <Input
-                      type="password"
-                      id="newPassword"
-                      name="newPassword"
-                      value={formData.newPassword}
-                      onChange={handleChange}
-                      required
-                      minLength={8}
-                      placeholder="Enter new password"
-                      className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="confirmPassword"
-                      className="text-gray-700 dark:text-gray-300"
-                    >
-                      Confirm Password
-                    </Label>
-                    <Input
-                      type="password"
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      minLength={8}
-                      placeholder="Confirm new password"
-                      className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                </div>
-                {error && (
-                  <p className="text-red-500 dark:text-red-400 text-sm">
-                    {error}
-                  </p>
-                )}
-                <Button
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
-                >
-                  Change Password
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 bg-white dark:bg-gray-800 border border-blue-200 dark:border-gray-700 rounded-lg shadow-md">
-        <CardHeader>
-          <CardTitle className="text-blue-600 dark:text-gray-100">
-            Student's Academic Results
-          </CardTitle>
-          <CardDescription className="text-gray-600 dark:text-gray-400">
-            Academic performance by year and semester
-          </CardDescription>
-        </CardHeader>
-
-        <div className="flex lg:justify-start flex-col sm:flex-row justify-center mb-6 gap-2 sm:gap-4 items-center">
-          <label
-            htmlFor="gradingSystem"
-            className="flex items-center text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-medium"
+        <>
+          <Button
+            onClick={() => setPasswordForm(!passwordForm)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
-            Grading System:
-          </label>
-          <select
-            id="gradingSystem"
-            value={selectedGradingSystem}
-            onChange={(e) => {
-              setSelectedGradingSystem(e.target.value);
+            {passwordForm ? "Cancel Password Change" : "Change Student Password"}
+          </Button>
+          
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{
+              height: passwordForm ? "auto" : 0,
+              opacity: passwordForm ? 1 : 0,
             }}
-            className="w-full max-w-[180px] sm:max-w-[200px] px-3 py-1.5 border border-blue-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 transition-colors duration-200 text-xs sm:text-sm"
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
           >
-            <option value="system1">Grading System 1</option>
-            <option value="system2">Grading System 2</option>
-            <option value="system3">Grading System 3</option>
-          </select>
-        </div>
-        {displayedResult.map((ele, index) => (
-          <div key={ele.year} className="mb-4">
-            <button
-              onClick={() =>
-                setOpenYears((prev) => ({ ...prev, [index]: !prev[index] }))
-              }
-              className={`w-full px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-colors duration-200 flex items-center justify-between border border-blue-300 dark:border-gray-600 ${
-                openYears[index]
-                  ? "bg-blue-500 text-white dark:bg-blue-600 dark:text-gray-100"
-                  : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-gray-600"
-              }`}
-            >
-              <span className="flex items-center">
-                {openYears[index] ? (
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                )}
-                Year {ele.year}
-              </span>
-            </button>
-            {openYears[index] && (
-              <div className="mt-3 space-y-3 pl-0 sm:pl-4">
-                {ele.semseters.map((e, idx) => (
-                  <div key={`${index}-${idx}`} className="mb-3">
-                    <button
-                      onClick={() =>
-                        setOpenSemesters((prev) => ({
-                          ...prev,
-                          [`${index}-${idx}`]: !prev[`${index}-${idx}`],
-                        }))
-                      }
-                      className={`w-full px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition-colors duration-200 flex items-center border border-blue-300 dark:border-gray-600 ${
-                        openSemesters[`${index}-${idx}`]
-                          ? "bg-blue-500 text-white dark:bg-blue-600 dark:text-gray-100"
-                          : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-gray-600"
-                      }`}
-                    >
-                      <span className="flex items-center">
-                        {openSemesters[`${index}-${idx}`] ? (
-                          <svg
-                            className="w-3 h-3 mr-1.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            className="w-3 h-3 mr-1.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        )}
-                        Semester {e.id}
-                      </span>
-                    </button>
-                    {openSemesters[`${index}-${idx}`] && (
-                      <div className="overflow-x-auto mt-2">
-                        <table className="min-w-full bg-white dark:bg-gray-800 border border-blue-200 dark:border-gray-700 rounded-lg">
-                          <thead className="bg-blue-50 dark:bg-gray-700">
-                            <tr>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Subject Name
-                              </th>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Grade
-                              </th>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Course ID
-                              </th>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Credit
-                              </th>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Result
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-blue-200 dark:divide-gray-700">
-                            {e.courses.map((course, courseIdx) => (
-                              <tr
-                                key={courseIdx}
-                                className="hover:bg-blue-50 dark:hover:bg-gray-700"
-                              >
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.name}
-                                </td>
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.grade}
-                                </td>
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.courseId}
-                                </td>
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.credit}
-                                </td>
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.result}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+            <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-blue-600 dark:text-gray-100 flex items-center">
+                  <Shield className="mr-2 h-5 w-5" />
+                  Change Password
+                </CardTitle>
+                <CardDescription className="text-gray-600 dark:text-gray-400">
+                  Update the student's password
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword" className="text-gray-700 dark:text-gray-300">
+                        New Password
+                      </Label>
+                      <Input
+                        type="password"
+                        id="newPassword"
+                        name="newPassword"
+                        value={formData.newPassword}
+                        onChange={handleChange}
+                        required
+                        minLength={8}
+                        placeholder="Enter new password"
+                        className="border-gray-300 dark:border-gray-600"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword" className="text-gray-700 dark:text-gray-300">
+                        Confirm Password
+                      </Label>
+                      <Input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        required
+                        minLength={8}
+                        placeholder="Confirm new password"
+                        className="border-gray-300 dark:border-gray-600"
+                      />
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+                  {error && (
+                    <p className="text-red-500 dark:text-red-400 text-sm">
+                      {error}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Change Password
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </>
+      )}
     </div>
   );
 }
