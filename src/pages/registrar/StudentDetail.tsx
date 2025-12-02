@@ -32,41 +32,38 @@ import {
   Users,
   AlertCircle,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import apiService from "@/components/api/apiService";
 import endPoints from "@/components/api/endPoints";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function StudentProfile() {
   const location = useLocation();
-  const { id } = useParams(); // Get student ID from URL params
+  const { id } = useParams();
   const navigate = useNavigate();
   
   const [passwordForm, setPasswordForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
-    studentId: "",
     newPassword: "",
     confirmPassword: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [studentData, setStudentData] = useState<any>(null);
+  const [originalData, setOriginalData] = useState<any>(null);
   const [departments, setDepartments] = useState<any[]>([]);
-  const [batches, setBatches] = useState<any[]>([]);
-  const [regions, setRegions] = useState<any[]>([]);
-  const [zones, setZones] = useState<any[]>([]);
-  const [woredas, setWoredas] = useState<any[]>([]);
   const [schoolBackgrounds, setSchoolBackgrounds] = useState<any[]>([]);
   const [impairments, setImpairments] = useState<any[]>([]);
   
-  let userRole;
-  if (location.pathname.includes("registrar")) {
-    userRole = "registrar";
-  } else {
-    userRole = "general-manager";
-  }
-
+  const userRole = location.pathname.includes("registrar") ? "registrar" : "general-manager";
   const isEditable = userRole === "registrar";
 
   useEffect(() => {
@@ -79,39 +76,11 @@ export default function StudentProfile() {
     
     try {
       setLoading(true);
-      // Fetch student data
       const response = await apiService.get(`${endPoints.students}/${id}`);
       console.log("Student data:", response);
       
-      // Process the response data
-      const processedData = {
-        ...response,
-        fullName: `${response.firstNameENG || ''} ${response.fatherNameENG || ''} ${response.grandfatherNameENG || ''}`.trim(),
-        amharicFullName: `${response.firstNameAMH || ''} ${response.fatherNameAMH || ''} ${response.grandfatherNameAMH || ''}`.trim(),
-        motherFullName: `${response.motherNameENG || ''} ${response.motherFatherNameENG || ''}`.trim(),
-        motherAmharicFullName: `${response.motherNameAMH || ''} ${response.motherFatherNameAMH || ''}`.trim(),
-        contactFullName: `${response.contactPersonFirstNameENG || ''} ${response.contactPersonLastNameENG || ''}`.trim(),
-        contactAmharicFullName: `${response.contactPersonFirstNameAMH || ''} ${response.contactPersonLastNameAMH || ''}`.trim(),
-        
-        // Format dates
-        dateOfBirthGC: response.dateOfBirthGC ? new Date(response.dateOfBirthGC).toISOString().split('T')[0] : '',
-        dateEnrolledGC: response.dateEnrolledGC ? new Date(response.dateEnrolledGC).toISOString().split('T')[0] : '',
-        
-        // Map values to readable format
-        gender: response.gender === 'MALE' ? 'Male' : response.gender === 'FEMALE' ? 'Female' : response.gender,
-        maritalStatus: response.maritalStatus ? 
-          response.maritalStatus.charAt(0) + response.maritalStatus.slice(1).toLowerCase() : 'Unknown',
-        
-        // Student photo URL
-        studentPhoto: response.studentPhoto ? 
-          `data:image/jpeg;base64,${response.studentPhoto}` : null,
-        
-        // Grade 12 result document
-        grade12Document: response.document ? 
-          `data:image/jpeg;base64,${response.document}` : null,
-      };
-      
-      setStudentData(processedData);
+      setStudentData(response);
+      setOriginalData(response); // Store original data for reset
     } catch (error) {
       console.error("Error fetching student data:", error);
       setError("Failed to load student data. Please try again.");
@@ -122,21 +91,15 @@ export default function StudentProfile() {
 
   const fetchDropdownData = async () => {
     try {
-      // Fetch all dropdown data
-      const [depts, batchResp, regionsResp, backgroundsResp, impairmentsResp] = await Promise.all([
+      const [depts, backgroundsResp, impairmentsResp] = await Promise.all([
         apiService.get(endPoints.departments),
-        apiService.get(endPoints.BatchClassYearSemesters),
-        apiService.get(endPoints.allRegion),
         apiService.get(endPoints.schoolBackgrounds),
         apiService.get(endPoints.impairments),
       ]);
       
       setDepartments(depts || []);
-      setBatches(batchResp || []);
-      setRegions(regionsResp || []);
       setSchoolBackgrounds(backgroundsResp || []);
       setImpairments(impairmentsResp || []);
-      
     } catch (error) {
       console.error("Error fetching dropdown data:", error);
     }
@@ -148,12 +111,16 @@ export default function StudentProfile() {
     if (error) setError("");
   };
 
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleStudentDataChange = (name: string, value: any) => {
     setStudentData((prev: any) => ({ 
       ...prev, 
       [name]: value 
     }));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    handleStudentDataChange(name, value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,13 +135,12 @@ export default function StudentProfile() {
     }
     
     try {
-      // Call API to change password
       await apiService.put(`${endPoints.students}/${id}/password`, {
         newPassword: formData.newPassword
       });
       
-      alert(`Password changed successfully for student: ${studentData?.fullName}`);
-      setFormData({ studentId: "", newPassword: "", confirmPassword: "" });
+      alert(`Password changed successfully for student: ${studentData?.firstNameENG} ${studentData?.fatherNameENG}`);
+      setFormData({ newPassword: "", confirmPassword: "" });
       setPasswordForm(false);
     } catch (error) {
       console.error("Error changing password:", error);
@@ -186,43 +152,43 @@ export default function StudentProfile() {
     if (!studentData || !id) return;
     
     try {
-      // Prepare data for update (only include fields that can be updated)
       const updateData = {
-        firstNameAMH: studentData.firstNameAMH,
-        firstNameENG: studentData.firstNameENG,
-        fatherNameAMH: studentData.fatherNameAMH,
-        fatherNameENG: studentData.fatherNameENG,
-        grandfatherNameAMH: studentData.grandfatherNameAMH,
-        grandfatherNameENG: studentData.grandfatherNameENG,
-        motherNameAMH: studentData.motherNameAMH,
-        motherNameENG: studentData.motherNameENG,
-        motherFatherNameAMH: studentData.motherFatherNameAMH,
-        motherFatherNameENG: studentData.motherFatherNameENG,
-        gender: studentData.gender.toUpperCase(),
-        age: parseInt(studentData.age),
-        phoneNumber: studentData.phoneNumber,
-        dateOfBirthGC: studentData.dateOfBirthGC,
-        dateOfBirthEC: studentData.dateOfBirthEC,
-        email: studentData.email,
-        maritalStatus: studentData.maritalStatus.toUpperCase(),
-        impairmentCode: studentData.impairmentCode,
-        schoolBackgroundId: parseInt(studentData.schoolBackgroundId),
-        contactPersonFirstNameAMH: studentData.contactPersonFirstNameAMH,
-        contactPersonFirstNameENG: studentData.contactPersonFirstNameENG,
-        contactPersonLastNameAMH: studentData.contactPersonLastNameAMH,
-        contactPersonLastNameENG: studentData.contactPersonLastNameENG,
-        contactPersonPhoneNumber: studentData.contactPersonPhoneNumber,
-        contactPersonRelation: studentData.contactPersonRelation,
-        departmentEnrolledId: parseInt(studentData.departmentEnrolledId),
-        programModalityCode: studentData.programModalityCode,
+        firstNameAMH: studentData.firstNameAMH || '',
+        firstNameENG: studentData.firstNameENG || '',
+        fatherNameAMH: studentData.fatherNameAMH || '',
+        fatherNameENG: studentData.fatherNameENG || '',
+        grandfatherNameAMH: studentData.grandfatherNameAMH || '',
+        grandfatherNameENG: studentData.grandfatherNameENG || '',
+        motherNameAMH: studentData.motherNameAMH || '',
+        motherNameENG: studentData.motherNameENG || '',
+        motherFatherNameAMH: studentData.motherFatherNameAMH || '',
+        motherFatherNameENG: studentData.motherFatherNameENG || '',
+        gender: studentData.gender || 'MALE',
+        age: parseInt(studentData.age) || 18,
+        phoneNumber: studentData.phoneNumber || '',
+        dateOfBirthGC: studentData.dateOfBirthGC || '',
+        dateOfBirthEC: studentData.dateOfBirthEC || '',
+        email: studentData.email || '',
+        maritalStatus: studentData.maritalStatus || 'SINGLE',
+        impairmentCode: studentData.impairmentCode || null,
+        schoolBackgroundId: parseInt(studentData.schoolBackgroundId) || 1,
+        contactPersonFirstNameAMH: studentData.contactPersonFirstNameAMH || '',
+        contactPersonFirstNameENG: studentData.contactPersonFirstNameENG || '',
+        contactPersonLastNameAMH: studentData.contactPersonLastNameAMH || '',
+        contactPersonLastNameENG: studentData.contactPersonLastNameENG || '',
+        contactPersonPhoneNumber: studentData.contactPersonPhoneNumber || '',
+        contactPersonRelation: studentData.contactPersonRelation || '',
+        departmentEnrolledId: parseInt(studentData.departmentEnrolledId) || 1,
+        programModalityCode: studentData.programModalityCode || 'RG',
       };
       
-      // Call API to update student
+      console.log("Updating student data:", updateData);
+      
       await apiService.put(`${endPoints.students}/${id}`, updateData);
       
-      alert(`Profile updated successfully for ${studentData.fullName}`);
+      alert(`Profile updated successfully for ${studentData.firstNameENG} ${studentData.fatherNameENG}`);
       setEditMode(false);
-      fetchStudentData(); // Refresh data
+      fetchStudentData();
     } catch (error) {
       console.error("Error updating student:", error);
       alert("Failed to update profile. Please try again.");
@@ -230,38 +196,29 @@ export default function StudentProfile() {
   };
 
   const handleCancel = () => {
-    fetchStudentData(); // Reset to original data
+    setStudentData(originalData);
     setEditMode(false);
   };
 
-  // Function to get department name by ID
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    return new Date(dateString).toISOString().split('T')[0];
+  };
+
   const getDepartmentName = (id: number) => {
     const dept = departments.find(d => d.id === id);
     return dept ? dept.departmentName : `Department ${id}`;
   };
 
-  // Function to get batch name by ID
-  const getBatchName = (id: number) => {
-    const batch = batches.find(b => b.id === id);
-    return batch ? batch.batchName : `Batch ${id}`;
-  };
-
-  // Function to get region name by code
-  const getRegionName = (code: string) => {
-    const region = regions.find(r => r.regionCode === code);
-    return region ? region.regionName : code;
-  };
-
-  // Function to get school background name by ID
   const getSchoolBackgroundName = (id: number) => {
     const background = schoolBackgrounds.find(sb => sb.id === id);
     return background ? background.schoolBackground : `Background ${id}`;
   };
 
-  // Function to get impairment name by code
   const getImpairmentName = (code: string) => {
+    if (!code) return 'None';
     const impairment = impairments.find(i => i.impairmentCode === code);
-    return impairment ? impairment.impairmentName : code || 'None';
+    return impairment ? impairment.impairmentName : code;
   };
 
   if (loading) {
@@ -285,6 +242,9 @@ export default function StudentProfile() {
       </div>
     );
   }
+
+  const fullName = `${studentData.firstNameENG || ''} ${studentData.fatherNameENG || ''}`.trim();
+  const amharicFullName = `${studentData.firstNameAMH || ''} ${studentData.fatherNameAMH || ''}`.trim();
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8 bg-white dark:bg-gray-900">
@@ -344,7 +304,7 @@ export default function StudentProfile() {
             <div className="relative mx-auto">
               <Avatar className="w-32 h-32 border-4 border-blue-100 dark:border-gray-700">
                 {studentData.studentPhoto ? (
-                  <AvatarImage src={studentData.studentPhoto} />
+                  <AvatarImage src={`data:image/jpeg;base64,${studentData.studentPhoto}`} />
                 ) : (
                   <AvatarFallback className="text-3xl bg-blue-100 dark:bg-gray-700 text-blue-600 dark:text-gray-300">
                     {studentData.firstNameENG?.[0] || 'S'}
@@ -352,24 +312,19 @@ export default function StudentProfile() {
                   </AvatarFallback>
                 )}
               </Avatar>
-              {isEditable && editMode && (
-                <Button
-                  size="icon"
-                  className="absolute bottom-0 right-0 rounded-full bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
-              )}
             </div>
             <CardTitle className="mt-4 text-blue-600 dark:text-gray-100">
-              {studentData.fullName}
+              {fullName}
             </CardTitle>
             <CardDescription className="text-gray-600 dark:text-gray-400">
               {getDepartmentName(studentData.departmentEnrolledId)} Student
             </CardDescription>
             <div className="flex flex-wrap justify-center gap-2 mt-2">
               <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300">
-                {studentData.programModalityCode || 'Regular'}
+                {studentData.programModalityCode === 'RG' ? 'Regular' : 
+                 studentData.programModalityCode === 'EX' ? 'Extension' : 
+                 studentData.programModalityCode === 'DS' ? 'Distance' : 
+                 studentData.programModalityCode}
               </Badge>
               <Badge className={
                 studentData.documentStatus === 'COMPLETE' 
@@ -386,31 +341,51 @@ export default function StudentProfile() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2 text-sm">
-              <Mail className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
-              <span className="text-gray-600 dark:text-gray-400 break-all">{studentData.email}</span>
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">Email</Label>
+              {editMode ? (
+                <Input
+                  name="email"
+                  value={studentData.email || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.email || 'N/A'}
+                </div>
+              )}
             </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <Phone className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
-              <span className="text-gray-600 dark:text-gray-400">{studentData.phoneNumber}</span>
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">Phone Number</Label>
+              {editMode ? (
+                <Input
+                  name="phoneNumber"
+                  value={studentData.phoneNumber || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.phoneNumber || 'N/A'}
+                </div>
+              )}
             </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <MapPin className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
-              <span className="text-gray-600 dark:text-gray-400">
-                {getRegionName(studentData.currentAddressRegionCode)}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <Calendar className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
-              <span className="text-gray-600 dark:text-gray-400">
-                Enrolled: {studentData.dateEnrolledGC || 'N/A'}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <Award className="h-4 w-4 text-blue-600 dark:text-gray-300 flex-shrink-0" />
-              <span className="text-gray-600 dark:text-gray-400">
-                Grade 12: {studentData.grade12Result || 'N/A'}
-              </span>
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">Age</Label>
+              {editMode ? (
+                <Input
+                  type="number"
+                  name="age"
+                  value={studentData.age || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.age || 'N/A'}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -431,19 +406,37 @@ export default function StudentProfile() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-gray-700 dark:text-gray-300">
-                  Full Name (English)
+                  First Name (English)
                 </Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                  {studentData.fullName}
-                </div>
+                {editMode ? (
+                  <Input
+                    name="firstNameENG"
+                    value={studentData.firstNameENG || ''}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {studentData.firstNameENG || 'N/A'}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-gray-700 dark:text-gray-300">
-                  Full Name (Amharic)
+                  First Name (Amharic)
                 </Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
-                  {studentData.amharicFullName}
-                </div>
+                {editMode ? (
+                  <Input
+                    name="firstNameAMH"
+                    value={studentData.firstNameAMH || ''}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                    {studentData.firstNameAMH || 'N/A'}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -455,17 +448,35 @@ export default function StudentProfile() {
                 <Label className="text-gray-700 dark:text-gray-300">
                   Father's Name (English)
                 </Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                  {studentData.fatherNameENG}
-                </div>
+                {editMode ? (
+                  <Input
+                    name="fatherNameENG"
+                    value={studentData.fatherNameENG || ''}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {studentData.fatherNameENG || 'N/A'}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-gray-700 dark:text-gray-300">
                   Father's Name (Amharic)
                 </Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
-                  {studentData.fatherNameAMH}
-                </div>
+                {editMode ? (
+                  <Input
+                    name="fatherNameAMH"
+                    value={studentData.fatherNameAMH || ''}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                    {studentData.fatherNameAMH || 'N/A'}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -474,17 +485,35 @@ export default function StudentProfile() {
                 <Label className="text-gray-700 dark:text-gray-300">
                   Grandfather's Name (English)
                 </Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                  {studentData.grandfatherNameENG}
-                </div>
+                {editMode ? (
+                  <Input
+                    name="grandfatherNameENG"
+                    value={studentData.grandfatherNameENG || ''}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {studentData.grandfatherNameENG || 'N/A'}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-gray-700 dark:text-gray-300">
                   Grandfather's Name (Amharic)
                 </Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
-                  {studentData.grandfatherNameAMH}
-                </div>
+                {editMode ? (
+                  <Input
+                    name="grandfatherNameAMH"
+                    value={studentData.grandfatherNameAMH || ''}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                    {studentData.grandfatherNameAMH || 'N/A'}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -501,17 +530,71 @@ export default function StudentProfile() {
                   <Label className="text-gray-700 dark:text-gray-300">
                     Mother's Name (English)
                   </Label>
-                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                    {studentData.motherFullName}
-                  </div>
+                  {editMode ? (
+                    <Input
+                      name="motherNameENG"
+                      value={studentData.motherNameENG || ''}
+                      onChange={handleInputChange}
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                      {studentData.motherNameENG || 'N/A'}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-gray-700 dark:text-gray-300">
                     Mother's Name (Amharic)
                   </Label>
-                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
-                    {studentData.motherAmharicFullName}
-                  </div>
+                  {editMode ? (
+                    <Input
+                      name="motherNameAMH"
+                      value={studentData.motherNameAMH || ''}
+                      onChange={handleInputChange}
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                      {studentData.motherNameAMH || 'N/A'}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-700 dark:text-gray-300">
+                    Mother's Father Name (English)
+                  </Label>
+                  {editMode ? (
+                    <Input
+                      name="motherFatherNameENG"
+                      value={studentData.motherFatherNameENG || ''}
+                      onChange={handleInputChange}
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                      {studentData.motherFatherNameENG || 'N/A'}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-700 dark:text-gray-300">
+                    Mother's Father Name (Amharic)
+                  </Label>
+                  {editMode ? (
+                    <Input
+                      name="motherFatherNameAMH"
+                      value={studentData.motherFatherNameAMH || ''}
+                      onChange={handleInputChange}
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                      {studentData.motherFatherNameAMH || 'N/A'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -522,66 +605,110 @@ export default function StudentProfile() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label className="text-gray-700 dark:text-gray-300">Gender</Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                  {studentData.gender}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-700 dark:text-gray-300">Age</Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                  {studentData.age}
-                </div>
+                {editMode ? (
+                  <Select 
+                    value={studentData.gender || 'MALE'} 
+                    onValueChange={(value) => handleStudentDataChange('gender', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {studentData.gender === 'MALE' ? 'Male' : studentData.gender === 'FEMALE' ? 'Female' : studentData.gender || 'N/A'}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-gray-700 dark:text-gray-300">Marital Status</Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                  {studentData.maritalStatus}
-                </div>
+                {editMode ? (
+                  <Select 
+                    value={studentData.maritalStatus || 'SINGLE'} 
+                    onValueChange={(value) => handleStudentDataChange('maritalStatus', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select marital status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SINGLE">Single</SelectItem>
+                      <SelectItem value="MARRIED">Married</SelectItem>
+                      <SelectItem value="DIVORCED">Divorced</SelectItem>
+                      <SelectItem value="WIDOWED">Widowed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {studentData.maritalStatus === 'SINGLE' ? 'Single' : 
+                     studentData.maritalStatus === 'MARRIED' ? 'Married' : 
+                     studentData.maritalStatus === 'DIVORCED' ? 'Divorced' : 
+                     studentData.maritalStatus === 'WIDOWED' ? 'Widowed' : 
+                     studentData.maritalStatus || 'N/A'}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-700 dark:text-gray-300">Impairment</Label>
+                {editMode ? (
+                  <Select 
+                    value={studentData.impairmentCode || ''} 
+                    onValueChange={(value) => handleStudentDataChange('impairmentCode', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select impairment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {impairments.map((imp) => (
+                        <SelectItem key={imp.impairmentCode} value={imp.impairmentCode}>
+                          {imp.impairmentName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {getImpairmentName(studentData.impairmentCode)}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-gray-700 dark:text-gray-300">Date of Birth (GC)</Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                  {studentData.dateOfBirthGC}
-                </div>
+                {editMode ? (
+                  <Input
+                    type="date"
+                    name="dateOfBirthGC"
+                    value={formatDate(studentData.dateOfBirthGC)}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  />
+                ) : (
+                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                    {formatDate(studentData.dateOfBirthGC) || 'N/A'}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-gray-700 dark:text-gray-300">Date of Birth (EC)</Label>
-                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                  {studentData.dateOfBirthEC}
-                </div>
-              </div>
-            </div>
-
-            <Separator className="bg-gray-200 dark:bg-gray-700" />
-
-            {/* Address Information */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center">
-                <Home className="mr-2 h-4 w-4" />
-                Address Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-gray-700 dark:text-gray-300">Region</Label>
+                {editMode ? (
+                  <Input
+                    name="dateOfBirthEC"
+                    value={studentData.dateOfBirthEC || ''}
+                    onChange={handleInputChange}
+                    className="w-full"
+                  />
+                ) : (
                   <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                    {getRegionName(studentData.currentAddressRegionCode)}
+                    {studentData.dateOfBirthEC || 'N/A'}
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-gray-700 dark:text-gray-300">Zone</Label>
-                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                    {studentData.currentAddressZoneCode}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-gray-700 dark:text-gray-300">Woreda</Label>
-                  <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                    {studentData.currentAddressWoredaCode}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </CardContent>
@@ -605,87 +732,100 @@ export default function StudentProfile() {
               <Label className="text-gray-700 dark:text-gray-300">
                 Department
               </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {getDepartmentName(studentData.departmentEnrolledId)}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-gray-700 dark:text-gray-300">
-                Batch
-              </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {getBatchName(studentData.batchClassYearSemesterId)}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-gray-700 dark:text-gray-300">
-                Program Modality
-              </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {studentData.programModalityCode === 'RG' ? 'Regular' : 
-                 studentData.programModalityCode === 'EX' ? 'Extension' : 
-                 studentData.programModalityCode === 'DS' ? 'Distance' : 
-                 studentData.programModalityCode}
-              </div>
+              {editMode ? (
+                <Select 
+                  value={studentData.departmentEnrolledId?.toString() || ''} 
+                  onValueChange={(value) => handleStudentDataChange('departmentEnrolledId', parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id.toString()}>
+                        {dept.departmentName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {getDepartmentName(studentData.departmentEnrolledId)}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-gray-700 dark:text-gray-300">
                 School Background
               </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {getSchoolBackgroundName(studentData.schoolBackgroundId)}
-              </div>
+              {editMode ? (
+                <Select 
+                  value={studentData.schoolBackgroundId?.toString() || ''} 
+                  onValueChange={(value) => handleStudentDataChange('schoolBackgroundId', parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select school background" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {schoolBackgrounds.map((bg) => (
+                      <SelectItem key={bg.id} value={bg.id.toString()}>
+                        {bg.schoolBackground}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {getSchoolBackgroundName(studentData.schoolBackgroundId)}
+                </div>
+              )}
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-gray-700 dark:text-gray-300">
-                Impairment
+                Program Modality
               </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {getImpairmentName(studentData.impairmentCode)}
-              </div>
+              {editMode ? (
+                <Select 
+                  value={studentData.programModalityCode || 'RG'} 
+                  onValueChange={(value) => handleStudentDataChange('programModalityCode', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select program modality" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="RG">Regular</SelectItem>
+                    <SelectItem value="EX">Extension</SelectItem>
+                    <SelectItem value="DS">Distance</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.programModalityCode === 'RG' ? 'Regular' : 
+                   studentData.programModalityCode === 'EX' ? 'Extension' : 
+                   studentData.programModalityCode === 'DS' ? 'Distance' : 
+                   studentData.programModalityCode}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-gray-700 dark:text-gray-300">
-                Grade 12 Result
+                Date Enrolled (GC)
               </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {studentData.grade12Result || 'N/A'}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-gray-700 dark:text-gray-300">
-                Exit Exam Status
-              </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {studentData.isStudentPassExitExam ? 'Passed' : 'Not Passed'}
-                {studentData.exitExamScore && ` (${studentData.exitExamScore})`}
-              </div>
-            </div>
-          </div>
-
-          <Separator className="bg-gray-200 dark:bg-gray-700" />
-
-          {studentData.grade12Document && (
-            <div className="space-y-2">
-              <Label className="text-gray-700 dark:text-gray-300 flex items-center">
-                <FileText className="mr-2 h-4 w-4" />
-                Grade 12 Document
-              </Label>
-              <div className="flex items-center space-x-4">
-                <img
-                  src={studentData.grade12Document}
-                  alt="Grade 12 Document"
-                  className="w-64 h-36 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700"
+              {editMode ? (
+                <Input
+                  type="date"
+                  name="dateEnrolledGC"
+                  value={formatDate(studentData.dateEnrolledGC)}
+                  onChange={handleInputChange}
+                  className="w-full"
                 />
-                <Button variant="outline" size="sm">
-                  Download Document
-                </Button>
-              </div>
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {formatDate(studentData.dateEnrolledGC) || 'N/A'}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
@@ -704,46 +844,111 @@ export default function StudentProfile() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-gray-700 dark:text-gray-300">
-                Contact Person (English)
+                Contact First Name (English)
               </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {studentData.contactFullName}
-              </div>
+              {editMode ? (
+                <Input
+                  name="contactPersonFirstNameENG"
+                  value={studentData.contactPersonFirstNameENG || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.contactPersonFirstNameENG || 'N/A'}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-gray-700 dark:text-gray-300">
-                Contact Person (Amharic)
+                Contact First Name (Amharic)
               </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
-                {studentData.contactAmharicFullName}
-              </div>
+              {editMode ? (
+                <Input
+                  name="contactPersonFirstNameAMH"
+                  value={studentData.contactPersonFirstNameAMH || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                  {studentData.contactPersonFirstNameAMH || 'N/A'}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">
+                Contact Last Name (English)
+              </Label>
+              {editMode ? (
+                <Input
+                  name="contactPersonLastNameENG"
+                  value={studentData.contactPersonLastNameENG || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.contactPersonLastNameENG || 'N/A'}
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-gray-700 dark:text-gray-300">
+                Contact Last Name (Amharic)
+              </Label>
+              {editMode ? (
+                <Input
+                  name="contactPersonLastNameAMH"
+                  value={studentData.contactPersonLastNameAMH || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 text-right">
+                  {studentData.contactPersonLastNameAMH || 'N/A'}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-gray-700 dark:text-gray-300">
                 Phone Number
               </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {studentData.contactPersonPhoneNumber}
-              </div>
+              {editMode ? (
+                <Input
+                  name="contactPersonPhoneNumber"
+                  value={studentData.contactPersonPhoneNumber || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.contactPersonPhoneNumber || 'N/A'}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-gray-700 dark:text-gray-300">
                 Relationship
               </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {studentData.contactPersonRelation}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-gray-700 dark:text-gray-300">
-                Remark
-              </Label>
-              <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
-                {studentData.remark || 'No remarks'}
-              </div>
+              {editMode ? (
+                <Input
+                  name="contactPersonRelation"
+                  value={studentData.contactPersonRelation || ''}
+                  onChange={handleInputChange}
+                  className="w-full"
+                />
+              ) : (
+                <div className="p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
+                  {studentData.contactPersonRelation || 'N/A'}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
