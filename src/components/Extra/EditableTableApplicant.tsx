@@ -6,6 +6,7 @@ import { useModal } from "@/hooks/Modal";
 import { ImageModal } from "@/hooks/ImageModal";
 import apiService from "@/components/api/apiService";
 import endPoints from "@/components/api/endPoints";
+import { Link } from "react-router-dom";
 
 export interface DataTypes {
   key: string;
@@ -94,7 +95,20 @@ const EditableTableApplicant: React.FC<EditableTableProps> = ({
           </div>
         ),
     },
-    { title: "ID", dataIndex: "id", width: "12%" },
+    { 
+      title: "ID", 
+      dataIndex: "id", 
+      width: "12%",
+      render: (text: string, record: DataTypes) => (
+        <Link 
+          to={`/registrar/students/${record.key}`}
+          className="text-blue-600 hover:text-blue-800 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {text}
+        </Link>
+      )
+    },
     {
       title: (
         <div className="flex items-center gap-2">
@@ -121,8 +135,15 @@ const EditableTableApplicant: React.FC<EditableTableProps> = ({
       ),
       dataIndex: "name",
       width: "10%",
-      render: (_: any, record: DataTypes) =>
-        showAmharic ? record.amharicName : record.name,
+      render: (_: any, record: DataTypes) => (
+        <Link 
+          to={`/registrar/students/${record.key}`}
+          className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {showAmharic ? record.amharicName : record.name}
+        </Link>
+      ),
     },
     {
       title: "Status",
@@ -158,8 +179,34 @@ const EditableTableApplicant: React.FC<EditableTableProps> = ({
         </span>
       ),
     },
-    { title: "Batch", dataIndex: "batchClassYearSemester", width: "12%" },
-    { title: "Department", dataIndex: "departmentEnrolled", width: "11%" },
+    { 
+      title: "Batch", 
+      dataIndex: "batch", 
+      width: "12%",
+      render: (text: string, record: DataTypes) => (
+        <Link 
+          to={`/registrar/students/${record.key}`}
+          className="text-gray-700 hover:text-blue-600"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {text}
+        </Link>
+      )
+    },
+    { 
+      title: "Department", 
+      dataIndex: "department", 
+      width: "11%",
+      render: (text: string, record: DataTypes) => (
+        <Link 
+          to={`/registrar/students/${record.key}`}
+          className="text-gray-700 hover:text-blue-600"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {text}
+        </Link>
+      )
+    },
     {
       title: "Account Status",
       dataIndex: "accountStatus",
