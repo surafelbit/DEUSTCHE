@@ -537,6 +537,7 @@ const CrudSection = ({
       const response = await apiService.delete(
         endPoints.specificImpairtment.replace(":id", `${code}`)
       );
+      //
       console.log(response);
     } catch (err) {
       console.log(err);
