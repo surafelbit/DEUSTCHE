@@ -68,6 +68,9 @@ const RegistrarAssessments = React.lazy(
   () => import("./pages/registrar/Assessments")
 );
 const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
+const SingleBatchPage = React.lazy(
+  () => import("./pages/registrar/settings/SingleBatchPage .tsx")
+);
 const DepartmentDetail = React.lazy(
   () => import("./pages/registrar/DepartmentDetail.tsx")
 );
@@ -247,6 +250,10 @@ function App() {
               <Route
                 path="settings/academic-years"
                 element={<AcademicYearEditor />}
+              />
+              <Route
+                path="settings/batches/:id"
+                element={<SingleBatchPage />}
               />
 
               <Route path="settings/batches" element={<BatchesEditor />} />

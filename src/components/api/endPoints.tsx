@@ -32,6 +32,7 @@ const endPoints = {
   semester: "/semesters",
   BatchClassYearSemesters: "/bcsy",
   batches: "/batches",
+  singleBatch: "/batches/:id",
   courses: "/courses/single",
   allCourses: "/courses",
   courseById: "/courses/:id",
