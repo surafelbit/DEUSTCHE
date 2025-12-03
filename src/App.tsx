@@ -60,16 +60,33 @@ const AddStudent = React.lazy(() => import("./pages/registrar/AddStudent"));
 const RegistrarCourses = React.lazy(() => import("./pages/registrar/Courses"));
 const RegistrarAssessments = React.lazy(  () => import("./pages/registrar/Assessments"));
 const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
-const DepartmentDetail = React.lazy(  () => import("./pages/registrar/DepartmentDetail.tsx"));
-const StudentDetail = React.lazy(  () => import("./pages/registrar/StudentDetail"));
-const ApplicantDetail = React.lazy(  () => import("./pages/registrar/ApplicantDetail"));
-const CustomStudentTable = React.lazy(  () => import("./pages/registrar/CustomStudentTable"));
-const RejectedApplications = React.lazy(  () => import("./pages/registrar/RejectedApplications"));
-const LocationEditor = React.lazy(  () => import("./pages/registrar/settings/LocationEditor"));
-const AcademicYearEditor = React.lazy(  () => import("./pages/registrar/settings/AcademicYearEditor"));
-const ImpairmentEditor = React.lazy(  () => import("./pages/registrar/settings/ImpairmentEditor"));
-const CourseCategoriesEditor = React.lazy(  () => import("./pages/registrar/settings/CourseCategoriesEditor"));
-const NotificationsPage = React.lazy(  () => import("./pages/registrar/NotificationsPage"));
+const SingleBatchPage = React.lazy(
+  () => import("./pages/registrar/settings/SingleBatchPage .tsx")
+);
+const DepartmentDetail = React.lazy(
+  () => import("./pages/registrar/DepartmentDetail.tsx")
+);
+const StudentDetail = React.lazy(
+  () => import("./pages/registrar/StudentDetail")
+);
+const ApplicantDetail = React.lazy(
+  () => import("./pages/registrar/ApplicantDetail")
+);
+const CustomStudentTable = React.lazy(
+  () => import("./pages/registrar/CustomStudentTable")
+);
+const RejectedApplications = React.lazy(
+  () => import("./pages/registrar/RejectedApplications")
+);
+const LocationEditor = React.lazy(
+  () => import("./pages/registrar/settings/LocationEditor")
+);
+const AcademicYearEditor = React.lazy(
+  () => import("./pages/registrar/settings/AcademicYearEditor")
+);
+const ImpairmentEditor = React.lazy(
+  () => import("./pages/registrar/settings/ImpairmentEditor")
+);
 
 // Finance Pages
 const FinanceLayout = React.lazy(() => import("./layouts/FinanceLayout"));
@@ -216,6 +233,10 @@ function App() {
               <Route
                 path="settings/academic-years"
                 element={<AcademicYearEditor />}
+              />
+              <Route
+                path="settings/batches/:id"
+                element={<SingleBatchPage />}
               />
 
               <Route path="settings/batches" element={<BatchesEditor />} />
