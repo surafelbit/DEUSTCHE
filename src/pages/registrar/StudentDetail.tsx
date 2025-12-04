@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import {
   Card,
@@ -24,6 +24,7 @@ import {
   Users,
   AlertCircle,
   Home,
+  Camera,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -42,6 +43,7 @@ export default function StudentProfile() {
   const location = useLocation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editMode, setEditMode] = useState(false);
   const [passwordForm, setPasswordForm] = useState(false);
@@ -50,7 +52,7 @@ export default function StudentProfile() {
   const [studentData, setStudentData] = useState<any>({});
   const [originalData, setOriginalData] = useState<any>({});
 
-  // Dropdown data with default empty arrays
+  // Dropdown data
   const [departments, setDepartments] = useState<any[]>([]);
   const [schoolBackgrounds, setSchoolBackgrounds] = useState<any[]>([]);
   const [impairments, setImpairments] = useState<any[]>([]);
@@ -59,12 +61,19 @@ export default function StudentProfile() {
   const [woredas, setWoredas] = useState<any[]>([]);
   const [zones, setZones] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
+  
+  // Filtered dropdowns
+  const [filteredZones, setFilteredZones] = useState<any[]>([]);
+  const [filteredWoredas, setFilteredWoredas] = useState<any[]>([]);
 
   // Password form
   const [formData, setFormData] = useState({
     newPassword: "",
     confirmPassword: "",
   });
+
+  // File upload
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const userRole = location.pathname.includes("registrar") ? "registrar" : "general-manager";
   const isEditable = userRole === "registrar";
@@ -73,6 +82,30 @@ export default function StudentProfile() {
     fetchStudentData();
     fetchDropdownData();
   }, [id]);
+
+  useEffect(() => {
+    // When region changes, filter zones
+    if (studentData.placeOfBirthRegionCode && zones.length > 0) {
+      const filtered = zones.filter(zone => 
+        zone.region?.regionCode === studentData.placeOfBirthRegionCode
+      );
+      setFilteredZones(filtered);
+    } else {
+      setFilteredZones([]);
+    }
+  }, [studentData.placeOfBirthRegionCode, zones]);
+
+  useEffect(() => {
+    // When zone changes, filter woredas
+    if (studentData.placeOfBirthZoneCode && woredas.length > 0) {
+      const filtered = woredas.filter(woreda => 
+        woreda.zone?.zoneCode === studentData.placeOfBirthZoneCode
+      );
+      setFilteredWoredas(filtered);
+    } else {
+      setFilteredWoredas([]);
+    }
+  }, [studentData.placeOfBirthZoneCode, woredas]);
 
   const fetchStudentData = async () => {
     if (!id) return;
@@ -91,74 +124,37 @@ export default function StudentProfile() {
 
   const fetchDropdownData = async () => {
     try {
-      // Fetch data sequentially to avoid overwhelming the server
-      try {
-        const depts = await apiService.get(endPoints.departments);
-        setDepartments(Array.isArray(depts) ? depts : []);
-      } catch (err) {
-        console.warn("Failed to fetch departments");
-        setDepartments([]);
-      }
+      // Fetch all dropdown data
+      const [
+        depts, 
+        backgrounds, 
+        impairmentsResp, 
+        batchResp, 
+        statusResp,
+        regionsResp,
+        zonesResp,
+        woredasResp
+      ] = await Promise.all([
+        apiService.get(endPoints.departments).catch(() => []),
+        apiService.get(endPoints.schoolBackgrounds).catch(() => []),
+        apiService.get(endPoints.impairments).catch(() => []),
+        apiService.get(endPoints.BatchClassYearSemesters).catch(() => []),
+        apiService.get(endPoints.studentStatus).catch(() => []),
+        apiService.get(endPoints.allRegion).catch(() => []),
+        apiService.get(endPoints.allZones).catch(() => []),
+        apiService.get(endPoints.allWoreda).catch(() => []),
+      ]);
 
-      try {
-        const backgrounds = await apiService.get(endPoints.schoolBackgrounds);
-        setSchoolBackgrounds(Array.isArray(backgrounds) ? backgrounds : []);
-      } catch (err) {
-        console.warn("Failed to fetch school backgrounds");
-        setSchoolBackgrounds([]);
-      }
-
-      try {
-        const impairmentsResp = await apiService.get(endPoints.impairments);
-        setImpairments(Array.isArray(impairmentsResp) ? impairmentsResp : []);
-      } catch (err) {
-        console.warn("Failed to fetch impairments");
-        setImpairments([]);
-      }
-
-      try {
-        const batchResp = await apiService.get(endPoints.BatchClassYearSemesters);
-        setBatches(Array.isArray(batchResp) ? batchResp : []);
-      } catch (err) {
-        console.warn("Failed to fetch batches");
-        setBatches([]);
-      }
-
-      try {
-        const statusResp = await apiService.get(endPoints.studentStatus);
-        setStatuses(Array.isArray(statusResp) ? statusResp : []);
-      } catch (err) {
-        console.warn("Failed to fetch statuses");
-        setStatuses([]);
-      }
-
-      // These might not require auth - check if they're in noAuthEndpoints
-      try {
-        const woredasResp = await apiService.get(endPoints.allWoreda);
-        setWoredas(Array.isArray(woredasResp) ? woredasResp : []);
-      } catch (err) {
-        console.warn("Failed to fetch woredas, using empty array");
-        setWoredas([]);
-      }
-
-      try {
-        const zonesResp = await apiService.get(endPoints.allZones);
-        setZones(Array.isArray(zonesResp) ? zonesResp : []);
-      } catch (err) {
-        console.warn("Failed to fetch zones, using empty array");
-        setZones([]);
-      }
-
-      try {
-        const regionsResp = await apiService.get(endPoints.allRegion);
-        setRegions(Array.isArray(regionsResp) ? regionsResp : []);
-      } catch (err) {
-        console.warn("Failed to fetch regions, using empty array");
-        setRegions([]);
-      }
+      setDepartments(Array.isArray(depts) ? depts : []);
+      setSchoolBackgrounds(Array.isArray(backgrounds) ? backgrounds : []);
+      setImpairments(Array.isArray(impairmentsResp) ? impairmentsResp : []);
+      setBatches(Array.isArray(batchResp) ? batchResp : []);
+      setStatuses(Array.isArray(statusResp) ? statusResp : []);
+      setRegions(Array.isArray(regionsResp) ? regionsResp : []);
+      setZones(Array.isArray(zonesResp) ? zonesResp : []);
+      setWoredas(Array.isArray(woredasResp) ? woredasResp : []);
     } catch (err: any) {
       console.error("Error fetching dropdown data:", err);
-      // Don't block the UI if dropdowns fail
     }
   };
 
@@ -169,8 +165,26 @@ export default function StudentProfile() {
 
   const handleSelectChange = (name: string, value: any) => {
     // Convert empty string to null for optional fields
-    const finalValue = value === "" ? null : value;
-    setStudentData((prev: any) => ({ ...prev, [name]: finalValue }));
+    const finalValue = value === "" || value === "_none" ? null : value;
+    setStudentData((prev: any) => ({ 
+      ...prev, 
+      [name]: finalValue,
+      // Reset dependent fields when parent changes
+      ...(name === "placeOfBirthRegionCode" && {
+        placeOfBirthZoneCode: null,
+        placeOfBirthWoredaCode: null,
+      }),
+      ...(name === "placeOfBirthZoneCode" && {
+        placeOfBirthWoredaCode: null,
+      }),
+      ...(name === "currentAddressRegionCode" && {
+        currentAddressZoneCode: null,
+        currentAddressWoredaCode: null,
+      }),
+      ...(name === "currentAddressZoneCode" && {
+        currentAddressWoredaCode: null,
+      }),
+    }));
   };
 
   const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,6 +202,51 @@ export default function StudentProfile() {
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      alert("Please upload an image file");
+      return;
+    }
+
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size should be less than 5MB");
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      const response = await apiService.put(`${endPoints.students}/${id}/photo`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Update student data with new photo
+      setStudentData((prev: any) => ({ ...prev, studentPhoto: response.photo }));
+      alert("Photo updated successfully!");
+    } catch (err: any) {
+      console.error("Error uploading photo:", err);
+      alert("Failed to upload photo");
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const triggerPhotoUpload = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSave = async () => {
@@ -293,18 +352,6 @@ export default function StudentProfile() {
     }
   };
 
-  const getNameById = (list: any[], id: any, idKey: string, nameKey: string) => {
-    if (!Array.isArray(list)) return `Unknown (${id})`;
-    const item = list.find(item => item && item[idKey] == id);
-    return item?.[nameKey] || `Unknown (${id})`;
-  };
-
-  const getNameByCode = (list: any[], code: any, codeKey: string, nameKey: string) => {
-    if (!Array.isArray(list)) return `Unknown (${code})`;
-    const item = list.find(item => item && item[codeKey] == code);
-    return item?.[nameKey] || `Unknown (${code})`;
-  };
-
   // Helper function to safely get non-empty string value
   const getSafeSelectValue = (value: any): string => {
     if (value === null || value === undefined || value === '') {
@@ -313,26 +360,17 @@ export default function StudentProfile() {
     return String(value);
   };
 
-  // Helper function to get display value from stored value
-  const getDisplayValue = (value: any): string => {
-    if (value === "_none") {
-      return "";
-    }
-    return value || "";
-  };
-
-  // Filter arrays to ensure all items are valid and have non-empty values
-  const safeArray = (arr: any[]): any[] => {
-    if (!Array.isArray(arr)) return [];
-    return arr.filter(item => item != null);
+  // Get display name for dropdowns
+  const getDisplayName = (list: any[], value: any, valueKey: string, displayKey: string) => {
+    if (!Array.isArray(list) || !value) return "Unknown";
+    const item = list.find(item => item && (item[valueKey] == value || item.id == value || item.code == value));
+    return item?.[displayKey] || `Unknown (${value})`;
   };
 
   // Filter items to ensure they have valid values for Select.Item
   const getValidSelectItems = (arr: any[], valueKey: string): any[] => {
-    return safeArray(arr).filter(item => {
-      const value = item[valueKey] || item.id || item.code;
-      return value != null && value !== "";
-    });
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(item => item != null && item[valueKey] != null && item[valueKey] !== "");
   };
 
   if (loading) return <div className="flex justify-center p-10"><div className="animate-spin h-10 w-10 border-4 border-blue-600 rounded-full border-t-transparent"></div></div>;
@@ -347,7 +385,7 @@ export default function StudentProfile() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-blue-700">Student Profile</h1>
-          <p className="text-gray-600">ID: {studentData.id} | Username: {studentData.username}</p>
+          <p className="text-gray-600">ID: {studentData.id}</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={() => navigate(-1)}>← Back</Button>
@@ -368,31 +406,147 @@ export default function StudentProfile() {
         {/* Left Column - Photo & Basic Info */}
         <Card>
           <CardHeader className="text-center">
-            <Avatar className="w-32 h-32 mx-auto border-4 border-blue-100">
-              {studentData.studentPhoto ? (
-                <AvatarImage src={`data:image/jpeg;base64,${studentData.studentPhoto}`} />
-              ) : (
-                <AvatarFallback className="text-3xl">
-                  {studentData.firstNameENG?.[0] || ''}{studentData.fatherNameENG?.[0] || ''}
-                </AvatarFallback>
+            <div className="relative">
+              <Avatar className="w-32 h-32 mx-auto border-4 border-blue-100">
+                {studentData.studentPhoto ? (
+                  <AvatarImage src={`data:image/jpeg;base64,${studentData.studentPhoto}`} />
+                ) : (
+                  <AvatarFallback className="text-3xl">
+                    {studentData.firstNameENG?.[0] || ''}{studentData.fatherNameENG?.[0] || ''}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              {editMode && (
+                <Button
+                  type="button"
+                  size="icon"
+                  className="absolute bottom-0 right-1/2 transform translate-x-1/2 translate-y-1/2 rounded-full"
+                  onClick={triggerPhotoUpload}
+                  disabled={uploadingPhoto}
+                >
+                  {uploadingPhoto ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                </Button>
               )}
-            </Avatar>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+              />
+            </div>
             <CardTitle className="mt-4">{fullNameEng || 'Unknown'}</CardTitle>
             <CardDescription className="text-lg">{fullNameAmh || 'Unknown'}</CardDescription>
             <div className="flex flex-wrap justify-center gap-2 mt-3">
               <Badge variant={studentData.documentStatus === "COMPLETE" ? "default" : "secondary"}>
                 {studentData.documentStatus || "PENDING"}
               </Badge>
-              <Badge>{studentData.programModalityName || studentData.programModalityCode || 'Unknown'}</Badge>
+              <Badge>
+                {getDisplayName(
+                  getValidSelectItems([{ modalityCode: "RG", modality: "Regular" }, 
+                    { modalityCode: "EV", modality: "Evening" },
+                    { modalityCode: "WE", modality: "Weekend" },
+                    { modalityCode: "DL", modality: "Distance Learning" }], 
+                    "modalityCode"),
+                  studentData.programModalityCode, 
+                  "modalityCode", 
+                  "modality"
+                )}
+              </Badge>
               {studentData.isTransfer && <Badge variant="outline">Transfer</Badge>}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div><Label>Email</Label><div className="font-medium">{studentData.email || "N/A"}</div></div>
-            <div><Label>Phone</Label><div className="font-medium">{studentData.phoneNumber || "N/A"}</div></div>
-            <div><Label>Batch</Label><div className="font-medium">{studentData.batchClassYearSemesterName || "Not Assigned"}</div></div>
-            <div><Label>Status</Label><div className="font-medium">{studentData.studentRecentStatusName || "Unknown"}</div></div>
-            <div><Label>Grade 12 Result</Label><div className="font-medium">{studentData.grade12Result || "N/A"}</div></div>
+            <div>
+              <Label>Username</Label>
+              {editMode ? (
+                <Input 
+                  name="username" 
+                  value={studentData.username || ''} 
+                  onChange={handleInputChange} 
+                  placeholder="Enter username"
+                />
+              ) : <div className="font-medium">{studentData.username || "N/A"}</div>}
+            </div>
+            <div>
+              <Label>Email</Label>
+              {editMode ? (
+                <Input 
+                  type="email" 
+                  name="email" 
+                  value={studentData.email || ''} 
+                  onChange={handleInputChange} 
+                  placeholder="Enter email"
+                />
+              ) : <div className="font-medium">{studentData.email || "N/A"}</div>}
+            </div>
+            <div>
+              <Label>Phone</Label>
+              {editMode ? (
+                <Input 
+                  type="tel" 
+                  name="phoneNumber" 
+                  value={studentData.phoneNumber || ''} 
+                  onChange={handleInputChange} 
+                  placeholder="Enter phone number"
+                />
+              ) : <div className="font-medium">{studentData.phoneNumber || "N/A"}</div>}
+            </div>
+            <div>
+              <Label>Batch</Label>
+              {editMode ? (
+                <Select
+                  value={getSafeSelectValue(studentData.batchClassYearSemesterId)}
+                  onValueChange={(v) => handleSelectChange("batchClassYearSemesterId", v === "_none" ? null : (v ? parseInt(v) : null))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select batch" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Select batch</SelectItem>
+                    {getValidSelectItems(batches, "id").map(b => (
+                      <SelectItem key={b.id} value={String(b.id)}>
+                        {b.batchClassYearSemesterName || `Batch ${b.id}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : <div className="font-medium">{studentData.batchClassYearSemesterName || "Not Assigned"}</div>}
+            </div>
+            <div>
+              <Label>Status</Label>
+              {editMode ? (
+                <Select
+                  value={getSafeSelectValue(studentData.studentRecentStatusId)}
+                  onValueChange={(v) => handleSelectChange("studentRecentStatusId", v === "_none" ? null : (v ? parseInt(v) : null))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Select status</SelectItem>
+                    {getValidSelectItems(statuses, "id").map(s => (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {s.studentRecentStatusName || `Status ${s.id}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : <div className="font-medium">{studentData.studentRecentStatusName || "Unknown"}</div>}
+            </div>
+            <div>
+              <Label>Grade 12 Result</Label>
+              {editMode ? (
+                <Input 
+                  type="number" 
+                  step="0.1" 
+                  name="grade12Result" 
+                  value={studentData.grade12Result || ''} 
+                  onChange={handleNumberInputChange} 
+                  placeholder="Enter grade 12 result"
+                />
+              ) : <div className="font-medium">{studentData.grade12Result || "N/A"}</div>}
+            </div>
           </CardContent>
         </Card>
 
@@ -415,8 +569,8 @@ export default function StudentProfile() {
                   <Label>{field.label}</Label>
                   {editMode ? (
                     <div className="grid grid-cols-2 gap-2">
-                      <Input name={field.eng} value={studentData[field.eng] || ''} onChange={handleInputChange} />
-                      <Input name={field.amh} value={studentData[field.amh] || ''} onChange={handleInputChange} className="text-right" dir="rtl" />
+                      <Input name={field.eng} value={studentData[field.eng] || ''} onChange={handleInputChange} placeholder={`Enter ${field.label.split(' (')[0]}`} />
+                      <Input name={field.amh} value={studentData[field.amh] || ''} onChange={handleInputChange} className="text-right" dir="rtl" placeholder={`የ${field.label.split(' (')[0]} ስም`} />
                     </div>
                   ) : (
                     <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded">
@@ -473,7 +627,7 @@ export default function StudentProfile() {
 
               <div>
                 <Label>Age</Label>
-                {editMode ? <Input type="number" name="age" value={studentData.age || ''} onChange={handleIntInputChange} />
+                {editMode ? <Input type="number" name="age" value={studentData.age || ''} onChange={handleIntInputChange} placeholder="Enter age" />
                   : <div>{studentData.age || "N/A"}</div>}
               </div>
 
@@ -484,154 +638,208 @@ export default function StudentProfile() {
                     value={getSafeSelectValue(studentData.impairmentCode)} 
                     onValueChange={(v) => handleSelectChange("impairmentCode", v === "_none" ? null : v)}
                   >
-                    <SelectTrigger><SelectValue placeholder="Select impairment" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select impairment">
+                        {studentData.impairmentCode ? getDisplayName(impairments, studentData.impairmentCode, "impairmentCode", "impairment") : "Select impairment"}
+                      </SelectValue>
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">None</SelectItem>
-                      {getValidSelectItems(impairments, "code").map(i => (
-                        <SelectItem key={i.code} value={String(i.code)}>
-                          {i.description || `Impairment ${i.code}`}
+                      {getValidSelectItems(impairments, "impairmentCode").map(i => (
+                        <SelectItem key={i.impairmentCode} value={String(i.impairmentCode)}>
+                          {i.impairment || `Impairment ${i.impairmentCode}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : <div>{studentData.impairmentDescription || "None"}</div>}
+                ) : <div>{getDisplayName(impairments, studentData.impairmentCode, "impairmentCode", "impairment") || "None"}</div>}
               </div>
             </CardContent>
           </Card>
 
-          {/* Place of Birth - Only show if we have data */}
-          {(studentData.placeOfBirthRegionCode || studentData.placeOfBirthZoneCode || studentData.placeOfBirthWoredaCode) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center"><Home className="mr-2" /> Place of Birth</CardTitle>
-              </CardHeader>
-              <CardContent className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <Label>Region</Label>
-                  {editMode ? (
-                    <Select 
-                      value={getSafeSelectValue(studentData.placeOfBirthRegionCode)} 
-                      onValueChange={(v) => handleSelectChange("placeOfBirthRegionCode", v === "_none" ? null : v)}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
-                      <SelectContent>
-                        {getValidSelectItems(regions, "code").map(r => (
-                          <SelectItem key={r.code} value={String(r.code)}>
-                            {r.name || `Region ${r.code}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : <div>{studentData.placeOfBirthRegionName || getNameByCode(regions, studentData.placeOfBirthRegionCode, "code", "name")}</div>}
-                </div>
+          {/* Place of Birth */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><Home className="mr-2" /> Place of Birth</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-4">
+              <div>
+                <Label>Region</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.placeOfBirthRegionCode)} 
+                    onValueChange={(v) => handleSelectChange("placeOfBirthRegionCode", v === "_none" ? null : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select region">
+                        {studentData.placeOfBirthRegionCode ? getDisplayName(regions, studentData.placeOfBirthRegionCode, "regionCode", "region") : "Select region"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select region</SelectItem>
+                      {getValidSelectItems(regions, "regionCode").map(r => (
+                        <SelectItem key={r.regionCode} value={String(r.regionCode)}>
+                          {r.region || `Region ${r.regionCode}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{getDisplayName(regions, studentData.placeOfBirthRegionCode, "regionCode", "region") || "N/A"}</div>}
+              </div>
 
-                <div>
-                  <Label>Zone</Label>
-                  {editMode ? (
-                    <Select 
-                      value={getSafeSelectValue(studentData.placeOfBirthZoneCode)} 
-                      onValueChange={(v) => handleSelectChange("placeOfBirthZoneCode", v === "_none" ? null : v)}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger>
-                      <SelectContent>
-                        {getValidSelectItems(zones, "code").map(z => (
-                          <SelectItem key={z.code} value={String(z.code)}>
-                            {z.name || `Zone ${z.code}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : <div>{studentData.placeOfBirthZoneName || getNameByCode(zones, studentData.placeOfBirthZoneCode, "code", "name")}</div>}
-                </div>
+              <div>
+                <Label>Zone</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.placeOfBirthZoneCode)} 
+                    onValueChange={(v) => handleSelectChange("placeOfBirthZoneCode", v === "_none" ? null : v)}
+                    disabled={!studentData.placeOfBirthRegionCode}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select zone">
+                        {studentData.placeOfBirthZoneCode ? getDisplayName(zones, studentData.placeOfBirthZoneCode, "zoneCode", "zone") : "Select zone"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select zone</SelectItem>
+                      {getValidSelectItems(
+                        studentData.placeOfBirthRegionCode 
+                          ? zones.filter(z => z.region?.regionCode === studentData.placeOfBirthRegionCode)
+                          : zones, 
+                        "zoneCode"
+                      ).map(z => (
+                        <SelectItem key={z.zoneCode} value={String(z.zoneCode)}>
+                          {z.zone || `Zone ${z.zoneCode}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{getDisplayName(zones, studentData.placeOfBirthZoneCode, "zoneCode", "zone") || "N/A"}</div>}
+              </div>
 
-                <div>
-                  <Label>Woreda</Label>
-                  {editMode ? (
-                    <Select 
-                      value={getSafeSelectValue(studentData.placeOfBirthWoredaCode)} 
-                      onValueChange={(v) => handleSelectChange("placeOfBirthWoredaCode", v === "_none" ? null : v)}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select woreda" /></SelectTrigger>
-                      <SelectContent>
-                        {getValidSelectItems(woredas, "code").map(w => (
-                          <SelectItem key={w.code} value={String(w.code)}>
-                            {w.name || `Woreda ${w.code}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : <div>{studentData.placeOfBirthWoredaName || getNameByCode(woredas, studentData.placeOfBirthWoredaCode, "code", "name")}</div>}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              <div>
+                <Label>Woreda</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.placeOfBirthWoredaCode)} 
+                    onValueChange={(v) => handleSelectChange("placeOfBirthWoredaCode", v === "_none" ? null : v)}
+                    disabled={!studentData.placeOfBirthZoneCode}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select woreda">
+                        {studentData.placeOfBirthWoredaCode ? getDisplayName(woredas, studentData.placeOfBirthWoredaCode, "woredaCode", "woreda") : "Select woreda"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select woreda</SelectItem>
+                      {getValidSelectItems(
+                        studentData.placeOfBirthZoneCode 
+                          ? woredas.filter(w => w.zone?.zoneCode === studentData.placeOfBirthZoneCode)
+                          : woredas, 
+                        "woredaCode"
+                      ).map(w => (
+                        <SelectItem key={w.woredaCode} value={String(w.woredaCode)}>
+                          {w.woreda || `Woreda ${w.woredaCode}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{getDisplayName(woredas, studentData.placeOfBirthWoredaCode, "woredaCode", "woreda") || "N/A"}</div>}
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Current Address - Only show if we have data */}
-          {(studentData.currentAddressRegionCode || studentData.currentAddressZoneCode || studentData.currentAddressWoredaCode) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center"><MapPin className="mr-2" /> Current Address</CardTitle>
-              </CardHeader>
-              <CardContent className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <Label>Region</Label>
-                  {editMode ? (
-                    <Select 
-                      value={getSafeSelectValue(studentData.currentAddressRegionCode)} 
-                      onValueChange={(v) => handleSelectChange("currentAddressRegionCode", v === "_none" ? null : v)}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
-                      <SelectContent>
-                        {getValidSelectItems(regions, "code").map(r => (
-                          <SelectItem key={r.code} value={String(r.code)}>
-                            {r.name || `Region ${r.code}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : <div>{studentData.currentAddressRegionName || getNameByCode(regions, studentData.currentAddressRegionCode, "code", "name")}</div>}
-                </div>
+          {/* Current Address */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><MapPin className="mr-2" /> Current Address</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-4">
+              <div>
+                <Label>Region</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.currentAddressRegionCode)} 
+                    onValueChange={(v) => handleSelectChange("currentAddressRegionCode", v === "_none" ? null : v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select region">
+                        {studentData.currentAddressRegionCode ? getDisplayName(regions, studentData.currentAddressRegionCode, "regionCode", "region") : "Select region"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select region</SelectItem>
+                      {getValidSelectItems(regions, "regionCode").map(r => (
+                        <SelectItem key={r.regionCode} value={String(r.regionCode)}>
+                          {r.region || `Region ${r.regionCode}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{getDisplayName(regions, studentData.currentAddressRegionCode, "regionCode", "region") || "N/A"}</div>}
+              </div>
 
-                <div>
-                  <Label>Zone</Label>
-                  {editMode ? (
-                    <Select 
-                      value={getSafeSelectValue(studentData.currentAddressZoneCode)} 
-                      onValueChange={(v) => handleSelectChange("currentAddressZoneCode", v === "_none" ? null : v)}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger>
-                      <SelectContent>
-                        {getValidSelectItems(zones, "code").map(z => (
-                          <SelectItem key={z.code} value={String(z.code)}>
-                            {z.name || `Zone ${z.code}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : <div>{studentData.currentAddressZoneName || getNameByCode(zones, studentData.currentAddressZoneCode, "code", "name")}</div>}
-                </div>
+              <div>
+                <Label>Zone</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.currentAddressZoneCode)} 
+                    onValueChange={(v) => handleSelectChange("currentAddressZoneCode", v === "_none" ? null : v)}
+                    disabled={!studentData.currentAddressRegionCode}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select zone">
+                        {studentData.currentAddressZoneCode ? getDisplayName(zones, studentData.currentAddressZoneCode, "zoneCode", "zone") : "Select zone"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select zone</SelectItem>
+                      {getValidSelectItems(
+                        studentData.currentAddressRegionCode 
+                          ? zones.filter(z => z.region?.regionCode === studentData.currentAddressRegionCode)
+                          : zones, 
+                        "zoneCode"
+                      ).map(z => (
+                        <SelectItem key={z.zoneCode} value={String(z.zoneCode)}>
+                          {z.zone || `Zone ${z.zoneCode}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{getDisplayName(zones, studentData.currentAddressZoneCode, "zoneCode", "zone") || "N/A"}</div>}
+              </div>
 
-                <div>
-                  <Label>Woreda</Label>
-                  {editMode ? (
-                    <Select 
-                      value={getSafeSelectValue(studentData.currentAddressWoredaCode)} 
-                      onValueChange={(v) => handleSelectChange("currentAddressWoredaCode", v === "_none" ? null : v)}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select woreda" /></SelectTrigger>
-                      <SelectContent>
-                        {getValidSelectItems(woredas, "code").map(w => (
-                          <SelectItem key={w.code} value={String(w.code)}>
-                            {w.name || `Woreda ${w.code}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : <div>{studentData.currentAddressWoredaName || getNameByCode(woredas, studentData.currentAddressWoredaCode, "code", "name")}</div>}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              <div>
+                <Label>Woreda</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.currentAddressWoredaCode)} 
+                    onValueChange={(v) => handleSelectChange("currentAddressWoredaCode", v === "_none" ? null : v)}
+                    disabled={!studentData.currentAddressZoneCode}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select woreda">
+                        {studentData.currentAddressWoredaCode ? getDisplayName(woredas, studentData.currentAddressWoredaCode, "woredaCode", "woreda") : "Select woreda"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select woreda</SelectItem>
+                      {getValidSelectItems(
+                        studentData.currentAddressZoneCode 
+                          ? woredas.filter(w => w.zone?.zoneCode === studentData.currentAddressZoneCode)
+                          : woredas, 
+                        "woredaCode"
+                      ).map(w => (
+                        <SelectItem key={w.woredaCode} value={String(w.woredaCode)}>
+                          {w.woreda || `Woreda ${w.woredaCode}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{getDisplayName(woredas, studentData.currentAddressWoredaCode, "woredaCode", "woreda") || "N/A"}</div>}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Academic Info */}
           <Card>
@@ -646,57 +854,21 @@ export default function StudentProfile() {
                     value={getSafeSelectValue(studentData.departmentEnrolledId)}
                     onValueChange={(v) => handleSelectChange("departmentEnrolledId", v === "_none" ? null : (v ? parseInt(v, 10) : null))}
                   >
-                    <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department">
+                        {studentData.departmentEnrolledId ? getDisplayName(departments, studentData.departmentEnrolledId, "dptID", "deptName") : "Select department"}
+                      </SelectValue>
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">Select department</SelectItem>
-                      {getValidSelectItems(departments, "id").map((d) => (
-                        <SelectItem key={d.id} value={String(d.id)}>
-                          {d.departmentName || `Department ${d.id}`}
+                      {getValidSelectItems(departments, "dptID").map((d) => (
+                        <SelectItem key={d.dptID} value={String(d.dptID)}>
+                          {d.deptName || `Department ${d.dptID}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : <div>{studentData.departmentEnrolledName || getNameById(departments, studentData.departmentEnrolledId, "id", "departmentName")}</div>}
-              </div>
-
-              <div>
-                <Label>Batch / Class</Label>
-                {editMode ? (
-                  <Select
-                    value={getSafeSelectValue(studentData.batchClassYearSemesterId)}
-                    onValueChange={(v) => handleSelectChange("batchClassYearSemesterId", v === "_none" ? null : (v ? parseInt(v) : null))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select batch" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_none">Select batch</SelectItem>
-                      {getValidSelectItems(batches, "id").map(b => (
-                        <SelectItem key={b.id} value={String(b.id)}>
-                          {b.batchClassYearSemesterName || `Batch ${b.id}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : <div>{studentData.batchClassYearSemesterName || "Not Assigned"}</div>}
-              </div>
-
-              <div>
-                <Label>Student Status</Label>
-                {editMode ? (
-                  <Select
-                    value={getSafeSelectValue(studentData.studentRecentStatusId)}
-                    onValueChange={(v) => handleSelectChange("studentRecentStatusId", v === "_none" ? null : (v ? parseInt(v) : null))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="_none">Select status</SelectItem>
-                      {getValidSelectItems(statuses, "id").map(s => (
-                        <SelectItem key={s.id} value={String(s.id)}>
-                          {s.studentRecentStatusName || `Status ${s.id}`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : <div>{studentData.studentRecentStatusName || 'Unknown'}</div>}
+                ) : <div>{getDisplayName(departments, studentData.departmentEnrolledId, "dptID", "deptName") || "N/A"}</div>}
               </div>
 
               <div>
@@ -706,17 +878,21 @@ export default function StudentProfile() {
                     value={getSafeSelectValue(studentData.schoolBackgroundId)}
                     onValueChange={(v) => handleSelectChange("schoolBackgroundId", v === "_none" ? null : (v ? parseInt(v) : null))}
                   >
-                    <SelectTrigger><SelectValue placeholder="Select school background" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select school background">
+                        {studentData.schoolBackgroundId ? getDisplayName(schoolBackgrounds, studentData.schoolBackgroundId, "id", "background") : "Select school background"}
+                      </SelectValue>
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">Select school background</SelectItem>
                       {getValidSelectItems(schoolBackgrounds, "id").map(sb => (
                         <SelectItem key={sb.id} value={String(sb.id)}>
-                          {sb.schoolBackgroundName || `Background ${sb.id}`}
+                          {sb.background || `Background ${sb.id}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : <div>{studentData.schoolBackgroundName || getNameById(schoolBackgrounds, studentData.schoolBackgroundId, "id", "schoolBackgroundName")}</div>}
+                ) : <div>{getDisplayName(schoolBackgrounds, studentData.schoolBackgroundId, "id", "background") || "N/A"}</div>}
               </div>
 
               <div>
@@ -726,7 +902,19 @@ export default function StudentProfile() {
                     value={getSafeSelectValue(studentData.programModalityCode)} 
                     onValueChange={(v) => handleSelectChange("programModalityCode", v === "_none" ? null : v)}
                   >
-                    <SelectTrigger><SelectValue placeholder="Select modality" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select modality">
+                        {studentData.programModalityCode ? getDisplayName(
+                          [{ modalityCode: "RG", modality: "Regular" }, 
+                           { modalityCode: "EV", modality: "Evening" },
+                           { modalityCode: "WE", modality: "Weekend" },
+                           { modalityCode: "DL", modality: "Distance Learning" }], 
+                          studentData.programModalityCode, 
+                          "modalityCode", 
+                          "modality"
+                        ) : "Select modality"}
+                      </SelectValue>
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="RG">Regular</SelectItem>
                       <SelectItem value="EV">Evening</SelectItem>
@@ -734,13 +922,15 @@ export default function StudentProfile() {
                       <SelectItem value="DL">Distance Learning</SelectItem>
                     </SelectContent>
                   </Select>
-                ) : <div>{studentData.programModalityName || studentData.programModalityCode || 'Unknown'}</div>}
-              </div>
-
-              <div>
-                <Label>Grade 12 Result</Label>
-                {editMode ? <Input type="number" step="0.1" name="grade12Result" value={studentData.grade12Result || ''} onChange={handleNumberInputChange} />
-                  : <div>{studentData.grade12Result || "N/A"}</div>}
+                ) : <div>{getDisplayName(
+                  [{ modalityCode: "RG", modality: "Regular" }, 
+                   { modalityCode: "EV", modality: "Evening" },
+                   { modalityCode: "WE", modality: "Weekend" },
+                   { modalityCode: "DL", modality: "Distance Learning" }], 
+                  studentData.programModalityCode, 
+                  "modalityCode", 
+                  "modality"
+                ) || 'Unknown'}</div>}
               </div>
 
               <div>
@@ -784,8 +974,8 @@ export default function StudentProfile() {
                   <Label>{f.label}</Label>
                   {editMode ? (
                     <div className="grid grid-cols-2 gap-2">
-                      <Input name={f.eng} value={studentData[f.eng] || ''} onChange={handleInputChange} />
-                      <Input name={f.amh} value={studentData[f.amh] || ''} onChange={handleInputChange} className="text-right" />
+                      <Input name={f.eng} value={studentData[f.eng] || ''} onChange={handleInputChange} placeholder={`Enter ${f.label.toLowerCase()}`} />
+                      <Input name={f.amh} value={studentData[f.amh] || ''} onChange={handleInputChange} className="text-right" placeholder={`የ${f.label} ስም`} />
                     </div>
                   ) : (
                     <div>
@@ -795,8 +985,37 @@ export default function StudentProfile() {
                   )}
                 </div>
               ))}
-              <div><Label>Phone</Label>{editMode ? <Input name="contactPersonPhoneNumber" value={studentData.contactPersonPhoneNumber || ''} onChange={handleInputChange} /> : <div>{studentData.contactPersonPhoneNumber || 'N/A'}</div>}</div>
-              <div><Label>Relation</Label>{editMode ? <Input name="contactPersonRelation" value={studentData.contactPersonRelation || ''} onChange={handleInputChange} /> : <div>{studentData.contactPersonRelation || 'N/A'}</div>}</div>
+              <div>
+                <Label>Phone</Label>
+                {editMode ? <Input name="contactPersonPhoneNumber" value={studentData.contactPersonPhoneNumber || ''} onChange={handleInputChange} placeholder="Enter phone number" /> 
+                  : <div>{studentData.contactPersonPhoneNumber || 'N/A'}</div>}
+              </div>
+              <div>
+                <Label>Relation</Label>
+                {editMode ? <Input name="contactPersonRelation" value={studentData.contactPersonRelation || ''} onChange={handleInputChange} placeholder="Enter relation" /> 
+                  : <div>{studentData.contactPersonRelation || 'N/A'}</div>}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Remarks */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><AlertCircle className="mr-2" /> Remarks</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label>Remarks</Label>
+                {editMode ? (
+                  <Textarea 
+                    name="remark" 
+                    value={studentData.remark || ''} 
+                    onChange={handleInputChange}
+                    placeholder="Enter any remarks about the student"
+                    rows={3}
+                  />
+                ) : <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded min-h-[60px]">{studentData.remark || "No remarks"}</div>}
+              </div>
             </CardContent>
           </Card>
 
