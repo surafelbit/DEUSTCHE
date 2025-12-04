@@ -44,6 +44,7 @@ export default function StudentProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
 
   const [editMode, setEditMode] = useState(false);
   const [passwordForm, setPasswordForm] = useState(false);
@@ -62,10 +63,6 @@ export default function StudentProfile() {
   const [zones, setZones] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
   
-  // Filtered dropdowns
-  const [filteredZones, setFilteredZones] = useState<any[]>([]);
-  const [filteredWoredas, setFilteredWoredas] = useState<any[]>([]);
-
   // Password form
   const [formData, setFormData] = useState({
     newPassword: "",
@@ -82,30 +79,6 @@ export default function StudentProfile() {
     fetchStudentData();
     fetchDropdownData();
   }, [id]);
-
-  useEffect(() => {
-    // When region changes, filter zones
-    if (studentData.placeOfBirthRegionCode && zones.length > 0) {
-      const filtered = zones.filter(zone => 
-        zone.region?.regionCode === studentData.placeOfBirthRegionCode
-      );
-      setFilteredZones(filtered);
-    } else {
-      setFilteredZones([]);
-    }
-  }, [studentData.placeOfBirthRegionCode, zones]);
-
-  useEffect(() => {
-    // When zone changes, filter woredas
-    if (studentData.placeOfBirthZoneCode && woredas.length > 0) {
-      const filtered = woredas.filter(woreda => 
-        woreda.zone?.zoneCode === studentData.placeOfBirthZoneCode
-      );
-      setFilteredWoredas(filtered);
-    } else {
-      setFilteredWoredas([]);
-    }
-  }, [studentData.placeOfBirthZoneCode, woredas]);
 
   const fetchStudentData = async () => {
     if (!id) return;
@@ -148,25 +121,8 @@ export default function StudentProfile() {
       setDepartments(Array.isArray(depts) ? depts : []);
       setSchoolBackgrounds(Array.isArray(backgrounds) ? backgrounds : []);
       setImpairments(Array.isArray(impairmentsResp) ? impairmentsResp : []);
-      
-      // Transform batch data to match expected structure
-      const transformedBatches = Array.isArray(batchResp) 
-        ? batchResp.map(batch => ({
-            id: batch.bcysId,
-            batchClassYearSemesterName: batch.name || `Batch ${batch.bcysId}`
-          }))
-        : [];
-      setBatches(transformedBatches);
-      
-      // Transform status data to match expected structure
-      const transformedStatuses = Array.isArray(statusResp)
-        ? statusResp.map(status => ({
-            id: status.id,
-            studentRecentStatusName: status.statusName || `Status ${status.id}`
-          }))
-        : [];
-      setStatuses(transformedStatuses);
-      
+      setBatches(Array.isArray(batchResp) ? batchResp : []);
+      setStatuses(Array.isArray(statusResp) ? statusResp : []);
       setRegions(Array.isArray(regionsResp) ? regionsResp : []);
       setZones(Array.isArray(zonesResp) ? zonesResp : []);
       setWoredas(Array.isArray(woredasResp) ? woredasResp : []);
@@ -239,21 +195,61 @@ export default function StudentProfile() {
 
     try {
       setUploadingPhoto(true);
+      setSelectedPhotoFile(file); // Store the file for later use
+      
+      // Create FormData
       const formData = new FormData();
-      formData.append('photo', file);
+      
+      // Add empty data object as JSON blob
+      const emptyData = {}; // Empty object since we're only updating photo
+      formData.append('data', new Blob([JSON.stringify(emptyData)], {
+        type: 'application/json'
+      }));
+      
+      // Add the photo file with correct parameter name
+      formData.append('studentPhoto', file);
 
-      const response = await apiService.put(`${endPoints.students}/${id}/photo`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      console.log("Uploading photo with FormData:");
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
 
-      // Update student data with new photo
-      setStudentData((prev: any) => ({ ...prev, studentPhoto: response.photo }));
-      alert("Photo updated successfully!");
+      // Use fetch directly to avoid issues
+      const token = localStorage.getItem("xy9a7b");
+      const response = await fetch(
+        `https://growing-crayfish-firstly.ngrok-free.app/api/students/${id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            // Don't set Content-Type for FormData - browser sets it automatically
+          },
+          body: formData
+        }
+      );
+
+      console.log("Photo upload response status:", response.status);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log("Photo upload successful:", result);
+        
+        // Update student data with new photo from response
+        if (result.student?.studentPhoto) {
+          setStudentData((prev: any) => ({ ...prev, studentPhoto: result.student.studentPhoto }));
+        } else if (result.photo) {
+          setStudentData((prev: any) => ({ ...prev, studentPhoto: result.photo }));
+        }
+        
+        alert("Photo updated successfully!");
+      } else {
+        const errorText = await response.text();
+        console.error("Photo upload error response:", errorText);
+        alert(`Failed to upload photo: ${response.status} ${response.statusText}`);
+      }
     } catch (err: any) {
       console.error("Error uploading photo:", err);
-      alert("Failed to upload photo");
+      alert("Failed to upload photo: " + (err.message || "Unknown error"));
     } finally {
       setUploadingPhoto(false);
       if (fileInputRef.current) {
@@ -266,102 +262,143 @@ export default function StudentProfile() {
     fileInputRef.current?.click();
   };
 
-// In handleSave function - Add error handling and proper content type
-const handleSave = async () => {
-  try {
-    // Create FormData object
-    const formData = new FormData();
-    
-    // Add all fields to FormData
-    const payload = {
-      // Personal Info
-      firstNameAMH: studentData.firstNameAMH || '',
-      firstNameENG: studentData.firstNameENG || '',
-      fatherNameAMH: studentData.fatherNameAMH || '',
-      fatherNameENG: studentData.fatherNameENG || '',
-      grandfatherNameAMH: studentData.grandfatherNameAMH || '',
-      grandfatherNameENG: studentData.grandfatherNameENG || '',
-      motherNameAMH: studentData.motherNameAMH || '',
-      motherNameENG: studentData.motherNameENG || '',
-      motherFatherNameAMH: studentData.motherFatherNameAMH || '',
-      motherFatherNameENG: studentData.motherFatherNameENG || '',
-      gender: studentData.gender || 'MALE',
-      age: studentData.age ? parseInt(studentData.age) : null,
-      phoneNumber: studentData.phoneNumber || '',
-      email: studentData.email || '',
-      dateOfBirthGC: studentData.dateOfBirthGC || null,
-      dateOfBirthEC: studentData.dateOfBirthEC || null,
-      maritalStatus: studentData.maritalStatus || 'SINGLE',
-      
-      // Place of Birth
-      placeOfBirthWoredaCode: studentData.placeOfBirthWoredaCode || null,
-      placeOfBirthZoneCode: studentData.placeOfBirthZoneCode || null,
-      placeOfBirthRegionCode: studentData.placeOfBirthRegionCode || null,
-      
-      // Current Address
-      currentAddressWoredaCode: studentData.currentAddressWoredaCode || null,
-      currentAddressZoneCode: studentData.currentAddressZoneCode || null,
-      currentAddressRegionCode: studentData.currentAddressRegionCode || null,
-      
-      // Academic Info
-      impairmentCode: studentData.impairmentCode || null,
-      schoolBackgroundId: studentData.schoolBackgroundId ? parseInt(studentData.schoolBackgroundId) : null,
-      departmentEnrolledId: studentData.departmentEnrolledId ? parseInt(studentData.departmentEnrolledId) : null,
-      programModalityCode: studentData.programModalityCode || 'RG',
-      batchClassYearSemesterId: studentData.batchClassYearSemesterId ? parseInt(studentData.batchClassYearSemesterId) : null,
-      studentRecentStatusId: studentData.studentRecentStatusId ? parseInt(studentData.studentRecentStatusId) : null,
-      grade12Result: studentData.grade12Result ? parseFloat(studentData.grade12Result) : null,
-      
-      // Enrollment Dates
-      dateEnrolledGC: studentData.dateEnrolledGC || null,
-      dateEnrolledEC: studentData.dateEnrolledEC || null,
-      
-      // Emergency Contact
-      contactPersonFirstNameAMH: studentData.contactPersonFirstNameAMH || '',
-      contactPersonFirstNameENG: studentData.contactPersonFirstNameENG || '',
-      contactPersonLastNameAMH: studentData.contactPersonLastNameAMH || '',
-      contactPersonLastNameENG: studentData.contactPersonLastNameENG || '',
-      contactPersonPhoneNumber: studentData.contactPersonPhoneNumber || '',
-      contactPersonRelation: studentData.contactPersonRelation || '',
-      
-      // Remarks
-      remark: studentData.remark || '',
-      
-      // Transfer status
-      isTransfer: studentData.isTransfer || false,
-    };
-
-    // Convert payload to JSON string and append as 'data' field
-    formData.append('data', new Blob([JSON.stringify(payload)], {
-      type: 'application/json'
-    }));
-
-    console.log("Sending FormData with payload:", payload);
-
-    // Make the PUT request with FormData
-    await apiService.put(`${endPoints.students}/${id}`, formData, {
-      // apiService will automatically set Content-Type to multipart/form-data
-      // because we're passing FormData
+  // Helper function to filter zones by region
+  const getFilteredZones = (regionCode: string) => {
+    if (!regionCode || !zones.length) return [];
+    return zones.filter(zone => {
+      // Handle different zone object structures
+      const zoneRegionCode = zone.region?.regionCode || zone.regionCode || zone.region;
+      return zoneRegionCode == regionCode;
     });
-    
-    alert("Student profile updated successfully!");
-    setEditMode(false);
-    fetchStudentData();
-  } catch (err: any) {
-    console.error("Error updating profile:", err);
-    
-    let errorMessage = "Failed to update profile.";
-    if (err.response) {
-      errorMessage = `Server error: ${err.response.status} - ${err.response.data?.message || 'Unknown error'}`;
-      console.log("Error response:", err.response.data);
+  };
+
+  // Helper function to filter woredas by zone
+  const getFilteredWoredas = (zoneCode: string) => {
+    if (!zoneCode || !woredas.length) return [];
+    return woredas.filter(woreda => {
+      // Handle different woreda object structures
+      const woredaZoneCode = woreda.zone?.zoneCode || woreda.zoneCode || woreda.zone;
+      return woredaZoneCode == zoneCode;
+    });
+  };
+
+  const handleSave = async () => {
+    try {
+      // Create FormData
+      const formData = new FormData();
+      
+      // Prepare payload
+      const payload = {
+        // Personal Info
+        firstNameAMH: studentData.firstNameAMH || '',
+        firstNameENG: studentData.firstNameENG || '',
+        fatherNameAMH: studentData.fatherNameAMH || '',
+        fatherNameENG: studentData.fatherNameENG || '',
+        grandfatherNameAMH: studentData.grandfatherNameAMH || '',
+        grandfatherNameENG: studentData.grandfatherNameENG || '',
+        motherNameAMH: studentData.motherNameAMH || '',
+        motherNameENG: studentData.motherNameENG || '',
+        motherFatherNameAMH: studentData.motherFatherNameAMH || '',
+        motherFatherNameENG: studentData.motherFatherNameENG || '',
+        gender: studentData.gender || 'MALE',
+        age: studentData.age ? parseInt(studentData.age) : null,
+        phoneNumber: studentData.phoneNumber || '',
+        email: studentData.email || '',
+        dateOfBirthGC: studentData.dateOfBirthGC || null,
+        dateOfBirthEC: studentData.dateOfBirthEC || null,
+        maritalStatus: studentData.maritalStatus || 'SINGLE',
+        
+        // Place of Birth
+        placeOfBirthWoredaCode: studentData.placeOfBirthWoredaCode || null,
+        placeOfBirthZoneCode: studentData.placeOfBirthZoneCode || null,
+        placeOfBirthRegionCode: studentData.placeOfBirthRegionCode || null,
+        
+        // Current Address
+        currentAddressWoredaCode: studentData.currentAddressWoredaCode || null,
+        currentAddressZoneCode: studentData.currentAddressZoneCode || null,
+        currentAddressRegionCode: studentData.currentAddressRegionCode || null,
+        
+        // Academic Info
+        impairmentCode: studentData.impairmentCode || null,
+        schoolBackgroundId: studentData.schoolBackgroundId ? parseInt(studentData.schoolBackgroundId) : null,
+        departmentEnrolledId: studentData.departmentEnrolledId ? parseInt(studentData.departmentEnrolledId) : null,
+        programModalityCode: studentData.programModalityCode || 'RG',
+        batchClassYearSemesterId: studentData.batchClassYearSemesterId ? parseInt(studentData.batchClassYearSemesterId) : null,
+        studentRecentStatusId: studentData.studentRecentStatusId ? parseInt(studentData.studentRecentStatusId) : null,
+        grade12Result: studentData.grade12Result ? parseFloat(studentData.grade12Result) : null,
+        
+        // Enrollment Dates
+        dateEnrolledGC: studentData.dateEnrolledGC || null,
+        dateEnrolledEC: studentData.dateEnrolledEC || null,
+        
+        // Emergency Contact
+        contactPersonFirstNameAMH: studentData.contactPersonFirstNameAMH || '',
+        contactPersonFirstNameENG: studentData.contactPersonFirstNameENG || '',
+        contactPersonLastNameAMH: studentData.contactPersonLastNameAMH || '',
+        contactPersonLastNameENG: studentData.contactPersonLastNameENG || '',
+        contactPersonPhoneNumber: studentData.contactPersonPhoneNumber || '',
+        contactPersonRelation: studentData.contactPersonRelation || '',
+        
+        // Remarks
+        remark: studentData.remark || '',
+        
+        // Transfer status
+        isTransfer: studentData.isTransfer || false,
+      };
+
+      console.log("Saving payload:", payload);
+
+      // Add data as JSON blob
+      formData.append('data', new Blob([JSON.stringify(payload)], {
+        type: 'application/json'
+      }));
+
+      // If there's a selected photo file, add it
+      if (selectedPhotoFile) {
+        formData.append('studentPhoto', selectedPhotoFile);
+      }
+
+      // Debug FormData
+      console.log("FormData entries:");
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
+
+      // Use fetch directly for FormData
+      const token = localStorage.getItem("xy9a7b");
+      const response = await fetch(
+        `https://growing-crayfish-firstly.ngrok-free.app/api/students/${id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            // Don't set Content-Type for FormData - browser sets it automatically
+          },
+          body: formData
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log("Update successful:", result);
+      
+      alert("Student profile updated successfully!");
+      setEditMode(false);
+      setSelectedPhotoFile(null); // Clear selected photo
+      fetchStudentData();
+    } catch (err: any) {
+      console.error("Error updating profile:", err);
+      alert("Failed to update profile. " + (err.message || ""));
     }
-    
-    alert(errorMessage);
-  }
-};
+  };
 
   const handleCancel = () => {
     setStudentData(originalData);
+    setSelectedPhotoFile(null);
     setEditMode(false);
   };
 
@@ -404,22 +441,13 @@ const handleSave = async () => {
   // Get display name for dropdowns
   const getDisplayName = (list: any[], value: any, valueKey: string, displayKey: string) => {
     if (!Array.isArray(list) || !value) return "";
-    const item = list.find(item => item && (item[valueKey] == value || item.id == value || item.code == value));
+    const item = list.find(item => item && (
+      item[valueKey] == value || 
+      item.id == value || 
+      item.code == value ||
+      String(item[valueKey]) === String(value)
+    ));
     return item?.[displayKey] || "";
-  };
-
-  // Get display name for batch
-  const getBatchDisplayName = (batchId: any) => {
-    if (!batchId) return "";
-    const batch = batches.find(b => b.id == batchId);
-    return batch?.batchClassYearSemesterName || "";
-  };
-
-  // Get display name for status
-  const getStatusDisplayName = (statusId: any) => {
-    if (!statusId) return "";
-    const status = statuses.find(s => s.id == statusId);
-    return status?.studentRecentStatusName || "";
   };
 
   // Filter items to ensure they have valid values for Select.Item
@@ -433,6 +461,12 @@ const handleSave = async () => {
 
   const fullNameEng = `${studentData.firstNameENG || ''} ${studentData.fatherNameENG || ''} ${studentData.grandfatherNameENG || ''}`.trim();
   const fullNameAmh = `${studentData.firstNameAMH || ''} ${studentData.fatherNameAMH || ''} ${studentData.grandfatherNameAMH || ''}`.trim();
+
+  // Get filtered zones and woredas for both place of birth and current address
+  const filteredPlaceOfBirthZones = getFilteredZones(studentData.placeOfBirthRegionCode);
+  const filteredPlaceOfBirthWoredas = getFilteredWoredas(studentData.placeOfBirthZoneCode);
+  const filteredCurrentAddressZones = getFilteredZones(studentData.currentAddressRegionCode);
+  const filteredCurrentAddressWoredas = getFilteredWoredas(studentData.currentAddressZoneCode);
 
   return (
     <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
@@ -557,21 +591,17 @@ const handleSave = async () => {
                   value={getSafeSelectValue(studentData.batchClassYearSemesterId)}
                   onValueChange={(v) => handleSelectChange("batchClassYearSemesterId", v === "_none" ? null : (v ? parseInt(v) : null))}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select batch">
-                      {studentData.batchClassYearSemesterId ? getBatchDisplayName(studentData.batchClassYearSemesterId) : "Select batch"}
-                    </SelectValue>
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select batch" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">Select batch</SelectItem>
                     {getValidSelectItems(batches, "id").map(b => (
                       <SelectItem key={b.id} value={String(b.id)}>
-                        {b.batchClassYearSemesterName || `Batch ${b.id}`}
+                        {b.batchClassYearSemesterName || b.name || `Batch ${b.id}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : <div className="font-medium">{studentData.batchClassYearSemesterName || getBatchDisplayName(studentData.batchClassYearSemesterId) || "Not Assigned"}</div>}
+              ) : <div className="font-medium">{studentData.batchClassYearSemesterName || "Not Assigned"}</div>}
             </div>
             <div>
               <Label>Status</Label>
@@ -580,21 +610,17 @@ const handleSave = async () => {
                   value={getSafeSelectValue(studentData.studentRecentStatusId)}
                   onValueChange={(v) => handleSelectChange("studentRecentStatusId", v === "_none" ? null : (v ? parseInt(v) : null))}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status">
-                      {studentData.studentRecentStatusId ? getStatusDisplayName(studentData.studentRecentStatusId) : "Select status"}
-                    </SelectValue>
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">Select status</SelectItem>
                     {getValidSelectItems(statuses, "id").map(s => (
                       <SelectItem key={s.id} value={String(s.id)}>
-                        {s.studentRecentStatusName || `Status ${s.id}`}
+                        {s.studentRecentStatusName || s.statusName || `Status ${s.id}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : <div className="font-medium">{studentData.studentRecentStatusName || getStatusDisplayName(studentData.studentRecentStatusId) || "Unknown"}</div>}
+              ) : <div className="font-medium">{studentData.studentRecentStatusName || "Unknown"}</div>}
             </div>
             <div>
               <Label>Grade 12 Result</Label>
@@ -764,12 +790,7 @@ const handleSave = async () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">Select zone</SelectItem>
-                      {getValidSelectItems(
-                        studentData.placeOfBirthRegionCode 
-                          ? zones.filter(z => z.region?.regionCode === studentData.placeOfBirthRegionCode)
-                          : zones, 
-                        "zoneCode"
-                      ).map(z => (
+                      {filteredPlaceOfBirthZones.map(z => (
                         <SelectItem key={z.zoneCode} value={String(z.zoneCode)}>
                           {z.zone || `Zone ${z.zoneCode}`}
                         </SelectItem>
@@ -794,12 +815,7 @@ const handleSave = async () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">Select woreda</SelectItem>
-                      {getValidSelectItems(
-                        studentData.placeOfBirthZoneCode 
-                          ? woredas.filter(w => w.zone?.zoneCode === studentData.placeOfBirthZoneCode)
-                          : woredas, 
-                        "woredaCode"
-                      ).map(w => (
+                      {filteredPlaceOfBirthWoredas.map(w => (
                         <SelectItem key={w.woredaCode} value={String(w.woredaCode)}>
                           {w.woreda || `Woreda ${w.woredaCode}`}
                         </SelectItem>
@@ -856,12 +872,7 @@ const handleSave = async () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">Select zone</SelectItem>
-                      {getValidSelectItems(
-                        studentData.currentAddressRegionCode 
-                          ? zones.filter(z => z.region?.regionCode === studentData.currentAddressRegionCode)
-                          : zones, 
-                        "zoneCode"
-                      ).map(z => (
+                      {filteredCurrentAddressZones.map(z => (
                         <SelectItem key={z.zoneCode} value={String(z.zoneCode)}>
                           {z.zone || `Zone ${z.zoneCode}`}
                         </SelectItem>
@@ -886,12 +897,7 @@ const handleSave = async () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">Select woreda</SelectItem>
-                      {getValidSelectItems(
-                        studentData.currentAddressZoneCode 
-                          ? woredas.filter(w => w.zone?.zoneCode === studentData.currentAddressZoneCode)
-                          : woredas, 
-                        "woredaCode"
-                      ).map(w => (
+                      {filteredCurrentAddressWoredas.map(w => (
                         <SelectItem key={w.woredaCode} value={String(w.woredaCode)}>
                           {w.woreda || `Woreda ${w.woredaCode}`}
                         </SelectItem>
@@ -1056,6 +1062,27 @@ const handleSave = async () => {
                 <Label>Relation</Label>
                 {editMode ? <Input name="contactPersonRelation" value={studentData.contactPersonRelation || ''} onChange={handleInputChange} placeholder="Enter relation" /> 
                   : <div>{studentData.contactPersonRelation || 'N/A'}</div>}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Remarks */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><AlertCircle className="mr-2" /> Remarks</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label>Remarks</Label>
+                {editMode ? (
+                  <Textarea 
+                    name="remark" 
+                    value={studentData.remark || ''} 
+                    onChange={handleInputChange}
+                    placeholder="Enter any remarks about the student"
+                    rows={3}
+                  />
+                ) : <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded min-h-[60px]">{studentData.remark || "No remarks"}</div>}
               </div>
             </CardContent>
           </Card>

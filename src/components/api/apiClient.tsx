@@ -22,7 +22,8 @@ const apiClient = axios.create({
   // baseURL: "https://deutschemedizin-collage-backend-production.up.railway.app/api",
 headers: {
     "ngrok-skip-browser-warning": "true",
-    "X-Requested-With": "XMLHttpRequest",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "X-Requested-With": "XMLHttpRequest",   
     "Accept": "application/json",
   },
 });
