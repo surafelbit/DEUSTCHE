@@ -50,6 +50,9 @@ const CreateTeacher = React.lazy(() => import("./pages/head/CreateTeacher"));
 
 // Registrar Pages
 const RegistrarLayout = React.lazy(() => import("./layouts/RegistrarLayout"));
+const SchoolBackgroundsEditor = React.lazy(
+  () => import("./pages/registrar/settings/SchoolBackgroundsEditor.tsx")
+);
 const RegistrarDashboard = React.lazy(
   () => import("./pages/registrar/Dashboard")
 );
@@ -73,6 +76,9 @@ const SingleBatchPage = React.lazy(
 );
 const DepartmentDetail = React.lazy(
   () => import("./pages/registrar/DepartmentDetail.tsx")
+);
+const EnrollmentTypesEditor = React.lazy(
+  () => import("./pages/registrar/settings/EnrollmentTypesEditor.tsx")
 );
 const StudentDetail = React.lazy(
   () => import("./pages/registrar/StudentDetail")
@@ -258,6 +264,14 @@ function App() {
 
               <Route path="settings/batches" element={<BatchesEditor />} />
               <Route path="settings/semesters" element={<SemestersEditor />} />
+              <Route
+                path="settings/school-background"
+                element={<SchoolBackgroundsEditor />}
+              />
+              <Route
+                path="settings/enrollment"
+                element={<EnrollmentTypesEditor />}
+              />
               <Route
                 path="settings/class-years"
                 element={<ClassYearsEditor />}
