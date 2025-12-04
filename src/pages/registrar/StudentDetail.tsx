@@ -800,27 +800,6 @@ export default function StudentProfile() {
             </CardContent>
           </Card>
 
-          {/* Remarks */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center"><AlertCircle className="mr-2" /> Remarks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div>
-                <Label>Remarks</Label>
-                {editMode ? (
-                  <Textarea 
-                    name="remark" 
-                    value={studentData.remark || ''} 
-                    onChange={handleInputChange}
-                    placeholder="Enter any remarks about the student"
-                    rows={3}
-                  />
-                ) : <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded">{studentData.remark || "No remarks"}</div>}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Change Password */}
           {isEditable && (
             <>
