@@ -594,9 +594,9 @@ export default function StudentProfile() {
                   <SelectTrigger><SelectValue placeholder="Select batch" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="_none">Select batch</SelectItem>
-                    {getValidSelectItems(batches, "id").map(b => (
-                      <SelectItem key={b.id} value={String(b.id)}>
-                        {b.batchClassYearSemesterName || b.name || `Batch ${b.id}`}
+                    {getValidSelectItems(batches, "bcysId").map(b => (
+                      <SelectItem key={b.bcysId} value={String(b.bcysId)}>
+                        {b.batchClassYearSemesterName || b.name || `Batch ${b.bcysId}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
