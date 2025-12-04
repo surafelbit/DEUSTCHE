@@ -50,12 +50,21 @@ const CreateTeacher = React.lazy(() => import("./pages/head/CreateTeacher"));
 
 // Registrar Pages
 const RegistrarLayout = React.lazy(() => import("./layouts/RegistrarLayout"));
-const RegistrarDashboard = React.lazy(  () => import("./pages/registrar/Dashboard"));
-const RegistrarApplications = React.lazy(  () => import("./pages/registrar/Applications"));
-const RegistrarDepartments = React.lazy(  () => import("./pages/registrar/Departments"));
-const RegistrarStudents = React.lazy(  () => import("./pages/registrar/Students"));
-const RegistrationSlip = React.lazy(  () => import("./pages/registrar/RegistrationSlips"));
-
+const SchoolBackgroundsEditor = React.lazy(
+  () => import("./pages/registrar/settings/SchoolBackgroundsEditor.tsx")
+);
+const RegistrarDashboard = React.lazy(
+  () => import("./pages/registrar/Dashboard")
+);
+const RegistrarApplications = React.lazy(
+  () => import("./pages/registrar/Applications")
+);
+const RegistrarDepartments = React.lazy(
+  () => import("./pages/registrar/Departments")
+);
+const RegistrarStudents = React.lazy(
+  () => import("./pages/registrar/Students")
+);
 const AddStudent = React.lazy(() => import("./pages/registrar/AddStudent"));
 const RegistrarCourses = React.lazy(() => import("./pages/registrar/Courses"));
 const RegistrarAssessments = React.lazy(  () => import("./pages/registrar/Assessments"));
@@ -65,6 +74,9 @@ const SingleBatchPage = React.lazy(
 );
 const DepartmentDetail = React.lazy(
   () => import("./pages/registrar/DepartmentDetail.tsx")
+);
+const EnrollmentTypesEditor = React.lazy(
+  () => import("./pages/registrar/settings/EnrollmentTypesEditor.tsx")
 );
 const StudentDetail = React.lazy(
   () => import("./pages/registrar/StudentDetail")
@@ -241,6 +253,14 @@ function App() {
 
               <Route path="settings/batches" element={<BatchesEditor />} />
               <Route path="settings/semesters" element={<SemestersEditor />} />
+              <Route
+                path="settings/school-background"
+                element={<SchoolBackgroundsEditor />}
+              />
+              <Route
+                path="settings/enrollment"
+                element={<EnrollmentTypesEditor />}
+              />
               <Route
                 path="settings/class-years"
                 element={<ClassYearsEditor />}
