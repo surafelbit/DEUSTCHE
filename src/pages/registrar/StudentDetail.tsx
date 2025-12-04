@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Mail,
@@ -20,1305 +19,810 @@ import {
   Calendar,
   GraduationCap,
   Edit,
-  Camera,
+  Shield,
+  User,
+  Users,
+  AlertCircle,
+  Home,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import apiService from "@/components/api/apiService";
+import endPoints from "@/components/api/endPoints";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function StudentProfile() {
   const location = useLocation();
-  let userRole;
-  if (location.pathname.includes("registrar")) {
-    userRole = "registrar";
-  } else {
-    userRole = "general-manager";
-  }
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [passwordForm, setPasswordForm] = useState(false);
+
   const [editMode, setEditMode] = useState(false);
+  const [passwordForm, setPasswordForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [studentData, setStudentData] = useState<any>({});
+  const [originalData, setOriginalData] = useState<any>({});
+
+  // Dropdown data with default empty arrays
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [schoolBackgrounds, setSchoolBackgrounds] = useState<any[]>([]);
+  const [impairments, setImpairments] = useState<any[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
+  const [statuses, setStatuses] = useState<any[]>([]);
+  const [woredas, setWoredas] = useState<any[]>([]);
+  const [zones, setZones] = useState<any[]>([]);
+  const [regions, setRegions] = useState<any[]>([]);
+
+  // Password form
   const [formData, setFormData] = useState({
-    studentId: "",
     newPassword: "",
     confirmPassword: "",
   });
-  const [error, setError] = useState("");
-  // const [userRole, setUserRole] = useState("registrar"); // Default to registrar
-  const [editableData, setEditableData] = useState({
-    firstNameAMH: "አበበ",
-    firstNameENG: "Abebe",
-    fatherNameAMH: "ከበደ",
-    fatherNameENG: "Kebede",
-    grandfatherNameAMH: "ወልደ",
-    grandfatherNameENG: "Welde",
-    motherNameAMH: "ልደት",
-    motherNameENG: "Lidet",
-    motherFatherNameAMH: "ታደሰ",
-    motherFatherNameENG: "Tadesse",
-    gender: "Male",
-    age: 20,
-    phoneNumber: "+251912345678",
-    dateOfBirthEC: "15/06/2005",
-    dateOfBirthGC: "1997-02-22",
-    placeOfBirthWoreda: "Yeka",
-    placeOfBirthZone: "Addis Ababa",
-    placeOfBirthRegion: "Addis Ababa",
-    currentAddressWoreda: "Bole",
-    currentAddressZone: "Addis Ababa",
-    currentAddressRegion: "Addis Ababa",
-    email: "abebe.kebede@example.com",
-    maritalStatus: "Single",
-    impairment: "None",
-    schoolBackground: "Public",
-    contactPersonFirstNameAMH: "ሰለሞን",
-    contactPersonFirstNameENG: "Solomon",
-    contactPersonLastNameAMH: "ገብረ",
-    contactPersonLastNameENG: "Gebre",
-    contactPersonPhoneNumber: "+251987654321",
-    contactPersonRelation: "Brother",
-    departmentEnrolled: "Computer Science",
-    programModality: "Regular",
-  });
 
-  const originalData = {
-    firstNameAMH: "አበበ",
-    firstNameENG: "Abebe",
-    fatherNameAMH: "ከበደ",
-    fatherNameENG: "Kebede",
-    grandfatherNameAMH: "ወልደ",
-    grandfatherNameENG: "Welde",
-    motherNameAMH: "ልደት",
-    motherNameENG: "Lidet",
-    motherFatherNameAMH: "ታደሰ",
-    motherFatherNameENG: "Tadesse",
-    gender: "Male",
-    age: 20,
-    phoneNumber: "+251912345678",
-    dateOfBirthEC: "15/06/2005",
-    dateOfBirthGC: "1997-02-22",
-    placeOfBirthWoreda: "Yeka",
-    placeOfBirthZone: "Addis Ababa",
-    placeOfBirthRegion: "Addis Ababa",
-    currentAddressWoreda: "Bole",
-    currentAddressZone: "Addis Ababa",
-    currentAddressRegion: "Addis Ababa",
-    email: "abebe.kebede@example.com",
-    maritalStatus: "Single",
-    impairment: "None",
-    schoolBackground: "Public",
-    contactPersonFirstNameAMH: "ሰለሞን",
-    contactPersonFirstNameENG: "Solomon",
-    contactPersonLastNameAMH: "ገብረ",
-    contactPersonLastNameENG: "Gebre",
-    contactPersonPhoneNumber: "+251987654321",
-    contactPersonRelation: "Brother",
-    departmentEnrolled: "Computer Science",
-    programModality: "Regular",
-  };
+  const userRole = location.pathname.includes("registrar") ? "registrar" : "general-manager";
+  const isEditable = userRole === "registrar";
 
-  const studentData = {
-    ...editableData,
-    studentPhoto:
-      "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAAAAAAAD/2wBDAAoHBwkHBgoJCAkLCwoMDxkQDw4ODx4WFxIZJCAmJSMgIyIOJj4kLCIuNDIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy",
-    grade12ExamResult:
-      "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAAAAAAAD/2wBDAAoHBwkHBgoJCAkLCwoMDxkQDw4ODx4WFxIZJCAmJSMgIyIOJj4kLCIuNDIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy",
-  };
+  useEffect(() => {
+    fetchStudentData();
+    fetchDropdownData();
+  }, [id]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (error) setError("");
-  };
-
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditableData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (formData.newPassword !== formData.confirmPassword) {
-      setError("Passwords do not match.");
-      return;
+  const fetchStudentData = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const response = await apiService.get(`${endPoints.students}/${id}`);
+      setStudentData(response || {});
+      setOriginalData(response || {});
+    } catch (err: any) {
+      console.error("Error fetching student data:", err);
+      setError("Failed to load student data.");
+    } finally {
+      setLoading(false);
     }
-    if (formData.newPassword.length < 8) {
-      setError("Password must be at least 8 characters long.");
-      return;
-    }
-    console.log("Password change request:", {
-      ...formData,
-      studentId: studentData.firstNameENG,
-    });
-    alert(
-      `Password change request submitted for Student: ${studentData.firstNameENG}`
-    );
-    setFormData({ studentId: "", newPassword: "", confirmPassword: "" });
-    setPasswordForm(false);
   };
 
-  const handleSave = () => {
-    console.log("Updated student data:", editableData);
-    alert(`Profile updated for ${editableData.firstNameENG}`);
-    setEditMode(false);
+  const fetchDropdownData = async () => {
+    try {
+      // Fetch data sequentially to avoid overwhelming the server
+      try {
+        const depts = await apiService.get(endPoints.departments);
+        setDepartments(Array.isArray(depts) ? depts : []);
+      } catch (err) {
+        console.warn("Failed to fetch departments");
+        setDepartments([]);
+      }
+
+      try {
+        const backgrounds = await apiService.get(endPoints.schoolBackgrounds);
+        setSchoolBackgrounds(Array.isArray(backgrounds) ? backgrounds : []);
+      } catch (err) {
+        console.warn("Failed to fetch school backgrounds");
+        setSchoolBackgrounds([]);
+      }
+
+      try {
+        const impairmentsResp = await apiService.get(endPoints.impairments);
+        setImpairments(Array.isArray(impairmentsResp) ? impairmentsResp : []);
+      } catch (err) {
+        console.warn("Failed to fetch impairments");
+        setImpairments([]);
+      }
+
+      try {
+        const batchResp = await apiService.get(endPoints.BatchClassYearSemesters);
+        setBatches(Array.isArray(batchResp) ? batchResp : []);
+      } catch (err) {
+        console.warn("Failed to fetch batches");
+        setBatches([]);
+      }
+
+      try {
+        const statusResp = await apiService.get(endPoints.studentStatus);
+        setStatuses(Array.isArray(statusResp) ? statusResp : []);
+      } catch (err) {
+        console.warn("Failed to fetch statuses");
+        setStatuses([]);
+      }
+
+      // These might not require auth - check if they're in noAuthEndpoints
+      try {
+        const woredasResp = await apiService.get(endPoints.allWoreda);
+        setWoredas(Array.isArray(woredasResp) ? woredasResp : []);
+      } catch (err) {
+        console.warn("Failed to fetch woredas, using empty array");
+        setWoredas([]);
+      }
+
+      try {
+        const zonesResp = await apiService.get(endPoints.allZones);
+        setZones(Array.isArray(zonesResp) ? zonesResp : []);
+      } catch (err) {
+        console.warn("Failed to fetch zones, using empty array");
+        setZones([]);
+      }
+
+      try {
+        const regionsResp = await apiService.get(endPoints.allRegion);
+        setRegions(Array.isArray(regionsResp) ? regionsResp : []);
+      } catch (err) {
+        console.warn("Failed to fetch regions, using empty array");
+        setRegions([]);
+      }
+    } catch (err: any) {
+      console.error("Error fetching dropdown data:", err);
+      // Don't block the UI if dropdowns fail
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setStudentData((prev: any) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (name: string, value: any) => {
+    // Convert empty string to null for optional fields
+    const finalValue = value === "" ? null : value;
+    setStudentData((prev: any) => ({ ...prev, [name]: finalValue }));
+  };
+
+  const handleNumberInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const numValue = value === '' ? '' : parseFloat(value);
+    setStudentData((prev: any) => ({ ...prev, [name]: numValue }));
+  };
+
+  const handleIntInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const intValue = value === '' ? '' : parseInt(value, 10);
+    setStudentData((prev: any) => ({ ...prev, [name]: intValue }));
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        // Personal Info
+        firstNameAMH: studentData.firstNameAMH || '',
+        firstNameENG: studentData.firstNameENG || '',
+        fatherNameAMH: studentData.fatherNameAMH || '',
+        fatherNameENG: studentData.fatherNameENG || '',
+        grandfatherNameAMH: studentData.grandfatherNameAMH || '',
+        grandfatherNameENG: studentData.grandfatherNameENG || '',
+        motherNameAMH: studentData.motherNameAMH || '',
+        motherNameENG: studentData.motherNameENG || '',
+        motherFatherNameAMH: studentData.motherFatherNameAMH || '',
+        motherFatherNameENG: studentData.motherFatherNameENG || '',
+        gender: studentData.gender || 'MALE',
+        age: studentData.age ? parseInt(studentData.age) : 0,
+        phoneNumber: studentData.phoneNumber || '',
+        email: studentData.email || '',
+        dateOfBirthGC: studentData.dateOfBirthGC || '',
+        dateOfBirthEC: studentData.dateOfBirthEC || '',
+        maritalStatus: studentData.maritalStatus || 'SINGLE',
+        
+        // Place of Birth
+        placeOfBirthWoredaCode: studentData.placeOfBirthWoredaCode || '',
+        placeOfBirthZoneCode: studentData.placeOfBirthZoneCode || '',
+        placeOfBirthRegionCode: studentData.placeOfBirthRegionCode || '',
+        
+        // Current Address
+        currentAddressWoredaCode: studentData.currentAddressWoredaCode || '',
+        currentAddressZoneCode: studentData.currentAddressZoneCode || '',
+        currentAddressRegionCode: studentData.currentAddressRegionCode || '',
+        
+        // Academic Info
+        impairmentCode: studentData.impairmentCode || null,
+        schoolBackgroundId: studentData.schoolBackgroundId ? parseInt(studentData.schoolBackgroundId) : null,
+        departmentEnrolledId: studentData.departmentEnrolledId ? parseInt(studentData.departmentEnrolledId) : null,
+        programModalityCode: studentData.programModalityCode || 'RG',
+        batchClassYearSemesterId: studentData.batchClassYearSemesterId ? parseInt(studentData.batchClassYearSemesterId) : null,
+        studentRecentStatusId: studentData.studentRecentStatusId ? parseInt(studentData.studentRecentStatusId) : null,
+        grade12Result: studentData.grade12Result ? parseFloat(studentData.grade12Result) : 0,
+        
+        // Enrollment Dates
+        dateEnrolledGC: studentData.dateEnrolledGC || '',
+        dateEnrolledEC: studentData.dateEnrolledEC || '',
+        
+        // Emergency Contact
+        contactPersonFirstNameAMH: studentData.contactPersonFirstNameAMH || '',
+        contactPersonFirstNameENG: studentData.contactPersonFirstNameENG || '',
+        contactPersonLastNameAMH: studentData.contactPersonLastNameAMH || '',
+        contactPersonLastNameENG: studentData.contactPersonLastNameENG || '',
+        contactPersonPhoneNumber: studentData.contactPersonPhoneNumber || '',
+        contactPersonRelation: studentData.contactPersonRelation || '',
+        
+        // Remarks
+        remark: studentData.remark || '',
+        
+        // Transfer status
+        isTransfer: studentData.isTransfer || false,
+      };
+
+      await apiService.put(`${endPoints.students}/${id}`, payload);
+      alert("Student profile updated successfully!");
+      setEditMode(false);
+      fetchStudentData();
+    } catch (err: any) {
+      console.error("Error updating profile:", err);
+      alert("Failed to update profile. " + (err.message || ""));
+    }
   };
 
   const handleCancel = () => {
-    setEditableData(originalData);
+    setStudentData(originalData);
     setEditMode(false);
   };
 
-  const [openYear, setOpenYear] = useState({ index: null });
-  const [openYears, setOpenYears] = useState({});
-  const [openSemesters, setOpenSemesters] = useState({});
-  const [selectedGradingSystem, setSelectedGradingSystem] = useState("system1");
-
-  const initialResult = [
-    {
-      year: 1,
-      semseters: [
-        {
-          id: "1",
-          courses: [
-            {
-              name: "Mathematics",
-              result: 95,
-              grade: "A",
-              credit: 4,
-              courseId: "MATH101",
-            },
-            {
-              name: "Physics",
-              result: 88,
-              grade: "B",
-              credit: 3,
-              courseId: "PHYS101",
-            },
-            {
-              name: "Chemistry",
-              result: 78,
-              grade: "C",
-              credit: 3,
-              courseId: "CHEM101",
-            },
-            {
-              name: "English",
-              result: 62,
-              grade: "D",
-              credit: 2,
-              courseId: "ENG101",
-            },
-          ],
-        },
-        {
-          id: "2",
-          courses: [
-            {
-              name: "Advanced Mathematics",
-              result: 92,
-              grade: "A",
-              credit: 4,
-              courseId: "MATH102",
-            },
-            {
-              name: "Mechanics",
-              result: 85,
-              grade: "B",
-              credit: 4,
-              courseId: "PHYS102",
-            },
-            {
-              name: "Organic Chemistry",
-              result: 70,
-              grade: "C",
-              credit: 3,
-              courseId: "CHEM102",
-            },
-          ],
-        },
-        {
-          id: "3",
-          courses: [
-            {
-              name: "Statistics",
-              result: 99,
-              grade: "A",
-              credit: 3,
-              courseId: "STAT101",
-            },
-            {
-              name: "Electronics",
-              result: 82,
-              grade: "B",
-              credit: 4,
-              courseId: "PHYS103",
-            },
-            {
-              name: "Literature",
-              result: 55,
-              grade: "F",
-              credit: 2,
-              courseId: "ENG102",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      year: 2,
-      semseters: [
-        {
-          id: "1",
-          courses: [
-            {
-              name: "Calculus",
-              result: 90,
-              grade: "A",
-              credit: 4,
-              courseId: "MATH201",
-            },
-            {
-              name: "Quantum Physics",
-              result: 84,
-              grade: "B",
-              credit: 4,
-              courseId: "PHYS201",
-            },
-            {
-              name: "Inorganic Chemistry",
-              result: 75,
-              grade: "C",
-              credit: 3,
-              courseId: "CHEM201",
-            },
-          ],
-        },
-        {
-          id: "2",
-          courses: [
-            {
-              name: "Linear Algebra",
-              result: 87,
-              grade: "B",
-              credit: 4,
-              courseId: "MATH202",
-            },
-            {
-              name: "Thermodynamics",
-              result: 80,
-              grade: "B",
-              credit: 3,
-              courseId: "PHYS202",
-            },
-            {
-              name: "Writing Composition",
-              result: 68,
-              grade: "D",
-              credit: 2,
-              courseId: "ENG201",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      year: 3,
-      semseters: [
-        {
-          id: "1",
-          courses: [
-            {
-              name: "Differential Equations",
-              result: 100,
-              grade: "A",
-              credit: 5,
-              courseId: "MATH301",
-            },
-            {
-              name: "Electromagnetism",
-              result: 83,
-              grade: "B",
-              credit: 4,
-              courseId: "PHYS301",
-            },
-            {
-              name: "Biochemistry",
-              result: 72,
-              grade: "C",
-              credit: 3,
-              courseId: "CHEM301",
-            },
-            {
-              name: "Technical Writing",
-              result: 60,
-              grade: "D",
-              credit: 2,
-              courseId: "ENG301",
-            },
-          ],
-        },
-        {
-          id: "2",
-          courses: [
-            {
-              name: "Probability",
-              result: 97,
-              grade: "A",
-              credit: 4,
-              courseId: "MATH302",
-            },
-            {
-              name: "Optics",
-              result: 79,
-              grade: "C",
-              credit: 3,
-              courseId: "PHYS302",
-            },
-            {
-              name: "Analytical Chemistry",
-              result: 65,
-              grade: "D",
-              credit: 3,
-              courseId: "CHEM302",
-            },
-          ],
-        },
-      ],
-    },
-  ];
-  const [displayedResult, setDisplayedResult] = useState(initialResult);
-
-  const gradingSystems = {
-    system1: (score) => {
-      if (score >= 90) return "A";
-      if (score >= 80) return "B";
-      if (score >= 70) return "C";
-      if (score >= 60) return "D";
-      return "F";
-    },
-    system2: (score) => {
-      if (score >= 90) return "A";
-      if (score >= 85) return "A-";
-      if (score >= 80) return "B+";
-      if (score >= 75) return "B";
-      if (score >= 70) return "B-";
-      if (score >= 65) return "C";
-      return "F";
-    },
-    system3: (score) => {
-      if (score >= 85) return "A";
-      if (score >= 75) return "B";
-      if (score >= 65) return "C";
-      if (score >= 60) return "D";
-      return "F";
-    },
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.newPassword !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    try {
+      await apiService.put(`${endPoints.students}/${id}/password`, {
+        newPassword: formData.newPassword
+      });
+      alert("Password changed successfully");
+      setPasswordForm(false);
+      setFormData({ newPassword: "", confirmPassword: "" });
+    } catch (err: any) {
+      console.error("Error changing password:", err);
+      alert("Failed to change password");
+    }
   };
 
-  useEffect(() => {
-    const updatedResult = initialResult.map((year) => ({
-      ...year,
-      semseters: year.semseters.map((semester) => ({
-        ...semester,
-        courses: semester.courses.map((course) => ({
-          ...course,
-          grade: gradingSystems[selectedGradingSystem](course.result),
-        })),
-      })),
-    }));
-    setDisplayedResult(updatedResult);
-  }, [selectedGradingSystem]);
+  const formatDate = (date: string) => {
+    if (!date) return '';
+    try {
+      return new Date(date).toISOString().split('T')[0];
+    } catch (err) {
+      return date;
+    }
+  };
 
-  // Determine if the profile is editable based on userRole
-  const isEditable = userRole === "registrar";
+  const getNameById = (list: any[], id: any, idKey: string, nameKey: string) => {
+    if (!Array.isArray(list)) return `Unknown (${id})`;
+    const item = list.find(item => item && item[idKey] == id);
+    return item?.[nameKey] || `Unknown (${id})`;
+  };
+
+  const getNameByCode = (list: any[], code: any, codeKey: string, nameKey: string) => {
+    if (!Array.isArray(list)) return `Unknown (${code})`;
+    const item = list.find(item => item && item[codeKey] == code);
+    return item?.[nameKey] || `Unknown (${code})`;
+  };
+
+  // Helper function to safely get non-empty string value
+  const getSafeSelectValue = (value: any): string => {
+    if (value === null || value === undefined || value === '') {
+      return "_none"; // Use a special value for "none/empty"
+    }
+    return String(value);
+  };
+
+  // Helper function to get display value from stored value
+  const getDisplayValue = (value: any): string => {
+    if (value === "_none") {
+      return "";
+    }
+    return value || "";
+  };
+
+  // Filter arrays to ensure all items are valid and have non-empty values
+  const safeArray = (arr: any[]): any[] => {
+    if (!Array.isArray(arr)) return [];
+    return arr.filter(item => item != null);
+  };
+
+  // Filter items to ensure they have valid values for Select.Item
+  const getValidSelectItems = (arr: any[], valueKey: string): any[] => {
+    return safeArray(arr).filter(item => {
+      const value = item[valueKey] || item.id || item.code;
+      return value != null && value !== "";
+    });
+  };
+
+  if (loading) return <div className="flex justify-center p-10"><div className="animate-spin h-10 w-10 border-4 border-blue-600 rounded-full border-t-transparent"></div></div>;
+  if (error || !studentData || Object.keys(studentData).length === 0) return <div className="text-center p-10 text-red-600">{error || "Student not found"}</div>;
+
+  const fullNameEng = `${studentData.firstNameENG || ''} ${studentData.fatherNameENG || ''} ${studentData.grandfatherNameENG || ''}`.trim();
+  const fullNameAmh = `${studentData.firstNameAMH || ''} ${studentData.fatherNameAMH || ''} ${studentData.grandfatherNameAMH || ''}`.trim();
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8 bg-white dark:bg-gray-900">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-blue-600 dark:text-gray-100">
-          Student Profile
-        </h1>
-        <div className="flex space-x-2">
-          <Link
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center text-blue-600 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <span className="mr-2">&larr;</span>
-            <span>Back to Student List</span>
-          </Link>
+    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+      {/* Header */}
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-blue-700">Student Profile</h1>
+          <p className="text-gray-600">ID: {studentData.id} | Username: {studentData.username}</p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => navigate(-1)}>← Back</Button>
+          {isEditable && (
+            editMode ? (
+              <>
+                <Button onClick={handleSave} className="bg-green-600">Save</Button>
+                <Button variant="destructive" onClick={handleCancel}>Cancel</Button>
+              </>
+            ) : (
+              <Button onClick={() => setEditMode(true)}><Edit className="w-4 h-4 mr-2" /> Edit</Button>
+            )
+          )}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Left Column - Photo & Basic Info */}
+        <Card>
+          <CardHeader className="text-center">
+            <Avatar className="w-32 h-32 mx-auto border-4 border-blue-100">
+              {studentData.studentPhoto ? (
+                <AvatarImage src={`data:image/jpeg;base64,${studentData.studentPhoto}`} />
+              ) : (
+                <AvatarFallback className="text-3xl">
+                  {studentData.firstNameENG?.[0] || ''}{studentData.fatherNameENG?.[0] || ''}
+                </AvatarFallback>
+              )}
+            </Avatar>
+            <CardTitle className="mt-4">{fullNameEng || 'Unknown'}</CardTitle>
+            <CardDescription className="text-lg">{fullNameAmh || 'Unknown'}</CardDescription>
+            <div className="flex flex-wrap justify-center gap-2 mt-3">
+              <Badge variant={studentData.documentStatus === "COMPLETE" ? "default" : "secondary"}>
+                {studentData.documentStatus || "PENDING"}
+              </Badge>
+              <Badge>{studentData.programModalityName || studentData.programModalityCode || 'Unknown'}</Badge>
+              {studentData.isTransfer && <Badge variant="outline">Transfer</Badge>}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div><Label>Email</Label><div className="font-medium">{studentData.email || "N/A"}</div></div>
+            <div><Label>Phone</Label><div className="font-medium">{studentData.phoneNumber || "N/A"}</div></div>
+            <div><Label>Batch</Label><div className="font-medium">{studentData.batchClassYearSemesterName || "Not Assigned"}</div></div>
+            <div><Label>Status</Label><div className="font-medium">{studentData.studentRecentStatusName || "Unknown"}</div></div>
+            <div><Label>Grade 12 Result</Label><div className="font-medium">{studentData.grade12Result || "N/A"}</div></div>
+          </CardContent>
+        </Card>
+
+        {/* Right Column - Detailed Info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Personal Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><User className="mr-2" /> Personal Information</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-4">
+              {[
+                { label: "First Name (ENG)", amh: "firstNameAMH", eng: "firstNameENG" },
+                { label: "Father's Name (ENG)", amh: "fatherNameAMH", eng: "fatherNameENG" },
+                { label: "Grandfather's Name (ENG)", amh: "grandfatherNameAMH", eng: "grandfatherNameENG" },
+                { label: "Mother's Full Name (ENG)", amh: "motherNameAMH", eng: "motherNameENG" },
+                { label: "Mother's Father Name (ENG)", amh: "motherFatherNameAMH", eng: "motherFatherNameENG" },
+              ].map(field => (
+                <div key={field.eng} className="space-y-2">
+                  <Label>{field.label}</Label>
+                  {editMode ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input name={field.eng} value={studentData[field.eng] || ''} onChange={handleInputChange} />
+                      <Input name={field.amh} value={studentData[field.amh] || ''} onChange={handleInputChange} className="text-right" dir="rtl" />
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                      <div>{studentData[field.eng] || "N/A"}</div>
+                      <div className="text-right text-gray-600" dir="rtl">{studentData[field.amh] || "N/A"}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <div>
+                <Label>Gender</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.gender)} 
+                    onValueChange={(v) => handleSelectChange("gender", v === "_none" ? null : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MALE">Male</SelectItem>
+                      <SelectItem value="FEMALE">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : <div className="font-medium">{studentData.gender === "MALE" ? "Male" : "Female"}</div>}
+              </div>
+
+              <div>
+                <Label>Marital Status</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.maritalStatus)} 
+                    onValueChange={(v) => handleSelectChange("maritalStatus", v === "_none" ? null : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select marital status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SINGLE">Single</SelectItem>
+                      <SelectItem value="MARRIED">Married</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : <div className="font-medium">{studentData.maritalStatus || 'Unknown'}</div>}
+              </div>
+
+              <div>
+                <Label>Date of Birth (GC)</Label>
+                {editMode ? <Input type="date" name="dateOfBirthGC" value={formatDate(studentData.dateOfBirthGC)} onChange={handleInputChange} />
+                  : <div>{formatDate(studentData.dateOfBirthGC) || 'N/A'}</div>}
+              </div>
+
+              <div>
+                <Label>Date of Birth (EC)</Label>
+                {editMode ? <Input type="date" name="dateOfBirthEC" value={formatDate(studentData.dateOfBirthEC)} onChange={handleInputChange} />
+                  : <div>{formatDate(studentData.dateOfBirthEC) || 'N/A'}</div>}
+              </div>
+
+              <div>
+                <Label>Age</Label>
+                {editMode ? <Input type="number" name="age" value={studentData.age || ''} onChange={handleIntInputChange} />
+                  : <div>{studentData.age || "N/A"}</div>}
+              </div>
+
+              <div>
+                <Label>Impairment</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.impairmentCode)} 
+                    onValueChange={(v) => handleSelectChange("impairmentCode", v === "_none" ? null : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select impairment" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">None</SelectItem>
+                      {getValidSelectItems(impairments, "code").map(i => (
+                        <SelectItem key={i.code} value={String(i.code)}>
+                          {i.description || `Impairment ${i.code}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{studentData.impairmentDescription || "None"}</div>}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Place of Birth - Only show if we have data */}
+          {(studentData.placeOfBirthRegionCode || studentData.placeOfBirthZoneCode || studentData.placeOfBirthWoredaCode) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center"><Home className="mr-2" /> Place of Birth</CardTitle>
+              </CardHeader>
+              <CardContent className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Region</Label>
+                  {editMode ? (
+                    <Select 
+                      value={getSafeSelectValue(studentData.placeOfBirthRegionCode)} 
+                      onValueChange={(v) => handleSelectChange("placeOfBirthRegionCode", v === "_none" ? null : v)}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
+                      <SelectContent>
+                        {getValidSelectItems(regions, "code").map(r => (
+                          <SelectItem key={r.code} value={String(r.code)}>
+                            {r.name || `Region ${r.code}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : <div>{studentData.placeOfBirthRegionName || getNameByCode(regions, studentData.placeOfBirthRegionCode, "code", "name")}</div>}
+                </div>
+
+                <div>
+                  <Label>Zone</Label>
+                  {editMode ? (
+                    <Select 
+                      value={getSafeSelectValue(studentData.placeOfBirthZoneCode)} 
+                      onValueChange={(v) => handleSelectChange("placeOfBirthZoneCode", v === "_none" ? null : v)}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger>
+                      <SelectContent>
+                        {getValidSelectItems(zones, "code").map(z => (
+                          <SelectItem key={z.code} value={String(z.code)}>
+                            {z.name || `Zone ${z.code}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : <div>{studentData.placeOfBirthZoneName || getNameByCode(zones, studentData.placeOfBirthZoneCode, "code", "name")}</div>}
+                </div>
+
+                <div>
+                  <Label>Woreda</Label>
+                  {editMode ? (
+                    <Select 
+                      value={getSafeSelectValue(studentData.placeOfBirthWoredaCode)} 
+                      onValueChange={(v) => handleSelectChange("placeOfBirthWoredaCode", v === "_none" ? null : v)}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select woreda" /></SelectTrigger>
+                      <SelectContent>
+                        {getValidSelectItems(woredas, "code").map(w => (
+                          <SelectItem key={w.code} value={String(w.code)}>
+                            {w.name || `Woreda ${w.code}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : <div>{studentData.placeOfBirthWoredaName || getNameByCode(woredas, studentData.placeOfBirthWoredaCode, "code", "name")}</div>}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Current Address - Only show if we have data */}
+          {(studentData.currentAddressRegionCode || studentData.currentAddressZoneCode || studentData.currentAddressWoredaCode) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center"><MapPin className="mr-2" /> Current Address</CardTitle>
+              </CardHeader>
+              <CardContent className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Region</Label>
+                  {editMode ? (
+                    <Select 
+                      value={getSafeSelectValue(studentData.currentAddressRegionCode)} 
+                      onValueChange={(v) => handleSelectChange("currentAddressRegionCode", v === "_none" ? null : v)}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select region" /></SelectTrigger>
+                      <SelectContent>
+                        {getValidSelectItems(regions, "code").map(r => (
+                          <SelectItem key={r.code} value={String(r.code)}>
+                            {r.name || `Region ${r.code}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : <div>{studentData.currentAddressRegionName || getNameByCode(regions, studentData.currentAddressRegionCode, "code", "name")}</div>}
+                </div>
+
+                <div>
+                  <Label>Zone</Label>
+                  {editMode ? (
+                    <Select 
+                      value={getSafeSelectValue(studentData.currentAddressZoneCode)} 
+                      onValueChange={(v) => handleSelectChange("currentAddressZoneCode", v === "_none" ? null : v)}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select zone" /></SelectTrigger>
+                      <SelectContent>
+                        {getValidSelectItems(zones, "code").map(z => (
+                          <SelectItem key={z.code} value={String(z.code)}>
+                            {z.name || `Zone ${z.code}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : <div>{studentData.currentAddressZoneName || getNameByCode(zones, studentData.currentAddressZoneCode, "code", "name")}</div>}
+                </div>
+
+                <div>
+                  <Label>Woreda</Label>
+                  {editMode ? (
+                    <Select 
+                      value={getSafeSelectValue(studentData.currentAddressWoredaCode)} 
+                      onValueChange={(v) => handleSelectChange("currentAddressWoredaCode", v === "_none" ? null : v)}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select woreda" /></SelectTrigger>
+                      <SelectContent>
+                        {getValidSelectItems(woredas, "code").map(w => (
+                          <SelectItem key={w.code} value={String(w.code)}>
+                            {w.name || `Woreda ${w.code}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : <div>{studentData.currentAddressWoredaName || getNameByCode(woredas, studentData.currentAddressWoredaCode, "code", "name")}</div>}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Academic Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><GraduationCap className="mr-2" /> Academic Information</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-4">
+              <div>
+                <Label>Department</Label>
+                {editMode ? (
+                  <Select
+                    value={getSafeSelectValue(studentData.departmentEnrolledId)}
+                    onValueChange={(v) => handleSelectChange("departmentEnrolledId", v === "_none" ? null : (v ? parseInt(v, 10) : null))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select department</SelectItem>
+                      {getValidSelectItems(departments, "id").map((d) => (
+                        <SelectItem key={d.id} value={String(d.id)}>
+                          {d.departmentName || `Department ${d.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{studentData.departmentEnrolledName || getNameById(departments, studentData.departmentEnrolledId, "id", "departmentName")}</div>}
+              </div>
+
+              <div>
+                <Label>Batch / Class</Label>
+                {editMode ? (
+                  <Select
+                    value={getSafeSelectValue(studentData.batchClassYearSemesterId)}
+                    onValueChange={(v) => handleSelectChange("batchClassYearSemesterId", v === "_none" ? null : (v ? parseInt(v) : null))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select batch" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select batch</SelectItem>
+                      {getValidSelectItems(batches, "id").map(b => (
+                        <SelectItem key={b.id} value={String(b.id)}>
+                          {b.batchClassYearSemesterName || `Batch ${b.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{studentData.batchClassYearSemesterName || "Not Assigned"}</div>}
+              </div>
+
+              <div>
+                <Label>Student Status</Label>
+                {editMode ? (
+                  <Select
+                    value={getSafeSelectValue(studentData.studentRecentStatusId)}
+                    onValueChange={(v) => handleSelectChange("studentRecentStatusId", v === "_none" ? null : (v ? parseInt(v) : null))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select status</SelectItem>
+                      {getValidSelectItems(statuses, "id").map(s => (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          {s.studentRecentStatusName || `Status ${s.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{studentData.studentRecentStatusName || 'Unknown'}</div>}
+              </div>
+
+              <div>
+                <Label>School Background</Label>
+                {editMode ? (
+                  <Select
+                    value={getSafeSelectValue(studentData.schoolBackgroundId)}
+                    onValueChange={(v) => handleSelectChange("schoolBackgroundId", v === "_none" ? null : (v ? parseInt(v) : null))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select school background" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Select school background</SelectItem>
+                      {getValidSelectItems(schoolBackgrounds, "id").map(sb => (
+                        <SelectItem key={sb.id} value={String(sb.id)}>
+                          {sb.schoolBackgroundName || `Background ${sb.id}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : <div>{studentData.schoolBackgroundName || getNameById(schoolBackgrounds, studentData.schoolBackgroundId, "id", "schoolBackgroundName")}</div>}
+              </div>
+
+              <div>
+                <Label>Program Modality</Label>
+                {editMode ? (
+                  <Select 
+                    value={getSafeSelectValue(studentData.programModalityCode)} 
+                    onValueChange={(v) => handleSelectChange("programModalityCode", v === "_none" ? null : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select modality" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="RG">Regular</SelectItem>
+                      <SelectItem value="EV">Evening</SelectItem>
+                      <SelectItem value="WE">Weekend</SelectItem>
+                      <SelectItem value="DL">Distance Learning</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : <div>{studentData.programModalityName || studentData.programModalityCode || 'Unknown'}</div>}
+              </div>
+
+              <div>
+                <Label>Grade 12 Result</Label>
+                {editMode ? <Input type="number" step="0.1" name="grade12Result" value={studentData.grade12Result || ''} onChange={handleNumberInputChange} />
+                  : <div>{studentData.grade12Result || "N/A"}</div>}
+              </div>
+
+              <div>
+                <Label>Date Enrolled (GC)</Label>
+                {editMode ? <Input type="date" name="dateEnrolledGC" value={formatDate(studentData.dateEnrolledGC)} onChange={handleInputChange} />
+                  : <div>{formatDate(studentData.dateEnrolledGC) || 'N/A'}</div>}
+              </div>
+
+              <div>
+                <Label>Date Enrolled (EC)</Label>
+                {editMode ? <Input type="date" name="dateEnrolledEC" value={formatDate(studentData.dateEnrolledEC)} onChange={handleInputChange} />
+                  : <div>{formatDate(studentData.dateEnrolledEC) || 'N/A'}</div>}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Label htmlFor="isTransfer">Transfer Student</Label>
+                {editMode ? (
+                  <input
+                    type="checkbox"
+                    id="isTransfer"
+                    checked={studentData.isTransfer || false}
+                    onChange={(e) => handleSelectChange("isTransfer", e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                ) : <div>{studentData.isTransfer ? "Yes" : "No"}</div>}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Emergency Contact */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center"><Users className="mr-2" /> Emergency Contact</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-4">
+              {[
+                { label: "First Name", eng: "contactPersonFirstNameENG", amh: "contactPersonFirstNameAMH" },
+                { label: "Last Name", eng: "contactPersonLastNameENG", amh: "contactPersonLastNameAMH" },
+              ].map(f => (
+                <div key={f.eng}>
+                  <Label>{f.label}</Label>
+                  {editMode ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input name={f.eng} value={studentData[f.eng] || ''} onChange={handleInputChange} />
+                      <Input name={f.amh} value={studentData[f.amh] || ''} onChange={handleInputChange} className="text-right" />
+                    </div>
+                  ) : (
+                    <div>
+                      <div>{studentData[f.eng] || 'N/A'}</div>
+                      <div className="text-right text-gray-600">{studentData[f.amh] || 'N/A'}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div><Label>Phone</Label>{editMode ? <Input name="contactPersonPhoneNumber" value={studentData.contactPersonPhoneNumber || ''} onChange={handleInputChange} /> : <div>{studentData.contactPersonPhoneNumber || 'N/A'}</div>}</div>
+              <div><Label>Relation</Label>{editMode ? <Input name="contactPersonRelation" value={studentData.contactPersonRelation || ''} onChange={handleInputChange} /> : <div>{studentData.contactPersonRelation || 'N/A'}</div>}</div>
+            </CardContent>
+          </Card>
+
+          {/* Change Password */}
           {isEditable && (
             <>
-              {editMode ? (
-                <>
-                  <Button
-                    onClick={handleSave}
-                    className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white"
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    onClick={handleCancel}
-                    className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white"
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => setEditMode(true)}
-                  className="bg-blue-600 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
-                >
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Profile
-                </Button>
+              <Button onClick={() => setPasswordForm(!passwordForm)} className="w-full">
+                {passwordForm ? "Cancel" : "Change Student Password"}
+              </Button>
+              {passwordForm && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
+                  <Card>
+                    <CardHeader><CardTitle><Shield className="inline mr-2" /> Change Password</CardTitle></CardHeader>
+                    <CardContent>
+                      <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                        <Input type="password" placeholder="New Password" name="newPassword" value={formData.newPassword} onChange={handlePasswordChange} required />
+                        <Input type="password" placeholder="Confirm Password" name="confirmPassword" value={formData.confirmPassword} onChange={handlePasswordChange} required />
+                        <Button type="submit" className="w-full">Update Password</Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               )}
             </>
           )}
         </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Picture and Basic Info */}
-        <Card className="lg:col-span-1 bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
-          <CardHeader className="text-center">
-            <div className="relative mx-auto">
-              <Avatar className="w-32 h-32">
-                <AvatarImage src={studentData.studentPhoto} />
-                <AvatarFallback className="text-2xl bg-blue-100 dark:bg-gray-700 text-blue-600 dark:text-gray-300">
-                  {studentData.firstNameENG[0]}
-                  {studentData.fatherNameENG[0]}
-                </AvatarFallback>
-              </Avatar>
-              {isEditable && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="absolute bottom-0 right-0 rounded-full bg-blue-600 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            <CardTitle className="mt-4 text-blue-600 dark:text-gray-100">
-              {studentData.firstNameENG} {studentData.fatherNameENG}
-            </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400">
-              {studentData.departmentEnrolled} Student
-            </CardDescription>
-            <Badge
-              variant="secondary"
-              className="mt-2 bg-blue-100 dark:bg-gray-700 text-blue-600 dark:text-gray-300"
-            >
-              {studentData.programModality}
-            </Badge>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <Mail className="h-4 w-4 text-blue-600 dark:text-gray-300" />
-              <span>{studentData.email}</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <Phone className="h-4 w-4 text-blue-600 dark:text-gray-300" />
-              <span>{studentData.phoneNumber}</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <MapPin className="h-4 w-4 text-blue-600 dark:text-gray-300" />
-              <span>
-                {studentData.currentAddressWoreda},{" "}
-                {studentData.currentAddressRegion}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <Calendar className="h-4 w-4 text-blue-600 dark:text-gray-300" />
-              <span>Enrolled: September 2023</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Personal Information */}
-        <Card className="lg:col-span-2 bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
-          <CardHeader>
-            <CardTitle className="text-blue-600 dark:text-gray-100">
-              Personal Information
-            </CardTitle>
-            <CardDescription className="text-gray-600 dark:text-gray-400">
-              Your personal details and contact information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="firstNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  First Name (Amharic)
-                </Label>
-                <Input
-                  id="firstNameAMH"
-                  name="firstNameAMH"
-                  value={editableData.firstNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="firstNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  First Name (English)
-                </Label>
-                <Input
-                  id="firstNameENG"
-                  name="firstNameENG"
-                  value={editableData.firstNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="fatherNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Father's Name (Amharic)
-                </Label>
-                <Input
-                  id="fatherNameAMH"
-                  name="fatherNameAMH"
-                  value={editableData.fatherNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="fatherNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Father's Name (English)
-                </Label>
-                <Input
-                  id="fatherNameENG"
-                  name="fatherNameENG"
-                  value={editableData.fatherNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="grandfatherNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Grandfather's Name (Amharic)
-                </Label>
-                <Input
-                  id="grandfatherNameAMH"
-                  name="grandfatherNameAMH"
-                  value={editableData.grandfatherNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="grandfatherNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Grandfather's Name (English)
-                </Label>
-                <Input
-                  id="grandfatherNameENG"
-                  name="grandfatherNameENG"
-                  value={editableData.grandfatherNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="motherNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Mother's Name (Amharic)
-                </Label>
-                <Input
-                  id="motherNameAMH"
-                  name="motherNameAMH"
-                  value={editableData.motherNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="motherNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Mother's Name (English)
-                </Label>
-                <Input
-                  id="motherNameENG"
-                  name="motherNameENG"
-                  value={editableData.motherNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="motherFatherNameAMH"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Mother's Father Name (Amharic)
-                </Label>
-                <Input
-                  id="motherFatherNameAMH"
-                  name="motherFatherNameAMH"
-                  value={editableData.motherFatherNameAMH}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="motherFatherNameENG"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Mother's Father Name (English)
-                </Label>
-                <Input
-                  id="motherFatherNameENG"
-                  name="motherFatherNameENG"
-                  value={editableData.motherFatherNameENG}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="dateOfBirthGC"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Date of Birth (GC)
-                </Label>
-                <Input
-                  id="dateOfBirthGC"
-                  name="dateOfBirthGC"
-                  value={editableData.dateOfBirthGC}
-                  onChange={handleEditChange}
-                  type="date"
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="gender"
-                  className="text-gray-700 dark:text-gray-300"
-                >
-                  Gender
-                </Label>
-                <Input
-                  id="gender"
-                  name="gender"
-                  value={editableData.gender}
-                  onChange={handleEditChange}
-                  readOnly={!editMode || !isEditable}
-                  className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-            </div>
-
-            <Separator className="bg-blue-200 dark:bg-gray-700" />
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="currentAddressWoreda"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Current Address (Woreda)
-              </Label>
-              <Input
-                id="currentAddressWoreda"
-                name="currentAddressWoreda"
-                value={editableData.currentAddressWoreda}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="currentAddressZone"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Current Address (Zone)
-              </Label>
-              <Input
-                id="currentAddressZone"
-                name="currentAddressZone"
-                value={editableData.currentAddressZone}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="currentAddressRegion"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Current Address (Region)
-              </Label>
-              <Input
-                id="currentAddressRegion"
-                name="currentAddressRegion"
-                value={editableData.currentAddressRegion}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="placeOfBirthWoreda"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Place of Birth (Woreda)
-              </Label>
-              <Input
-                id="placeOfBirthWoreda"
-                name="placeOfBirthWoreda"
-                value={editableData.placeOfBirthWoreda}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="placeOfBirthZone"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Place of Birth (Zone)
-              </Label>
-              <Input
-                id="placeOfBirthZone"
-                name="placeOfBirthZone"
-                value={editableData.placeOfBirthZone}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="placeOfBirthRegion"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Place of Birth (Region)
-              </Label>
-              <Input
-                id="placeOfBirthRegion"
-                name="placeOfBirthRegion"
-                value={editableData.placeOfBirthRegion}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      {/* Academic Information */}
-      <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
-        <CardHeader>
-          <CardTitle className="flex items-center text-blue-600 dark:text-gray-100">
-            <GraduationCap className="mr-2 h-5 w-5" />
-            Academic Information
-          </CardTitle>
-          <CardDescription className="text-gray-600 dark:text-gray-400">
-            Your academic details and program information
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="departmentEnrolled"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Department Enrolled
-              </Label>
-              <Input
-                id="departmentEnrolled"
-                name="departmentEnrolled"
-                value={editableData.departmentEnrolled}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="programModality"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Program Modality
-              </Label>
-              <Input
-                id="programModality"
-                name="programModality"
-                value={editableData.programModality}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="schoolBackground"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                School Background
-              </Label>
-              <Input
-                id="schoolBackground"
-                name="schoolBackground"
-                value={editableData.schoolBackground}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
-
-          <Separator className="bg-blue-200 dark:bg-gray-700" />
-
-          <div className="space-y-2">
-            <Label
-              htmlFor="grade12ExamResult"
-              className="text-gray-700 dark:text-gray-300"
-            >
-              Document
-            </Label>
-            <img
-              src={studentData.document}
-              alt="Document"
-              className="w-64 h-36 object-cover rounded-lg border-2 border-blue-200 dark:border-gray-700"
-            />
-          </div>
-        </CardContent>
-      </Card>
-      {/* Emergency Contact */}
-      <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-blue-600 dark:text-gray-100">
-            Emergency Contact
-          </CardTitle>
-          <CardDescription className="text-gray-600 dark:text-gray-400">
-            Emergency contact information
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonFirstNameAMH"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Contact First Name (Amharic)
-              </Label>
-              <Input
-                id="contactPersonFirstNameAMH"
-                name="contactPersonFirstNameAMH"
-                value={editableData.contactPersonFirstNameAMH}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonFirstNameENG"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Contact First Name (English)
-              </Label>
-              <Input
-                id="contactPersonFirstNameENG"
-                name="contactPersonFirstNameENG"
-                value={editableData.contactPersonFirstNameENG}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonLastNameAMH"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Contact Last Name (Amharic)
-              </Label>
-              <Input
-                id="contactPersonLastNameAMH"
-                name="contactPersonLastNameAMH"
-                value={editableData.contactPersonLastNameAMH}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonLastNameENG"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Contact Last Name (English)
-              </Label>
-              <Input
-                id="contactPersonLastNameENG"
-                name="contactPersonLastNameENG"
-                value={editableData.contactPersonLastNameENG}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonPhoneNumber"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Phone Number
-              </Label>
-              <Input
-                id="contactPersonPhoneNumber"
-                name="contactPersonPhoneNumber"
-                value={editableData.contactPersonPhoneNumber}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="contactPersonRelation"
-                className="text-gray-700 dark:text-gray-300"
-              >
-                Relationship
-              </Label>
-              <Input
-                id="contactPersonRelation"
-                name="contactPersonRelation"
-                value={editableData.contactPersonRelation}
-                onChange={handleEditChange}
-                readOnly={!editMode || !isEditable}
-                className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {isEditable && (
-        <Button
-          onClick={() => setPasswordForm(!passwordForm)}
-          className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
-        >
-          {passwordForm ? "Cancel" : "Change Password"}
-        </Button>
-      )}
-      {isEditable && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{
-            height: passwordForm ? "auto" : 0,
-            opacity: passwordForm ? 1 : 0,
-          }}
-          transition={{ duration: 0.3 }}
-          className="overflow-hidden"
-        >
-          <Card className="bg-white dark:bg-gray-800 border-blue-200 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-blue-600 dark:text-gray-100">
-                Change Password
-              </CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-400">
-                Update the student's password
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="newPassword"
-                      className="text-gray-700 dark:text-gray-300"
-                    >
-                      New Password
-                    </Label>
-                    <Input
-                      type="password"
-                      id="newPassword"
-                      name="newPassword"
-                      value={formData.newPassword}
-                      onChange={handleChange}
-                      required
-                      minLength={8}
-                      placeholder="Enter new password"
-                      className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="confirmPassword"
-                      className="text-gray-700 dark:text-gray-300"
-                    >
-                      Confirm Password
-                    </Label>
-                    <Input
-                      type="password"
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                      minLength={8}
-                      placeholder="Confirm new password"
-                      className="border-blue-300 dark:border-gray-600 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                </div>
-                {error && (
-                  <p className="text-red-500 dark:text-red-400 text-sm">
-                    {error}
-                  </p>
-                )}
-                <Button
-                  type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white"
-                >
-                  Change Password
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 bg-white dark:bg-gray-800 border border-blue-200 dark:border-gray-700 rounded-lg shadow-md">
-        <CardHeader>
-          <CardTitle className="text-blue-600 dark:text-gray-100">
-            Student's Academic Results
-          </CardTitle>
-          <CardDescription className="text-gray-600 dark:text-gray-400">
-            Academic performance by year and semester
-          </CardDescription>
-        </CardHeader>
-
-        <div className="flex lg:justify-start flex-col sm:flex-row justify-center mb-6 gap-2 sm:gap-4 items-center">
-          <label
-            htmlFor="gradingSystem"
-            className="flex items-center text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-medium"
-          >
-            Grading System:
-          </label>
-          <select
-            id="gradingSystem"
-            value={selectedGradingSystem}
-            onChange={(e) => {
-              setSelectedGradingSystem(e.target.value);
-            }}
-            className="w-full max-w-[180px] sm:max-w-[200px] px-3 py-1.5 border border-blue-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-gray-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 transition-colors duration-200 text-xs sm:text-sm"
-          >
-            <option value="system1">Grading System 1</option>
-            <option value="system2">Grading System 2</option>
-            <option value="system3">Grading System 3</option>
-          </select>
-        </div>
-        {displayedResult.map((ele, index) => (
-          <div key={ele.year} className="mb-4">
-            <button
-              onClick={() =>
-                setOpenYears((prev) => ({ ...prev, [index]: !prev[index] }))
-              }
-              className={`w-full px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-colors duration-200 flex items-center justify-between border border-blue-300 dark:border-gray-600 ${
-                openYears[index]
-                  ? "bg-blue-500 text-white dark:bg-blue-600 dark:text-gray-100"
-                  : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-gray-600"
-              }`}
-            >
-              <span className="flex items-center">
-                {openYears[index] ? (
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-4 h-4 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                )}
-                Year {ele.year}
-              </span>
-            </button>
-            {openYears[index] && (
-              <div className="mt-3 space-y-3 pl-0 sm:pl-4">
-                {ele.semseters.map((e, idx) => (
-                  <div key={`${index}-${idx}`} className="mb-3">
-                    <button
-                      onClick={() =>
-                        setOpenSemesters((prev) => ({
-                          ...prev,
-                          [`${index}-${idx}`]: !prev[`${index}-${idx}`],
-                        }))
-                      }
-                      className={`w-full px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm transition-colors duration-200 flex items-center border border-blue-300 dark:border-gray-600 ${
-                        openSemesters[`${index}-${idx}`]
-                          ? "bg-blue-500 text-white dark:bg-blue-600 dark:text-gray-100"
-                          : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-blue-100 dark:hover:bg-gray-600"
-                      }`}
-                    >
-                      <span className="flex items-center">
-                        {openSemesters[`${index}-${idx}`] ? (
-                          <svg
-                            className="w-3 h-3 mr-1.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            className="w-3 h-3 mr-1.5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        )}
-                        Semester {e.id}
-                      </span>
-                    </button>
-                    {openSemesters[`${index}-${idx}`] && (
-                      <div className="overflow-x-auto mt-2">
-                        <table className="min-w-full bg-white dark:bg-gray-800 border border-blue-200 dark:border-gray-700 rounded-lg">
-                          <thead className="bg-blue-50 dark:bg-gray-700">
-                            <tr>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Subject Name
-                              </th>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Grade
-                              </th>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Course ID
-                              </th>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Credit
-                              </th>
-                              <th className="px-4 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wider border-b border-blue-200 dark:border-gray-600 whitespace-normal break-words">
-                                Result
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-blue-200 dark:divide-gray-700">
-                            {e.courses.map((course, courseIdx) => (
-                              <tr
-                                key={courseIdx}
-                                className="hover:bg-blue-50 dark:hover:bg-gray-700"
-                              >
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.name}
-                                </td>
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.grade}
-                                </td>
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.courseId}
-                                </td>
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.credit}
-                                </td>
-                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-gray-100 whitespace-normal break-words">
-                                  {course.result}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
       </div>
     </div>
   );

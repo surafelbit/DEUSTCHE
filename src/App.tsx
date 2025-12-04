@@ -67,9 +67,7 @@ const RegistrarStudents = React.lazy(
 );
 const AddStudent = React.lazy(() => import("./pages/registrar/AddStudent"));
 const RegistrarCourses = React.lazy(() => import("./pages/registrar/Courses"));
-const RegistrarAssessments = React.lazy(
-  () => import("./pages/registrar/Assessments")
-);
+const RegistrarAssessments = React.lazy(  () => import("./pages/registrar/Assessments"));
 const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
 const SingleBatchPage = React.lazy(
   () => import("./pages/registrar/settings/SingleBatchPage .tsx")
@@ -102,15 +100,6 @@ const ImpairmentEditor = React.lazy(
   () => import("./pages/registrar/settings/ImpairmentEditor")
 );
 
-const CourseCategoriesEditor = React.lazy(
-  () => import("./pages/registrar/settings/CourseCategoriesEditor")
-);
-const NotificationsPage = React.lazy(
-  () => import("./pages/registrar/NotificationsPage")
-);
-const Transcript_Generate = React.lazy(
-  () => import("./pages/registrar/Transcript_Generate")
-);
 // Finance Pages
 const FinanceLayout = React.lazy(() => import("./layouts/FinanceLayout"));
 const FinanceDashboard = React.lazy(() => import("./pages/finance/Dashboard"));
@@ -301,6 +290,7 @@ function App() {
                 element={<ApplicantDetail />}
               />
               <Route path="students" element={<RegistrarStudents />} />
+              <Route path="registration-slips" element={<RegistrationSlip />} />
               <Route path="add-student" element={<AddStudent />} />
               <Route path="assessments" element={<RegistrarAssessments />} />
               <Route path="scores" element={<BatchUpdateTable />} />
@@ -308,7 +298,6 @@ function App() {
               <Route path="batches" element={<RegistrarBatches />} />
               <Route path="tables" element={<CustomStudentTable />} />
               <Route path="notifications" element={<NotificationsPage />} />
-              <Route path="transcripts" element={<Transcript_Generate />} />
             </Route>
 
             {/* Finance Routes */}
