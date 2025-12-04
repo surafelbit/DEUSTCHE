@@ -8,6 +8,8 @@ const endPoints = {
     "https://deutschemedizin-collage-backend-production.up.railway.app/api/applicants/register",
   registrarApplicantRegister: "/auth/register/student",
   studentStatus: "/student-statuses",
+  academicYears: "/academic-years",
+  attritionCauses: "/attrition-causes",
   batchClassSemsterYear: "/bcsy",
   applicantsList: "/applicants",
   applicantDetail: "/applicants/:id",
