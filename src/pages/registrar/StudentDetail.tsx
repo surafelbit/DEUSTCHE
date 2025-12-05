@@ -408,16 +408,23 @@ export default function StudentProfile() {
       setError("Passwords do not match");
       return;
     }
+    if (!formData.newPassword.trim()) {
+      setError("New password cannot be empty");
+      return;
+    }
     try {
-      await apiService.put(`${endPoints.students}/${id}/password`, {
+      await apiService.post(endPoints.resetStudentPassword.replace(':studentUserId', studentData.userId || id), {
         newPassword: formData.newPassword
       });
-      alert("Password changed successfully");
+      alert("Student password reset successfully");
       setPasswordForm(false);
       setFormData({ newPassword: "", confirmPassword: "" });
+      setError("");
     } catch (err: any) {
-      console.error("Error changing password:", err);
-      alert("Failed to change password");
+      console.error("Error resetting password:", err);
+      const errorMessage = err.response?.data?.message || "Failed to reset password";
+      setError(errorMessage);
+      alert(errorMessage);
     }
   };
 
@@ -722,25 +729,25 @@ export default function StudentProfile() {
               <div>
                 <Label>Impairment</Label>
                 {editMode ? (
-                  <Select 
-                    value={getSafeSelectValue(studentData.impairmentCode)} 
+                  <Select
+                    value={getSafeSelectValue(studentData.impairmentCode)}
                     onValueChange={(v) => handleSelectChange("impairmentCode", v === "_none" ? null : v)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select impairment">
-                        {studentData.impairmentCode ? getDisplayName(impairments, studentData.impairmentCode, "impairmentCode", "impairment") : "Select impairment"}
+                        {studentData.impairmentCode ? getDisplayName(impairments, studentData.impairmentCode, "disabilityCode", "disability") : "Select impairment"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="_none">None</SelectItem>
-                      {getValidSelectItems(impairments, "impairmentCode").map(i => (
-                        <SelectItem key={i.impairmentCode} value={String(i.impairmentCode)}>
-                          {i.impairment || `Impairment ${i.impairmentCode}`}
+                      {getValidSelectItems(impairments, "disabilityCode").map(i => (
+                        <SelectItem key={i.disabilityCode} value={String(i.disabilityCode)}>
+                          {i.disability || `Impairment ${i.disabilityCode}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                ) : <div>{getDisplayName(impairments, studentData.impairmentCode, "impairmentCode", "impairment") || "None"}</div>}
+                ) : <div>{getDisplayName(impairments, studentData.impairmentCode, "disabilityCode", "disability") || "None"}</div>}
               </div>
             </CardContent>
           </Card>
@@ -1062,27 +1069,6 @@ export default function StudentProfile() {
                 <Label>Relation</Label>
                 {editMode ? <Input name="contactPersonRelation" value={studentData.contactPersonRelation || ''} onChange={handleInputChange} placeholder="Enter relation" /> 
                   : <div>{studentData.contactPersonRelation || 'N/A'}</div>}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Remarks */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center"><AlertCircle className="mr-2" /> Remarks</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div>
-                <Label>Remarks</Label>
-                {editMode ? (
-                  <Textarea 
-                    name="remark" 
-                    value={studentData.remark || ''} 
-                    onChange={handleInputChange}
-                    placeholder="Enter any remarks about the student"
-                    rows={3}
-                  />
-                ) : <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded min-h-[60px]">{studentData.remark || "No remarks"}</div>}
               </div>
             </CardContent>
           </Card>

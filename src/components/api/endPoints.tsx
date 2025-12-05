@@ -23,6 +23,7 @@ const endPoints = {
   students: "/students",
   studentsDeactivation: "/students/:id/disable",
   studentsActivation: "/students/:id/enable",
+  resetStudentPassword: "/auth/registrar/students/:studentUserId/reset-password",
   createDepartmentHead: "/auth/create-department-head",
   createTeacher: "/auth/create-teacher",
   departmentHeads: "/department-heads",
