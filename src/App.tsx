@@ -99,6 +99,9 @@ const AcademicYearEditor = React.lazy(
 const ImpairmentEditor = React.lazy(
   () => import("./pages/registrar/settings/ImpairmentEditor")
 );
+const CourseCategoriesEditor = React.lazy(
+  () => import("./pages/registrar/settings/CourseCategoriesEditor")
+);
 
 // Finance Pages
 const FinanceLayout = React.lazy(() => import("./layouts/FinanceLayout"));
@@ -177,6 +180,12 @@ const ViceDeanProfile = React.lazy(
 );
 const RegistrarProfile = React.lazy(
   () => import("./pages/manager/RegistrarProfile")
+);
+const RegistrationSlip = React.lazy(
+  () => import("./pages/registrar/RegistrationSlips")
+);
+const NotificationsPage = React.lazy(
+  () => import("./pages/registrar/NotificationsPage")
 );
 function App() {
   return (
