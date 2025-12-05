@@ -68,6 +68,7 @@ export default function StudentProfile() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [passwordError, setPasswordError] = useState("");
 
   // File upload
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -405,11 +406,11 @@ export default function StudentProfile() {
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.newPassword !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      setPasswordError("Passwords do not match");
       return;
     }
     if (!formData.newPassword.trim()) {
-      setError("New password cannot be empty");
+      setPasswordError("New password cannot be empty");
       return;
     }
     try {
@@ -419,11 +420,11 @@ export default function StudentProfile() {
       alert("Student password reset successfully");
       setPasswordForm(false);
       setFormData({ newPassword: "", confirmPassword: "" });
-      setError("");
+      setPasswordError("");
     } catch (err: any) {
       console.error("Error resetting password:", err);
       const errorMessage = err.response?.data?.message || "Failed to reset password";
-      setError(errorMessage);
+      setPasswordError(errorMessage);
       alert(errorMessage);
     }
   };
@@ -1087,6 +1088,7 @@ export default function StudentProfile() {
                       <form onSubmit={handlePasswordSubmit} className="space-y-4">
                         <Input type="password" placeholder="New Password" name="newPassword" value={formData.newPassword} onChange={handlePasswordChange} required />
                         <Input type="password" placeholder="Confirm Password" name="confirmPassword" value={formData.confirmPassword} onChange={handlePasswordChange} required />
+                        {passwordError && <div className="text-red-600 text-sm">{passwordError}</div>}
                         <Button type="submit" className="w-full">Update Password</Button>
                       </form>
                     </CardContent>
