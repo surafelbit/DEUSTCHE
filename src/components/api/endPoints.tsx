@@ -9,6 +9,7 @@ const endPoints = {
   registrarApplicantRegister: "/auth/register/student",
   studentStatus: "/student-statuses",
   academicYears: "/academic-years",
+  gradingSystem: "/grading-systems",
   semesters: "/semesters",
   attritionCauses: "/attrition-causes",
   batchClassSemsterYear: "/bcsy",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Search,
   ScrollText,
@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-
+import endPoints from "@/components/api/endPoints";
+import apiService from "@/components/api/apiService";
 type ReportCourse = {
   code: string;
   title: string;
@@ -71,15 +72,72 @@ type TranscriptRecord = {
 };
 
 type SearchType = "report" | "transcript";
+type GradeInterval = {
+  id: number;
+  description: string;
+  min: number;
+  max: number;
+  givenValue: number;
+  gradeLetter: string;
+};
 
+type GradingSystem = {
+  versionName: string;
+  departmentId: string;
+  remark: string;
+  intervals: GradeInterval;
+};
 export default function Transcript_Generate() {
   const [searchType, setSearchType] = useState<SearchType | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBatch, setSelectedBatch] = useState<string>(""); // "" = no batch selected yet
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all"); // "all" = all departments
+  // const [selectedDropDown, setSelectedDropDown] = useState<string>("all");
+  const [selectedDropDown, setSelectedDropDown] = useState([]);
 
+  const [gradingSystems, setGradingSystem] = useState<GradingSystem[]>([]);
+  const [Error, setError] = useState<string | null>(null);
+  const [batch, setBatches] = useState([]);
+  const [deparment, setDepartment] = useState([]);
+  const [manyGradingSystem, setManyGradingSystem] = useState<string>("all");
   // === DEMO BATCH DATA ===
+  useEffect(() => {
+    const fetchGradingSystem = async () => {
+      try {
+        const response = await apiService.get(endPoints.gradingSystem);
 
+        setGradingSystem(response);
+        console.log(response);
+        // setManyGradingSystem(response.map((e) => e.versionName));
+      } catch (error) {
+        console.error("Failed to fetch impairments:", error);
+        setError("Failed to load impairments. Please try again later.");
+      }
+    };
+    const fetchBatches = async () => {
+      try {
+        const response = await apiService.get(endPoints.batches);
+
+        setBatches(response);
+        console.log(response);
+      } catch (error) {
+        console.error("Failed to fetch impairments:", error);
+        setError("Failed to load impairments. Please try again later.");
+      }
+    };
+    const fetchDepartment = async () => {
+      try {
+        const deparments = await apiService.get(endPoints.departments);
+        setDepartment(deparments);
+      } catch (error) {
+        console.error("Failed to fetch impairments:", error);
+        setError("Failed to load impairments. Please try again later.");
+      }
+    };
+    fetchDepartment();
+    fetchGradingSystem();
+    fetchBatches();
+  }, []);
   const baseReport: ReportRecord = {
     id: "DHMC/MRT-1821-16",
     name: "Aisha Mohammed Ali",
@@ -647,23 +705,36 @@ export default function Transcript_Generate() {
             >
               <option value="">Select batch to view records</option>
               <option value="all">All Batches</option>
-              {batches.map((b) => (
-                <option key={b} value={b}>
-                  {b}
+              {batch.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.batchName}
                 </option>
               ))}
             </select>
-
             <select
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
               className="w-full sm:w-56 px-3 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm sm:text-base text-gray-800 dark:text-gray-100 focus:border-blue-600 dark:focus:border-blue-500 outline-none"
-              disabled={!selectedBatch}
             >
-              <option value="all">All Departments</option>
-              {departments.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+              <option value="">Select deparment to view records</option>
+              <option value="all">All Department</option>
+              {deparment.map((b) => (
+                <option key={b.dptID} value={b.dptID}>
+                  {b.deptName}
+                </option>
+              ))}
+            </select>
+            <select
+              value={manyGradingSystem}
+              onChange={(e) => setManyGradingSystem(e.target.value)}
+              className="w-full sm:w-56 px-3 py-2.5 rounded-xl border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm sm:text-base text-gray-800 dark:text-gray-100 focus:border-blue-600 dark:focus:border-blue-500 outline-none"
+              // disabled={!selectedBatch}
+            >
+              <option value="">Select Grading System</option>
+
+              {gradingSystems.map((d) => (
+                <option key={d.versionName} value={d.versionName}>
+                  {d.versionName}
                 </option>
               ))}
             </select>
