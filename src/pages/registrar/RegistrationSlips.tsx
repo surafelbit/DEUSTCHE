@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Search, Download, Printer, FileText, User, Calendar, BookOpen, Plus, Trash2, Filter, Check, CheckSquare, Square } from "lucide-react";
+import { Search, Download, Printer, FileText, User, Calendar, BookOpen, Plus, Trash2, Filter, Check, CheckSquare, Square, Eye, X, CheckCircle, Circle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import apiService from "@/components/api/apiService";
 import endPoints from "@/components/api/endPoints";
 
@@ -18,7 +20,6 @@ const toast = {
   success: (msg: string) => {
     if (typeof window !== "undefined") {
       console.log("Success:", msg);
-      // You can add actual toast notification here
       alert(msg);
     }
   },
@@ -48,6 +49,7 @@ interface Student {
   batch?: string;
   yearOfStudy?: string;
   semester?: string;
+  accepted?: boolean;
 }
 
 interface Course {
@@ -57,8 +59,6 @@ interface Course {
   creditHours: number;
   lectureHours: number;
   labHours: number;
-  departmentId: number;
-  classYearId: number;
 }
 
 interface RegistrationCourse {
@@ -110,40 +110,64 @@ interface Bcys {
   name: string;
 }
 
-interface ApiCourse {
-  theoryHrs: number;
-  labHrs: number;
-  category: {
-    catID: number;
-    catName: string;
-  };
-  department: {
-    dptID: number;
-    deptName: string;
-    totalCrHr: number | null;
-    departmentCode: string;
-    programModality: string | null;
-    programLevel: string | null;
-  };
-  prerequisites: any[];
-  classYear: {
-    id: number;
-    classYear: string;
-  };
-  semester: {
-    academicPeriodCode: string;
-    academicPeriod: string;
-  };
-  ccode: string;
-  cid: number;
-  ctitle: string;
+interface PreviewStudent {
+  studentId: number;
+  username: string;
+  fullNameEng: string;
+  fullNameAmh: string;
+  age: number;
+  gender: string;
+  departmentId: string;
+  departmentName: string;
+  departmentCode: string;
+  classYearId: number;
+  classYearName: string;
+  semesterId: string;
+  semesterName: string;
+  academicYearCode: string;
+  academicYearGC: string;
+  academicYearEC: string;
+  enrollmentTypeCode: string;
+  enrollmentTypeName: string;
+  batchDisplayName: string;
+  courses: Array<{
+    courseId: number;
+    code: string;
+    title: string;
+    lectureHours: number;
+    labHours: number;
+    totalHours: number;
+  }>;
+}
+
+interface GenerateSlipRequest {
+  batchClassYearSemesterId: number;
+  sourceId: number;
+  students: Array<{
+    studentId: number;
+    courseIds: number[];
+  }>;
+}
+
+interface GenerateSlipResponse {
+  batchClassYearSemesterId: number;
+  sourceId: number;
+  totalStudents: number;
+  successful: number;
+  failed: number;
+  results: Array<{
+    studentId: number;
+    success: boolean;
+    message: string;
+    enrolledCount: number;
+  }>;
+  errors: string[];
 }
 
 export default function RegistrationSlips() {
   // States
   const [students, setStudents] = useState<Student[]>([]);
-  const [allCourses, setAllCourses] = useState<Course[]>([]);
-  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -183,55 +207,52 @@ export default function RegistrationSlips() {
   const [selectAll, setSelectAll] = useState(false);
   const [loading, setLoading] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(false);
+  
+  // New states for preview functionality
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<PreviewStudent[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [selectedPreviewStudent, setSelectedPreviewStudent] = useState<PreviewStudent | null>(null);
+  const [allAccepted, setAllAccepted] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     // Initialize payment receipt number
     setPaymentReceiptNo("");
     
-    // Fetch students, filter data, BCYS, and all courses
+    // Fetch students, filter data, and BCYS
     fetchStudents();
     fetchFilterData();
     fetchBcysList();
-    fetchAllCourses();
+    fetchCourses();
   }, []);
-
-  useEffect(() => {
-    // When filters change, update filtered courses
-    updateFilteredCourses();
-  }, [filters, allCourses, batchClassYear]);
 
   const fetchStudents = async () => {
     try {
       setLoading(true);
       const response = await apiService.get(endPoints.studentsSlip);
       
-      // Check if response is an array
-      if (!Array.isArray(response)) {
-        console.error("Students API did not return an array:", response);
-        toast.error("Invalid students data received");
-        setLoading(false);
-        return;
-      }
-      
       // Transform API response to match our Student interface
       const transformedStudents: Student[] = response.map((student: ApiStudent) => ({
-        studentId: student.studentId || 0,
-        username: student.username || "",
-        fullNameAMH: student.fullNameAMH || "",
-        fullNameENG: student.fullNameENG || "",
-        bcysId: student.bcysId || 0,
-        bcysDisplayName: student.bcysDisplayName || "",
-        departmentId: student.departmentId || 0,
-        departmentName: student.departmentName || "",
-        programModalityCode: student.programModalityCode || "",
-        programModalityName: student.programModalityName || "",
-        programLevelCode: student.programLevelCode || "",
-        programLevelName: student.programLevelName || "",
-        age: 22, // Default value - you might want to calculate this from DOB
-        sex: "Male", // Default value - update with actual data if available
-        batch: student.bcysDisplayName?.split?.('-')?.[0] || "2024",
-        yearOfStudy: `Year ${student.bcysDisplayName?.split?.('-')?.[1] || "1"}`,
-        semester: student.bcysDisplayName?.split?.('-')?.[2] === "1" ? "Semester 1" : "Semester 2"
+        studentId: student.studentId,
+        username: student.username,
+        fullNameAMH: student.fullNameAMH,
+        fullNameENG: student.fullNameENG,
+        bcysId: student.bcysId,
+        bcysDisplayName: student.bcysDisplayName,
+        departmentId: student.departmentId,
+        departmentName: student.departmentName,
+        programModalityCode: student.programModalityCode,
+        programModalityName: student.programModalityName,
+        programLevelCode: student.programLevelCode,
+        programLevelName: student.programLevelName,
+        age: 22,
+        sex: "Male",
+        batch: student.bcysDisplayName?.split('-')[0] || "2024",
+        yearOfStudy: `Year ${student.bcysDisplayName?.split('-')[1] || "1"}`,
+        semester: student.bcysDisplayName?.split('-')[2] === "1" ? "Semester 1" : "Semester 2",
+        accepted: false
       }));
       
       setStudents(transformedStudents);
@@ -247,9 +268,7 @@ export default function RegistrationSlips() {
   const fetchFilterData = async () => {
     try {
       const response = await apiService.get(endPoints.lookupsDropdown);
-      if (response) {
-        setFilterData(response);
-      }
+      setFilterData(response);
     } catch (error) {
       console.error("Error fetching filter data:", error);
     }
@@ -258,70 +277,19 @@ export default function RegistrationSlips() {
   const fetchBcysList = async () => {
     try {
       const response = await apiService.get(endPoints.batchClassSemsterYear);
-      if (Array.isArray(response)) {
-        setBcysList(response);
-      }
+      setBcysList(response);
     } catch (error) {
       console.error("Error fetching BCYS list:", error);
     }
   };
 
-  const fetchAllCourses = async () => {
+  const fetchCourses = async () => {
     try {
-      setCoursesLoading(true);
       const response = await apiService.get(endPoints.allCourses);
-      
-      // Check if response is an array
-      if (!Array.isArray(response)) {
-        console.error("Courses API did not return an array:", response);
-        toast.error("Invalid courses data received");
-        setCoursesLoading(false);
-        return;
-      }
-      
-      // Transform the API response to match our Course interface
-      const transformedCourses: Course[] = response.map((apiCourse: ApiCourse) => ({
-        id: apiCourse.cid || 0,
-        courseCode: apiCourse.ccode || "",
-        courseTitle: apiCourse.ctitle || "",
-        creditHours: (apiCourse.theoryHrs || 0) + (apiCourse.labHrs || 0),
-        lectureHours: apiCourse.theoryHrs || 0,
-        labHours: apiCourse.labHrs || 0,
-        departmentId: apiCourse.department?.dptID || 0,
-        classYearId: apiCourse.classYear?.id || 0
-      }));
-      
-      setAllCourses(transformedCourses);
-      setFilteredCourses(transformedCourses);
-      setCoursesLoading(false);
+      setCourses(response);
     } catch (error) {
       console.error("Error fetching courses:", error);
-      setCoursesLoading(false);
-      toast.error("Failed to fetch courses");
     }
-  };
-
-  const updateFilteredCourses = () => {
-    let filtered = [...allCourses];
-
-    // Filter by department if selected
-    if (filters.departmentId) {
-      filtered = filtered.filter(course => 
-        course.departmentId.toString() === filters.departmentId
-      );
-    }
-
-    // Filter by class year if selected - only if batchClassYear is set
-    if (filters.classYearId && batchClassYear) {
-      const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
-      if (selectedBcys) {
-        filtered = filtered.filter(course => 
-          course.classYearId === selectedBcys.classYearId
-        );
-      }
-    }
-
-    setFilteredCourses(filtered);
   };
 
   const handleSearch = (query: string) => {
@@ -333,7 +301,6 @@ export default function RegistrationSlips() {
     const newFilters = { ...filters, [filterName]: value };
     setFilters(newFilters);
     applyFiltersAndSearch(searchQuery, newFilters);
-    updateFilteredCourses();
   };
 
   const applyFiltersAndSearch = (searchQuery: string = "", currentFilters = filters) => {
@@ -349,7 +316,7 @@ export default function RegistrationSlips() {
       );
     }
 
-    // Apply other filters using IDs
+    // Apply other filters
     if (currentFilters.departmentId) {
       const departmentName = filterData.departments.find(d => d.id.toString() === currentFilters.departmentId)?.name;
       if (departmentName) {
@@ -413,9 +380,7 @@ export default function RegistrationSlips() {
 
   const handleSelectStudent = (student: Student) => {
     setSelectedStudent(student);
-    setPaymentReceiptNo(""); // Clear payment receipt when selecting new student
     
-    // Update selected students array
     const isSelected = selectedStudents.some(s => s.studentId === student.studentId);
     if (isSelected) {
       setSelectedStudents(prev => prev.filter(s => s.studentId !== student.studentId));
@@ -436,7 +401,6 @@ export default function RegistrationSlips() {
   const handleSelectSingleStudent = (student: Student) => {
     setSelectedStudent(student);
     setSelectedStudents([student]);
-    setPaymentReceiptNo(""); // Clear payment receipt
   };
 
   const isStudentSelected = (studentId: number) => {
@@ -449,7 +413,7 @@ export default function RegistrationSlips() {
       return;
     }
 
-    const course = filteredCourses.find(c => c.courseCode === selectedCourse);
+    const course = courses.find(c => c.courseCode === selectedCourse);
     if (course) {
       const newCourse: RegistrationCourse = {
         id: Date.now(),
@@ -491,318 +455,516 @@ export default function RegistrationSlips() {
     setSearchQuery("");
     setFilteredStudents(students);
     setSelectAll(false);
-    // Reset filtered courses to show all courses
-    setFilteredCourses(allCourses);
   };
 
-  const generatePDF = async () => {
-    if (!selectedStudent && selectedStudents.length === 0) {
-      toast.error("Please select at least one student first");
+  // New function to handle slip preview
+  const handleSlipPreview = async () => {
+    if (selectedStudents.length === 0) {
+      toast.error("Please select at least one student");
       return;
     }
 
-    // If multiple students selected, generate for first one (for now)
-    // You can modify this to generate multiple PDFs or combine them
-    const studentToGenerate = selectedStudent || selectedStudents[0];
-    
-    const { lectureTotal, labTotal, total } = calculateTotals();
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const left = 15;
-    const right = 15;
-    const usableWidth = pageWidth - left - right;
+    if (registrationCourses.length === 0) {
+      toast.error("Please select at least one course");
+      return;
+    }
 
-    let headerY = 15;
+    if (!batchClassYear) {
+      toast.error("Please select a Batch Class Year");
+      return;
+    }
 
-    // Load logo
     try {
-      const fetchDataUrl = async (url: string) => {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Image fetch failed");
-        const blob = await res.blob();
-        return await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      };
-
-      const dataUrl = await fetchDataUrl("/assets/companylogo.jpg");
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-        i.src = dataUrl;
+      setPreviewLoading(true);
+      const studentIds = selectedStudents.map(s => s.studentId);
+      const courseIds = registrationCourses.map(c => c.id);
+      
+      const response = await apiService.post(endPoints.slipPreview, {
+        studentIds,
+        courseIds,
+        batchClassYearSemesterId: parseInt(batchClassYear)
       });
 
-      const imgDisplayWidth = 28;
-      const imgDisplayHeight = (img.naturalHeight / img.naturalWidth) * imgDisplayWidth;
-      const imgX = (pageWidth - imgDisplayWidth) / 2;
-      const imgY = 10;
-      doc.addImage(dataUrl, imgX, imgY, imgDisplayWidth, imgDisplayHeight);
-      headerY = imgY + imgDisplayHeight + 4;
-    } catch {
-      headerY = 15;
+      setPreviewData(response);
+      setShowPreview(true);
+      setPreviewLoading(false);
+      toast.success("Preview generated successfully");
+    } catch (error: any) {
+      console.error("Error generating preview:", error);
+      setPreviewLoading(false);
+      toast.error(error.response?.data?.error || "Failed to generate preview");
     }
-
-    // Add header texts
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("DEUTSCHE HOCHSCHULE FÜR MEDIZIN", pageWidth / 2, headerY, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10.5);
-    doc.text("Deutsche Hochschule für Medizin College", pageWidth / 2, headerY + 6, { align: "center" });
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("OFFICE OF REGISTRAR", pageWidth / 2, headerY + 12, { align: "center" });
-    doc.text("COURSE REGISTRATION SLIP", pageWidth / 2, headerY + 18, { align: "center" });
-
-    // separator
-    const sepY = headerY + 22;
-    doc.setLineWidth(0.5);
-    doc.line(left, sepY, pageWidth - right, sepY);
-
-    // Student info
-    doc.setFontSize(10);
-    let curY = sepY + 8;
-    const wrap = (text: string, x: number, y: number, maxW: number, fontSize = 10, lineHeight = 5) => {
-      doc.setFontSize(fontSize);
-      const lines = (doc as any).splitTextToSize(text, maxW);
-      doc.text(lines, x, y);
-      return y + lines.length * lineHeight;
-    };
-
-    curY = wrap(`Full Name of Student: ${studentToGenerate.fullNameENG}`, left, curY, usableWidth);
-    curY = wrap(`Date of Registration: ${dateOfRegistration}`, left, curY + 2, usableWidth);
-    curY = wrap(
-      `Department: ${studentToGenerate.departmentName}, Year Of Study: ${studentToGenerate.yearOfStudy}, Semester: ${studentToGenerate.semester}`,
-      left,
-      curY + 2,
-      usableWidth
-    );
-
-    // ID / Age / Sex on one line
-    const idLine = `ID No.: ${studentToGenerate.studentId}    Age: ${studentToGenerate.age}    Sex: ${studentToGenerate.sex}`;
-    doc.setFontSize(10);
-    doc.text(idLine, left, curY + 6);
-    curY += 10;
-
-    // Payment / Batch Class Year / Enrollment on one line
-    const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
-    const bcysName = selectedBcys ? selectedBcys.name : "________________";
-    const payLine = `Payment Receipt No.: ${paymentReceiptNo || "________________"}    Batch Class Year: ${bcysName}    Enrollment Type: ${studentToGenerate.programModalityName || "Regular"}`;
-    doc.text(payLine, left, curY + 2);
-
-    // Course registration table
-    doc.setFontSize(12);
-    const introY = curY + 8;
-    const introTextY = Math.max(introY, 70);
-    doc.text("I am applying to be registered for the following courses.", left, introTextY);
-
-    const tableStartY = Math.max(95, introTextY + 6);
-
-    const tableData = registrationCourses.map((course, index) => [
-      (index + 1).toString(),
-      course.courseCode,
-      course.courseTitle,
-      course.lectureHours.toString(),
-      course.labHours.toString(),
-      course.totalHours.toString(),
-    ]);
-
-    tableData.push(["", "", "Total", lectureTotal.toString(), labTotal.toString(), total.toString()]);
-
-    autoTable(doc, {
-      startY: tableStartY,
-      head: [["R.No.", "COURSE CODE", "COURSE TITLE", "Lecture", "Lab/prac", "Total"]],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [66, 133, 244] },
-      margin: { left: 14, right: 14 },
-    });
-
-    // Footer signatures
-    const finalY = (doc as any).lastAutoTable.finalY + 20;
-    doc.setFontSize(10);
-    doc.text("Student signature _____________________", left, finalY);
-    doc.text("Total", pageWidth - right - 40, finalY);
-    doc.text(`${total}`, pageWidth - right - 10, finalY);
-
-    const financeText = "Finance Head _____________________ Signature _____________________ Date _____________________";
-    const deptText = "Department Head _____________________ Signature _____________________ Date _____________________";
-    const sigFontSize = 9;
-    doc.setFontSize(sigFontSize);
-    doc.text(financeText, left, finalY + 12, { maxWidth: usableWidth });
-    doc.text(deptText, left, finalY + 22, { maxWidth: usableWidth });
-
-    // Notes
-    const notesStartY = finalY + 32;
-    const notes = [
-      "NB.",
-      "1. A student is not allowed to be registered for a course(s) if he/she has an 'I' or 'F' grade(s) for its prerequisite(s).",
-      "2. This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self.",
-      "3. The semester total load to be taken must not be less than 12 and greater than 22 C.H. for regular program.",
-      "4. The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.",
-    ];
-
-    let notesFont = 9;
-    let linesCount = 0;
-    const bottomMargin = 12;
-    while (notesFont >= 7) {
-      linesCount = 0;
-      for (const n of notes) {
-        const lines = (doc as any).splitTextToSize(n, usableWidth);
-        linesCount += lines.length;
-      }
-      const neededHeight = linesCount * (notesFont * 0.9);
-      if (notesStartY + neededHeight + bottomMargin <= pageHeight) break;
-      notesFont -= 1;
-    }
-
-    doc.setFontSize(notesFont);
-    let ny = notesStartY;
-    for (const n of notes) {
-      const lines = (doc as any).splitTextToSize(n, usableWidth);
-      doc.text(lines, left, ny);
-      ny += lines.length * (notesFont * 0.9);
-    }
-
-    // Save PDF
-    doc.save(`Registration_Slip_${studentToGenerate.studentId}.pdf`);
-    toast.success("PDF generated successfully!");
   };
 
-  const generateExcel = () => {
-    if (!selectedStudent && selectedStudents.length === 0) {
-      toast.error("Please select at least one student first");
+  // Function to toggle acceptance for a student
+  const toggleStudentAcceptance = (studentId: number) => {
+    setPreviewData(prev => prev.map(student => 
+      student.studentId === studentId 
+        ? { ...student, accepted: !student.accepted } 
+        : student
+    ));
+  };
+
+  // Function to accept all students
+  const handleAcceptAll = () => {
+    setPreviewData(prev => prev.map(student => ({ ...student, accepted: true })));
+    setAllAccepted(true);
+  };
+
+  // Function to reject all students
+  const handleRejectAll = () => {
+    setPreviewData(prev => prev.map(student => ({ ...student, accepted: false })));
+    setAllAccepted(false);
+  };
+
+  // Get accepted students
+  const getAcceptedStudents = () => {
+    return previewData.filter(student => student.accepted);
+  };
+
+  // Generate PDF for multiple students
+  const generatePDF = async () => {
+    const acceptedStudents = getAcceptedStudents();
+    if (acceptedStudents.length === 0) {
+      toast.error("Please accept at least one student to generate PDF");
       return;
     }
 
-    const studentToGenerate = selectedStudent || selectedStudents[0];
-    const { lectureTotal, labTotal, total } = calculateTotals();
-    const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
-    const bcysName = selectedBcys ? selectedBcys.name : "________________";
-    
-    // Create workbook
+    try {
+      setGenerating(true);
+      
+      // First, send data to backend
+      const requestData: GenerateSlipRequest = {
+        batchClassYearSemesterId: parseInt(batchClassYear),
+        sourceId: 1, // You might need to get this from context or user
+        students: acceptedStudents.map(student => ({
+          studentId: student.studentId,
+          courseIds: student.courses.map(course => course.courseId)
+        }))
+      };
+
+      const response: GenerateSlipResponse = await apiService.post(endPoints.generateSlips, requestData);
+      
+      // Then generate PDF
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const left = 15;
+      const right = 15;
+      const usableWidth = pageWidth - left - right;
+
+      for (let i = 0; i < acceptedStudents.length; i++) {
+        const student = acceptedStudents[i];
+        
+        if (i > 0) {
+          doc.addPage();
+        }
+
+        let headerY = 15;
+
+        // Load logo
+        try {
+          const fetchDataUrl = async (url: string) => {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Image fetch failed");
+            const blob = await res.blob();
+            return await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          };
+
+          const dataUrl = await fetchDataUrl("/assets/companylogo.jpg");
+          const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const i = new Image();
+            i.onload = () => resolve(i);
+            i.onerror = reject;
+            i.src = dataUrl;
+          });
+
+          const imgDisplayWidth = 28;
+          const imgDisplayHeight = (img.naturalHeight / img.naturalWidth) * imgDisplayWidth;
+          const imgX = (pageWidth - imgDisplayWidth) / 2;
+          const imgY = 10;
+          doc.addImage(dataUrl, imgX, imgY, imgDisplayWidth, imgDisplayHeight);
+          headerY = imgY + imgDisplayHeight + 4;
+        } catch {
+          headerY = 15;
+        }
+
+        // Add header texts
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.text("DEUTSCHE HOCHSCHULE FÜR MEDIZIN", pageWidth / 2, headerY, { align: "center" });
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10.5);
+        doc.text("Deutsche Hochschule für Medizin College", pageWidth / 2, headerY + 6, { align: "center" });
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("OFFICE OF REGISTRAR", pageWidth / 2, headerY + 12, { align: "center" });
+        doc.text("COURSE REGISTRATION SLIP", pageWidth / 2, headerY + 18, { align: "center" });
+
+        // separator
+        const sepY = headerY + 22;
+        doc.setLineWidth(0.5);
+        doc.line(left, sepY, pageWidth - right, sepY);
+
+        // Student info
+        doc.setFontSize(10);
+        let curY = sepY + 8;
+        const wrap = (text: string, x: number, y: number, maxW: number, fontSize = 10, lineHeight = 5) => {
+          doc.setFontSize(fontSize);
+          const lines = (doc as any).splitTextToSize(text, maxW);
+          doc.text(lines, x, y);
+          return y + lines.length * lineHeight;
+        };
+
+        curY = wrap(`Full Name of Student: ${student.fullNameEng}`, left, curY, usableWidth);
+        curY = wrap(`Date of Registration: ${dateOfRegistration}`, left, curY + 2, usableWidth);
+        curY = wrap(
+          `Department: ${student.departmentName}, Year Of Study: ${student.classYearName}, Semester: ${student.semesterName}`,
+          left,
+          curY + 2,
+          usableWidth
+        );
+
+        // ID / Age / Sex on one line
+        const idLine = `ID No.: ${student.username}    Age: ${student.age}    Sex: ${student.gender}`;
+        doc.setFontSize(10);
+        doc.text(idLine, left, curY + 6);
+        curY += 10;
+
+        // Payment / Batch Class Year / Enrollment on one line
+        const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+        const bcysName = selectedBcys ? selectedBcys.name : "________________";
+        const payLine = `Payment Receipt No.: ${paymentReceiptNo || "________________"}    Batch Class Year: ${bcysName}    Enrollment Type: ${student.enrollmentTypeName}`;
+        doc.text(payLine, left, curY + 2);
+
+        // Course registration table
+        doc.setFontSize(12);
+        const introY = curY + 8;
+        const introTextY = Math.max(introY, 70);
+        doc.text("I am applying to be registered for the following courses.", left, introTextY);
+
+        const tableStartY = Math.max(95, introTextY + 6);
+
+        const tableData = student.courses.map((course, index) => [
+          (index + 1).toString(),
+          course.code,
+          course.title,
+          course.lectureHours.toString(),
+          course.labHours.toString(),
+          course.totalHours.toString(),
+        ]);
+
+        const lectureTotal = student.courses.reduce((sum, course) => sum + course.lectureHours, 0);
+        const labTotal = student.courses.reduce((sum, course) => sum + course.labHours, 0);
+        const total = student.courses.reduce((sum, course) => sum + course.totalHours, 0);
+
+        tableData.push(["", "", "Total", lectureTotal.toString(), labTotal.toString(), total.toString()]);
+
+        autoTable(doc, {
+          startY: tableStartY,
+          head: [["R.No.", "COURSE CODE", "COURSE TITLE", "Lecture", "Lab/prac", "Total"]],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [66, 133, 244] },
+          margin: { left: 14, right: 14 },
+        });
+
+        // Footer signatures
+        const finalY = (doc as any).lastAutoTable.finalY + 20;
+        doc.setFontSize(10);
+        doc.text("Student signature _____________________", left, finalY);
+        doc.text("Total", pageWidth - right - 40, finalY);
+        doc.text(`${total}`, pageWidth - right - 10, finalY);
+
+        const financeText = "Finance Head _____________________ Signature _____________________ Date _____________________";
+        const deptText = "Department Head _____________________ Signature _____________________ Date _____________________";
+        const sigFontSize = 9;
+        doc.setFontSize(sigFontSize);
+        doc.text(financeText, left, finalY + 12, { maxWidth: usableWidth });
+        doc.text(deptText, left, finalY + 22, { maxWidth: usableWidth });
+
+        // Notes
+        const notesStartY = finalY + 32;
+        const notes = [
+          "NB.",
+          "1. A student is not allowed to be registered for a course(s) if he/she has an 'I' or 'F' grade(s) for its prerequisite(s).",
+          "2. This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self.",
+          "3. The semester total load to be taken must not be less than 12 and greater than 22 C.H. for regular program.",
+          "4. The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.",
+        ];
+
+        let notesFont = 9;
+        let linesCount = 0;
+        const bottomMargin = 12;
+        while (notesFont >= 7) {
+          linesCount = 0;
+          for (const n of notes) {
+            const lines = (doc as any).splitTextToSize(n, usableWidth);
+            linesCount += lines.length;
+          }
+          const neededHeight = linesCount * (notesFont * 0.9);
+          if (notesStartY + neededHeight + bottomMargin <= pageHeight) break;
+          notesFont -= 1;
+        }
+
+        doc.setFontSize(notesFont);
+        let ny = notesStartY;
+        for (const n of notes) {
+          const lines = (doc as any).splitTextToSize(n, usableWidth);
+          doc.text(lines, left, ny);
+          ny += lines.length * (notesFont * 0.9);
+        }
+      }
+
+      // Save PDF
+      doc.save(`Registration_Slips_${Date.now()}.pdf`);
+      
+      // Show backend response summary
+      const successCount = response.results.filter(r => r.success).length;
+      const failedCount = response.results.filter(r => !r.success).length;
+      
+      toast.success(`PDF generated! ${successCount} successful, ${failedCount} failed`);
+      setGenerating(false);
+    } catch (error: any) {
+      console.error("Error generating slips:", error);
+      setGenerating(false);
+      toast.error(error.response?.data?.error || "Failed to generate slips");
+    }
+  };
+
+  // Generate Excel for multiple students
+  const generateExcel = () => {
+    const acceptedStudents = getAcceptedStudents();
+    if (acceptedStudents.length === 0) {
+      toast.error("Please accept at least one student to generate Excel");
+      return;
+    }
+
     const wb = XLSX.utils.book_new();
     
-    // Create data for the slip
-    const slipData = [
-      ["DEUTSCHE HOCHSCHULE FÜR MEDIZIN"],
-      ["Deutsche Hochschule für Medizin College"],
-      ["OFFICE OF REGISTRAR"],
-      ["COURSE REGISTRATION SLIP"],
-      [],
-      [`Full Name of Student: ${studentToGenerate.fullNameENG}`, `Date of Registration: ${dateOfRegistration}`],
-      [`Department: ${studentToGenerate.departmentName}, Year Of Study: ${studentToGenerate.yearOfStudy}, Semester: Year Based`],
-      [`ID No.: ${studentToGenerate.studentId}`, `Age: ${studentToGenerate.age}`, `Sex: ${studentToGenerate.sex}`],
-      [`Payment Receipt No.: ${paymentReceiptNo || "________________"}`, `Batch Class Year: ${bcysName}`, `Enrollment Type: ${studentToGenerate.programModalityName || "Regular"}`],
-      [],
-      ["I am applying to be registered for the following courses."],
-      [],
-      ["R.No.", "COURSE CODE", "COURSE TITLE", "Lecture", "Lab/prac", "Total"]
-    ];
+    acceptedStudents.forEach((student, studentIndex) => {
+      const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+      const bcysName = selectedBcys ? selectedBcys.name : "________________";
+      
+      const slipData = [
+        ["DEUTSCHE HOCHSCHULE FÜR MEDIZIN"],
+        ["Deutsche Hochschule für Medizin College"],
+        ["OFFICE OF REGISTRAR"],
+        ["COURSE REGISTRATION SLIP"],
+        [],
+        [`Full Name of Student: ${student.fullNameEng}`, `Date of Registration: ${dateOfRegistration}`],
+        [`Department: ${student.departmentName}, Year Of Study: ${student.classYearName}, Semester: ${student.semesterName}`],
+        [`ID No.: ${student.username}`, `Age: ${student.age}`, `Sex: ${student.gender}`],
+        [`Payment Receipt No.: ${paymentReceiptNo || "________________"}`, `Batch Class Year: ${bcysName}`, `Enrollment Type: ${student.enrollmentTypeName}`],
+        [],
+        ["I am applying to be registered for the following courses."],
+        [],
+        ["R.No.", "COURSE CODE", "COURSE TITLE", "Lecture", "Lab/prac", "Total"]
+      ];
 
-    // Add course rows
-    registrationCourses.forEach((course, index) => {
-      slipData.push([
-        (index + 1).toString(),
-        course.courseCode,
-        course.courseTitle,
-        course.lectureHours.toString(),
-        course.labHours.toString(),
-        course.totalHours.toString()
-      ]);
+      student.courses.forEach((course, index) => {
+        slipData.push([
+          (index + 1).toString(),
+          course.code,
+          course.title,
+          course.lectureHours.toString(),
+          course.labHours.toString(),
+          course.totalHours.toString()
+        ]);
+      });
+
+      const lectureTotal = student.courses.reduce((sum, course) => sum + course.lectureHours, 0);
+      const labTotal = student.courses.reduce((sum, course) => sum + course.labHours, 0);
+      const total = student.courses.reduce((sum, course) => sum + course.totalHours, 0);
+
+      slipData.push(["", "", "Total", lectureTotal.toString(), labTotal.toString(), total.toString()]);
+      
+      slipData.push([]);
+      slipData.push(["Student signature _____________________", "", "", "", "Total", total.toString()]);
+      slipData.push([]);
+      slipData.push(["Finance Head _____________________ Signature _____________________ Date _____________________"]);
+      slipData.push(["Department Head _____________________ Signature _____________________ Date _____________________"]);
+      slipData.push([]);
+      slipData.push(["NB."]);
+      slipData.push(["1. A student is not allowed to be registered for a course (s) if he/she has an 'I' or 'F' grade (s) for its prerequisites (s)."]);
+      slipData.push(["2. This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self."]);
+      slipData.push(["3. The semester total load to be taken must not be less than 12 and greater than 22 C.H. for regular program."]);
+      slipData.push(["4. The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized."]);
+
+      const ws = XLSX.utils.aoa_to_sheet(slipData);
+      
+      const colWidths = [
+        { wch: 8 },  // R.No.
+        { wch: 15 }, // Course Code
+        { wch: 40 }, // Course Title
+        { wch: 10 }, // Lecture
+        { wch: 10 }, // Lab/prac
+        { wch: 10 }  // Total
+      ];
+      ws['!cols'] = colWidths;
+
+      XLSX.utils.book_append_sheet(wb, ws, `Student_${student.studentId}`);
     });
 
-    // Add totals row
-    slipData.push(["", "", "Total", lectureTotal.toString(), labTotal.toString(), total.toString()]);
-    
-    // Add footer
-    slipData.push([]);
-    slipData.push(["Student signature _____________________", "", "", "", "Total", total.toString()]);
-    slipData.push([]);
-    slipData.push(["Finance Head _____________________ Signature _____________________ Date _____________________"]);
-    slipData.push(["Department Head _____________________ Signature _____________________ Date _____________________"]);
-    slipData.push([]);
-    slipData.push(["NB."]);
-    slipData.push(["1. A student is not allowed to be registered for a course (s) if he/she has an 'I' or 'F' grade (s) for its prerequisites (s)."]);
-    slipData.push(["2. This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self."]);
-    slipData.push(["3. The semester total load to be taken must not be less than 12 and greater than 22 C.H. for regular program."]);
-    slipData.push(["4. The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized."]);
-
-    // Create worksheet
-    const ws = XLSX.utils.aoa_to_sheet(slipData);
-    
-    // Set column widths
-    const colWidths = [
-      { wch: 8 },  // R.No.
-      { wch: 15 }, // Course Code
-      { wch: 40 }, // Course Title
-      { wch: 10 }, // Lecture
-      { wch: 10 }, // Lab/prac
-      { wch: 10 }  // Total
-    ];
-    ws['!cols'] = colWidths;
-
-    // Add to workbook and save
-    XLSX.utils.book_append_sheet(wb, ws, "Registration Slip");
-    XLSX.writeFile(wb, `Registration_Slip_${studentToGenerate.studentId}.xlsx`);
+    XLSX.writeFile(wb, `Registration_Slips_${Date.now()}.xlsx`);
     toast.success("Excel file generated successfully!");
   };
 
   const handlePrint = () => {
-    if (!selectedStudent && selectedStudents.length === 0) {
-      toast.error("Please select at least one student first");
+    const acceptedStudents = getAcceptedStudents();
+    if (acceptedStudents.length === 0) {
+      toast.error("Please accept at least one student to print");
       return;
     }
-    
-    const studentToPrint = selectedStudent || selectedStudents[0];
-    const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
-    const bcysName = selectedBcys ? selectedBcys.name : "________________";
-    
+
     // Create HTML for printing
-    const printContent = document.getElementById('slip-preview')?.innerHTML;
-    if (printContent) {
-      const printWindow = window.open('', '_blank', 'width=800,height=600');
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Registration Slip - ${studentToPrint.fullNameENG}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              .print-header { text-align: center; margin-bottom: 20px; }
-              .print-header h1 { font-size: 18px; font-weight: bold; margin: 5px 0; }
-              .print-header h2 { font-size: 14px; margin: 3px 0; }
-              .print-header h3 { font-size: 12px; font-weight: bold; margin: 8px 0; }
-              .print-info { margin-bottom: 15px; font-size: 11px; }
-              .print-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10px; }
-              .print-table th { background-color: #4a90e2; color: white; padding: 6px; border: 1px solid #ddd; }
-              .print-table td { padding: 6px; border: 1px solid #ddd; }
-              .print-signatures { margin-top: 30px; font-size: 10px; }
-              .print-notes { margin-top: 20px; font-size: 9px; }
-            </style>
-          </head>
-          <body>
-            ${printContent}
-            <script>
-              window.onload = function() {
-                window.print();
-                setTimeout(() => window.close(), 1000);
-              };
-            </script>
-          </body>
-          </html>
-        `);
-        printWindow.document.close();
-      }
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      let printContent = '';
+      
+      acceptedStudents.forEach((student, index) => {
+        const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+        const bcysName = selectedBcys ? selectedBcys.name : "________________";
+        const lectureTotal = student.courses.reduce((sum, course) => sum + course.lectureHours, 0);
+        const labTotal = student.courses.reduce((sum, course) => sum + course.labHours, 0);
+        const total = student.courses.reduce((sum, course) => sum + course.totalHours, 0);
+
+        printContent += `
+          <div style="page-break-after: ${index < acceptedStudents.length - 1 ? 'always' : 'auto'}; margin-bottom: 40px;">
+            <div style="text-align: center; border-bottom: 1px solid #000; padding-bottom: 20px; margin-bottom: 20px;">
+              <div style="font-weight: bold; font-size: 18px;">DEUTSCHE HOCHSCHULE FÜR MEDIZIN</div>
+              <div style="font-size: 14px;">Deutsche Hochschule für Medizin College</div>
+              <div style="font-weight: bold; margin-top: 10px;">OFFICE OF REGISTRAR</div>
+              <div style="font-weight: bold;">COURSE REGISTRATION SLIP</div>
+            </div>
+
+            <div style="font-size: 11px; margin-bottom: 20px;">
+              <div><strong>Full Name of Student:</strong> ${student.fullNameEng}</div>
+              <div><strong>Date of Registration:</strong> ${dateOfRegistration}</div>
+              <div><strong>Department:</strong> ${student.departmentName}, <strong>Year Of Study:</strong> ${student.classYearName}, <strong>Semester:</strong> ${student.semesterName}</div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 10px;">
+                <div><strong>ID No.:</strong> ${student.username}</div>
+                <div><strong>Age:</strong> ${student.age}</div>
+                <div><strong>Sex:</strong> ${student.gender}</div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 10px;">
+                <div><strong>Payment Receipt No.:</strong> ${paymentReceiptNo || "________________"}</div>
+                <div><strong>Batch Class Year:</strong> ${bcysName}</div>
+                <div><strong>Enrollment Type:</strong> ${student.enrollmentTypeName}</div>
+              </div>
+            </div>
+
+            <div style="font-size: 11px;">
+              <div style="font-weight: bold; margin-bottom: 10px;">I am applying to be registered for the following courses.</div>
+              <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                <thead>
+                  <tr style="background-color: #4a90e2; color: white;">
+                    <th style="padding: 6px; border: 1px solid #ddd; width: 8%;">R.No.</th>
+                    <th style="padding: 6px; border: 1px solid #ddd; width: 15%;">COURSE CODE</th>
+                    <th style="padding: 6px; border: 1px solid #ddd; width: 40%;">COURSE TITLE</th>
+                    <th style="padding: 6px; border: 1px solid #ddd; width: 10%;">Lecture</th>
+                    <th style="padding: 6px; border: 1px solid #ddd; width: 10%;">Lab/prac</th>
+                    <th style="padding: 6px; border: 1px solid #ddd; width: 10%;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${student.courses.map((course, index) => `
+                    <tr>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${index + 1}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.code}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.title}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.lectureHours}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.labHours}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.totalHours}</td>
+                    </tr>
+                  `).join('')}
+                  <tr style="font-weight: bold; background-color: #f0f0f0;">
+                    <td colspan="3" style="padding: 6px; border: 1px solid #ddd;">Total</td>
+                    <td style="padding: 6px; border: 1px solid #ddd;">${lectureTotal}</td>
+                    <td style="padding: 6px; border: 1px solid #ddd;">${labTotal}</td>
+                    <td style="padding: 6px; border: 1px solid #ddd;">${total}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div style="font-size: 10px; margin-top: 30px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>Student signature _____________________</div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                  <span>Total</span>
+                  <span style="font-weight: bold;">${total}</span>
+                </div>
+              </div>
+              <div style="margin-bottom: 10px;">Finance Head _____________________ Signature _____________________ Date _____________________</div>
+              <div style="margin-bottom: 10px;">Department Head _____________________ Signature _____________________ Date _____________________</div>
+            </div>
+
+            <div style="font-size: 9px; margin-top: 20px; padding: 16px; background-color: #f9f9f9; border-radius: 4px;">
+              <div style="font-weight: bold;">NB.</div>
+              <ol style="margin: 10px 0; padding-left: 20px;">
+                <li style="margin-bottom: 5px;">A student is not allowed to be registered for a course (s) if he/she has an "I" or "F" grade (s) for its prerequisites (s).</li>
+                <li style="margin-bottom: 5px;">This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self.</li>
+                <li style="margin-bottom: 5px;">The semester total load to be taken must not be less than 12 and greater than 22 C.H. for regular program.</li>
+                <li style="margin-bottom: 5px;">The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.</li>
+              </ol>
+            </div>
+          </div>
+        `;
+      });
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Registration Slips</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            @media print {
+              body { margin: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent}
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(() => window.close(), 1000);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
     } else {
       window.print();
     }
+  };
+
+  // Function to open preview dialog for a specific student
+  const openPreviewDialog = (student: PreviewStudent) => {
+    setSelectedPreviewStudent(student);
+    setPreviewDialogOpen(true);
+  };
+
+  // Close preview dialog
+  const closePreviewDialog = () => {
+    setPreviewDialogOpen(false);
+    setSelectedPreviewStudent(null);
+  };
+
+  // Calculate totals for a specific student
+  const calculateStudentTotals = (student: PreviewStudent) => {
+    const lectureTotal = student.courses.reduce((sum, course) => sum + course.lectureHours, 0);
+    const labTotal = student.courses.reduce((sum, course) => sum + course.labHours, 0);
+    const total = student.courses.reduce((sum, course) => sum + course.totalHours, 0);
+    return { lectureTotal, labTotal, total };
   };
 
   return (
@@ -816,25 +978,6 @@ export default function RegistrationSlips() {
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             Generate registration slips for students in PDF or Excel format
           </p>
-        </div>
-        <div className="flex gap-2">
-          <div className="mr-4">
-            <span className="text-sm text-gray-600">
-              Selected: {selectedStudents.length} student(s)
-            </span>
-          </div>
-          <Button onClick={generatePDF} variant="outline" disabled={selectedStudents.length === 0}>
-            <Download className="mr-2 h-4 w-4" />
-            PDF
-          </Button>
-          <Button onClick={generateExcel} variant="outline" disabled={selectedStudents.length === 0}>
-            <FileText className="mr-2 h-4 w-4" />
-            Excel
-          </Button>
-          <Button onClick={handlePrint} disabled={selectedStudents.length === 0}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
         </div>
       </div>
 
@@ -1134,38 +1277,23 @@ export default function RegistrationSlips() {
             <div className="space-y-2">
               <Label htmlFor="course">Add Course</Label>
               <div className="flex gap-2">
-                <Select 
-                  value={selectedCourse} 
-                  onValueChange={setSelectedCourse}
-                  disabled={coursesLoading}
-                >
+                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder={coursesLoading ? "Loading courses..." : "Select a course"} />
+                    <SelectValue placeholder="Select a course" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredCourses.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-gray-500">
-                        No courses found for selected filters
-                      </div>
-                    ) : (
-                      filteredCourses.map((course) => (
-                        <SelectItem key={course.id} value={course.courseCode}>
-                          {course.courseCode} - {course.courseTitle}
-                        </SelectItem>
-                      ))
-                    )}
+                    {courses.map((course) => (
+                      <SelectItem key={course.id} value={course.courseCode}>
+                        {course.courseCode} - {course.courseTitle}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleAddCourse} disabled={!selectedCourse || coursesLoading || filteredCourses.length === 0}>
+                <Button onClick={handleAddCourse} disabled={!selectedCourse}>
                   <Plus className="h-4 w-4" />
                   Add
                 </Button>
               </div>
-              {filteredCourses.length === 0 && !coursesLoading && (
-                <p className="text-xs text-gray-500">
-                  No courses available. Try adjusting your department or class year filters.
-                </p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -1188,33 +1316,25 @@ export default function RegistrationSlips() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {registrationCourses.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-gray-500 py-4">
-                          No courses added yet. Select courses from the dropdown above.
+                    {registrationCourses.map((course) => (
+                      <TableRow key={course.id}>
+                        <TableCell className="font-medium text-xs">{course.courseCode}</TableCell>
+                        <TableCell className="text-xs">{course.courseTitle}</TableCell>
+                        <TableCell className="text-xs">{course.lectureHours}</TableCell>
+                        <TableCell className="text-xs">{course.labHours}</TableCell>
+                        <TableCell className="text-xs">{course.totalHours}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveCourse(course.id)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Trash2 className="h-3 w-3 text-red-500" />
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      registrationCourses.map((course) => (
-                        <TableRow key={course.id}>
-                          <TableCell className="font-medium text-xs">{course.courseCode}</TableCell>
-                          <TableCell className="text-xs">{course.courseTitle}</TableCell>
-                          <TableCell className="text-xs">{course.lectureHours}</TableCell>
-                          <TableCell className="text-xs">{course.labHours}</TableCell>
-                          <TableCell className="text-xs">{course.totalHours}</TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveCourse(course.id)}
-                              className="h-7 w-7 p-0"
-                            >
-                              <Trash2 className="h-3 w-3 text-red-500" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                    ))}
                   </TableBody>
                 </Table>
               </div>
@@ -1239,138 +1359,271 @@ export default function RegistrationSlips() {
                 </div>
               </div>
             )}
+
+            {/* Slip Preview Button */}
+            <div className="pt-4">
+              <Button 
+                onClick={handleSlipPreview} 
+                className="w-full"
+                disabled={selectedStudents.length === 0 || registrationCourses.length === 0 || !batchClassYear || previewLoading}
+              >
+                {previewLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Generating Preview...
+                  </>
+                ) : (
+                  "Slip Preview"
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Bottom Section: Full Width Slip Preview */}
-      <Card className="w-full" id="slip-preview">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Registration Slip Preview
-          </CardTitle>
-          <CardDescription>
-            Preview of the registration slip - This will be used for printing
-            {selectedStudents.length > 1 && (
-              <span className="ml-2 text-blue-600">
-                (Showing preview for {selectedStudent?.fullNameENG || selectedStudents[0]?.fullNameENG})
-              </span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="border rounded-lg p-6 bg-white dark:bg-gray-800 space-y-6">
-            {/* Slip Preview Header */}
-            <div className="text-center border-b pb-4">
-              <div className="font-bold text-lg">DEUTSCHE HOCHSCHULE FÜR MEDIZIN</div>
-              <div className="text-sm">Deutsche Hochschule für Medizin College</div>
-              <div className="font-bold mt-2">OFFICE OF REGISTRAR</div>
-              <div className="font-bold">COURSE REGISTRATION SLIP</div>
+      {/* Preview Section - Only shown after clicking Slip Preview */}
+      {showPreview && (
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Registration Slips Preview
+            </CardTitle>
+            <CardDescription>
+              Review and accept students for slip generation. {getAcceptedStudents().length} of {previewData.length} students accepted.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Accept All / Reject All Buttons */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleAcceptAll}>
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Accept All
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleRejectAll}>
+                  <X className="h-4 w-4 mr-1" />
+                  Reject All
+                </Button>
+              </div>
+              <Badge variant={getAcceptedStudents().length === 0 ? "destructive" : "default"}>
+                {getAcceptedStudents().length} Accepted
+              </Badge>
             </div>
 
-            {/* Student Info */}
-            <div className="space-y-3 text-sm">
-              <div><strong>Full Name of Student:</strong> {(selectedStudent || selectedStudents[0])?.fullNameENG || "________________"}</div>
-              <div><strong>Date of Registration:</strong> {dateOfRegistration}</div>
-              <div>
-                <strong>Department:</strong> {(selectedStudent || selectedStudents[0])?.departmentName || "Medicine"}, 
-                <strong> Year Of Study:</strong> {(selectedStudent || selectedStudents[0])?.yearOfStudy || "Year 3"}, 
-                <strong> Semester:</strong> Year Based
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div><strong>ID No.:</strong> {(selectedStudent || selectedStudents[0])?.studentId || "______"}</div>
-                <div><strong>Age:</strong> {(selectedStudent || selectedStudents[0])?.age || "___"}</div>
-                <div><strong>Sex:</strong> {(selectedStudent || selectedStudents[0])?.sex || "___"}</div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div><strong>Payment Receipt No.:</strong> {paymentReceiptNo || "________________"}</div>
-                <div><strong>Batch Class Year:</strong> {bcysList.find(b => b.bcysId.toString() === batchClassYear)?.name || "________________"}</div>
-                <div><strong>Enrollment Type:</strong> {(selectedStudent || selectedStudents[0])?.programModalityName || "Regular"}</div>
-              </div>
-            </div>
-
-            {/* Course Table Preview */}
-            <div className="text-sm">
-              <div className="font-bold mb-3">I am applying to be registered for the following courses.</div>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-16">R.No.</TableHead>
-                      <TableHead>COURSE CODE</TableHead>
-                      <TableHead>COURSE TITLE</TableHead>
-                      <TableHead className="w-20">Lecture</TableHead>
-                      <TableHead className="w-20">Lab/prac</TableHead>
-                      <TableHead className="w-20">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {registrationCourses.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-gray-500 py-4">
-                          No courses added yet
+            {/* Students Table */}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-12">Accept</TableHead>
+                    <TableHead>Student ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Batch Class Year</TableHead>
+                    <TableHead>Courses</TableHead>
+                    <TableHead>Total Hours</TableHead>
+                    <TableHead className="w-20">Preview</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {previewData.map((student) => {
+                    const { total } = calculateStudentTotals(student);
+                    return (
+                      <TableRow key={student.studentId}>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleStudentAcceptance(student.studentId)}
+                            className="h-7 w-7 p-0"
+                          >
+                            {student.accepted ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <Circle className="h-4 w-4 text-gray-300" />
+                            )}
+                          </Button>
+                        </TableCell>
+                        <TableCell>{student.username}</TableCell>
+                        <TableCell>{student.fullNameEng}</TableCell>
+                        <TableCell>{student.departmentName}</TableCell>
+                        <TableCell>{student.batchDisplayName}</TableCell>
+                        <TableCell>{student.courses.length} courses</TableCell>
+                        <TableCell>{total} hours</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openPreviewDialog(student)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Eye className="h-4 w-4 text-blue-500" />
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      <>
-                        {registrationCourses.map((course, index) => (
-                          <TableRow key={course.id}>
-                            <TableCell>{index + 1}</TableCell>
-                            <TableCell>{course.courseCode}</TableCell>
-                            <TableCell>{course.courseTitle}</TableCell>
-                            <TableCell>{course.lectureHours}</TableCell>
-                            <TableCell>{course.labHours}</TableCell>
-                            <TableCell>{course.totalHours}</TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow className="font-bold bg-gray-100 dark:bg-gray-700">
-                          <TableCell colSpan={3}>Total</TableCell>
-                          <TableCell>{calculateTotals().lectureTotal}</TableCell>
-                          <TableCell>{calculateTotals().labTotal}</TableCell>
-                          <TableCell>{calculateTotals().total}</TableCell>
-                        </TableRow>
-                      </>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
 
-            {/* Signatures Preview */}
-            <div className="text-sm space-y-4 mt-6">
-              <div className="flex justify-between items-center">
-                <div>Student signature _____________________</div>
-                <div className="flex items-center gap-4">
-                  <span>Total</span>
-                  <span className="font-bold">{calculateTotals().total}</span>
+            {/* Action Buttons at Bottom */}
+            <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+              <div className="mr-4">
+                <span className="text-sm text-gray-600">
+                  Accepted: {getAcceptedStudents().length} student(s)
+                </span>
+              </div>
+              <Button 
+                onClick={generatePDF} 
+                variant="outline" 
+                disabled={getAcceptedStudents().length === 0 || generating}
+              >
+                {generating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    PDF
+                  </>
+                )}
+              </Button>
+              <Button 
+                onClick={generateExcel} 
+                variant="outline" 
+                disabled={getAcceptedStudents().length === 0}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Excel
+              </Button>
+              <Button 
+                onClick={handlePrint} 
+                disabled={getAcceptedStudents().length === 0}
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Preview Dialog */}
+      <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Slip Preview - {selectedPreviewStudent?.fullNameEng}</span>
+              <Button variant="ghost" size="sm" onClick={closePreviewDialog}>
+                <X className="h-4 w-4" />
+              </Button>
+            </DialogTitle>
+            <DialogDescription>
+              Preview of registration slip for {selectedPreviewStudent?.fullNameEng}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedPreviewStudent && (
+            <div className="border rounded-lg p-6 bg-white space-y-6">
+              {/* Slip Preview Header */}
+              <div className="text-center border-b pb-4">
+                <div className="font-bold text-lg">DEUTSCHE HOCHSCHULE FÜR MEDIZIN</div>
+                <div className="text-sm">Deutsche Hochschule für Medizin College</div>
+                <div className="font-bold mt-2">OFFICE OF REGISTRAR</div>
+                <div className="font-bold">COURSE REGISTRATION SLIP</div>
+              </div>
+
+              {/* Student Info */}
+              <div className="space-y-3 text-sm">
+                <div><strong>Full Name of Student:</strong> {selectedPreviewStudent.fullNameEng}</div>
+                <div><strong>Date of Registration:</strong> {dateOfRegistration}</div>
+                <div>
+                  <strong>Department:</strong> {selectedPreviewStudent.departmentName}, 
+                  <strong> Year Of Study:</strong> {selectedPreviewStudent.classYearName}, 
+                  <strong> Semester:</strong> {selectedPreviewStudent.semesterName}
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div><strong>ID No.:</strong> {selectedPreviewStudent.username}</div>
+                  <div><strong>Age:</strong> {selectedPreviewStudent.age}</div>
+                  <div><strong>Sex:</strong> {selectedPreviewStudent.gender}</div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div><strong>Payment Receipt No.:</strong> {paymentReceiptNo || "________________"}</div>
+                  <div><strong>Batch Class Year:</strong> {selectedPreviewStudent.batchDisplayName}</div>
+                  <div><strong>Enrollment Type:</strong> {selectedPreviewStudent.enrollmentTypeName}</div>
                 </div>
               </div>
-              <div>Finance Head _____________________ Signature _____________________ Date _____________________</div>
-              <div>Department Head _____________________ Signature _____________________ Date _____________________</div>
-            </div>
 
-            {/* Notes */}
-            <div className="text-xs space-y-2 mt-8 p-4 bg-gray-50 dark:bg-gray-900 rounded">
-              <div className="font-bold">NB.</div>
-              <ol className="list-decimal pl-5 space-y-1">
-                <li>A student is not allowed to be registered for a course (s) if he/has an "I" or "F" grade (s) for its prerequisites (s).</li>
-                <li>This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self.</li>
-                <li>The semester total load to be taken must not be less than 12 and greater than 22 C.L. He for regular program.</li>
-                <li>The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.</li>
-              </ol>
-            </div>
-
-            {selectedStudents.length === 0 && !selectedStudent && (
-              <div className="text-center py-12 text-gray-500 dark:text-gray-400 border-2 border-dashed rounded-lg">
-                <User className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg">Select a student to preview registration slip</p>
-                <p className="text-sm mt-2">Search and select a student from the top panel to see the slip preview here</p>
+              {/* Course Table Preview */}
+              <div className="text-sm">
+                <div className="font-bold mb-3">I am applying to be registered for the following courses.</div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">R.No.</TableHead>
+                        <TableHead>COURSE CODE</TableHead>
+                        <TableHead>COURSE TITLE</TableHead>
+                        <TableHead className="w-20">Lecture</TableHead>
+                        <TableHead className="w-20">Lab/prac</TableHead>
+                        <TableHead className="w-20">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedPreviewStudent.courses.map((course, index) => (
+                        <TableRow key={course.courseId}>
+                          <TableCell>{index + 1}</TableCell>
+                          <TableCell>{course.code}</TableCell>
+                          <TableCell>{course.title}</TableCell>
+                          <TableCell>{course.lectureHours}</TableCell>
+                          <TableCell>{course.labHours}</TableCell>
+                          <TableCell>{course.totalHours}</TableCell>
+                        </TableRow>
+                      ))}
+                      {selectedPreviewStudent.courses.length > 0 && (
+                        <TableRow className="font-bold bg-gray-100">
+                          <TableCell colSpan={3}>Total</TableCell>
+                          <TableCell>{calculateStudentTotals(selectedPreviewStudent).lectureTotal}</TableCell>
+                          <TableCell>{calculateStudentTotals(selectedPreviewStudent).labTotal}</TableCell>
+                          <TableCell>{calculateStudentTotals(selectedPreviewStudent).total}</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
+              {/* Signatures Preview */}
+              <div className="text-sm space-y-4 mt-6">
+                <div className="flex justify-between items-center">
+                  <div>Student signature _____________________</div>
+                  <div className="flex items-center gap-4">
+                    <span>Total</span>
+                    <span className="font-bold">{calculateStudentTotals(selectedPreviewStudent).total}</span>
+                  </div>
+                </div>
+                <div>Finance Head _____________________ Signature _____________________ Date _____________________</div>
+                <div>Department Head _____________________ Signature _____________________ Date _____________________</div>
+              </div>
+
+              {/* Notes */}
+              <div className="text-xs space-y-2 mt-8 p-4 bg-gray-50 rounded">
+                <div className="font-bold">NB.</div>
+                <ol className="list-decimal pl-5 space-y-1">
+                  <li>A student is not allowed to be registered for a course (s) if he/has an "I" or "F" grade (s) for its prerequisites (s).</li>
+                  <li>This form must be filled & signed in three copies and one copy should be submitted to the registrar, one for the department and one for the student him/her self.</li>
+                  <li>The semester total load to be taken must not be less than 12 and greater than 22 C.L. He for regular program.</li>
+                  <li>The registration slip must be returned to the registration office within the specified date of registration. Otherwise will be penalized.</li>
+                </ol>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
