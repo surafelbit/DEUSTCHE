@@ -72,6 +72,9 @@ const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
 const SingleBatchPage = React.lazy(
   () => import("./pages/registrar/settings/SingleBatchPage .tsx")
 );
+const GradingSystemEditor = React.lazy(
+  () => import("./pages/registrar/settings/GradingSystemEditor.tsx")
+);
 const DepartmentDetail = React.lazy(
   () => import("./pages/registrar/DepartmentDetail.tsx")
 );
@@ -153,8 +156,17 @@ const TenColumnEditableTablePage = React.lazy(
 const BatchesEditor = React.lazy(
   () => import("./pages/registrar/settings/BatchesEditor")
 );
+const CoursesEditor = React.lazy(
+  () => import("./pages/registrar/settings/CoursesEditor.tsx")
+);
+const CourseSourcesEditor = React.lazy(
+  () => import("./pages/registrar/settings/CourseSourcesEditor.tsx")
+);
 const ProgramModalitiesEditor = React.lazy(
   () => import("./pages/registrar/settings/ProgramModalitiesEditor")
+);
+const ProgramLevelsEditor = React.lazy(
+  () => import("./pages/registrar/settings/ProgramLevelsEditor .tsx")
 );
 const AttritionCausesEditor = React.lazy(
   () => import("./pages/registrar/settings/AttritionCausesEditor")
@@ -262,6 +274,10 @@ function App() {
                 element={<EnrollmentTypesEditor />}
               />
               <Route
+                path="settings/grading-systems"
+                element={<GradingSystemEditor />}
+              />
+              <Route
                 path="settings/class-years"
                 element={<ClassYearsEditor />}
               />
@@ -274,8 +290,17 @@ function App() {
                 element={<ProgramModalitiesEditor />}
               />
               <Route
+                path="settings/program-level"
+                element={<ProgramLevelsEditor />}
+              />
+              <Route
                 path="settings/course-category"
                 element={<CourseCategoriesEditor />}
+              />
+              <Route path="settings/courses" element={<CoursesEditor />} />
+              <Route
+                path="settings/course-source"
+                element={<CourseSourcesEditor />}
               />
               <Route
                 path="settings/attritions"
