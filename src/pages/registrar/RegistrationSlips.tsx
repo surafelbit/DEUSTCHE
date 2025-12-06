@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, Download, Printer, FileText, User, Calendar, BookOpen, Plus, Trash2 } from "lucide-react";
+import { Search, Download, Printer, FileText, User, Calendar, BookOpen, Plus, Trash2, Filter, Check, CheckSquare, Square } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,15 +31,23 @@ const toast = {
 };
 
 interface Student {
-  id: number;
-  fullName: string;
-  studentId: string;
-  department: string;
-  yearOfStudy: string;
-  semester: string;
-  age: number;
-  sex: string;
-  batch: string;
+  studentId: number;
+  username: string;
+  fullNameAMH: string;
+  fullNameENG: string;
+  bcysId: number;
+  bcysDisplayName: string;
+  departmentId: number;
+  departmentName: string;
+  programModalityCode: string;
+  programModalityName: string;
+  programLevelCode: string;
+  programLevelName: string;
+  age?: number;
+  sex?: string;
+  batch?: string;
+  yearOfStudy?: string;
+  semester?: string;
 }
 
 interface Course {
@@ -60,11 +68,38 @@ interface RegistrationCourse {
   totalHours: number;
 }
 
+interface FilterData {
+  departments: Array<{ id: number; name: string }>;
+  batches: Array<{ id: number; name: string }>;
+  enrollmentTypes: Array<{ id: string; name: string }>;
+  classYears: Array<{ id: number; name: string }>;
+  semesters: Array<{ id: string; name: string }>;
+  academicYears: Array<{ id: string; name: string }>;
+  programLevels: Array<{ id: string; name: string }>;
+  programModalities: Array<{ id: string; name: string }>;
+}
+
+interface ApiStudent {
+  studentId: number;
+  username: string;
+  fullNameAMH: string;
+  fullNameENG: string;
+  bcysId: number;
+  bcysDisplayName: string;
+  departmentId: number;
+  departmentName: string;
+  programModalityCode: string;
+  programModalityName: string;
+  programLevelCode: string;
+  programLevelName: string;
+}
+
 export default function RegistrationSlips() {
   // States
   const [students, setStudents] = useState<Student[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [registrationCourses, setRegistrationCourses] = useState<RegistrationCourse[]>([]);
@@ -76,6 +111,32 @@ export default function RegistrationSlips() {
   const [enrollmentType, setEnrollmentType] = useState("Regular");
   const [paymentReceiptNo, setPaymentReceiptNo] = useState("");
   
+  // Filter states
+  const [filterData, setFilterData] = useState<FilterData>({
+    departments: [],
+    batches: [],
+    enrollmentTypes: [],
+    classYears: [],
+    semesters: [],
+    academicYears: [],
+    programLevels: [],
+    programModalities: []
+  });
+  
+  const [filters, setFilters] = useState({
+    departmentId: "",
+    batchId: "",
+    enrollmentTypeId: "",
+    classYearId: "",
+    semesterId: "",
+    academicYearId: "",
+    programLevelId: "",
+    programModalityId: ""
+  });
+  
+  const [selectAll, setSelectAll] = useState(false);
+  const [loading, setLoading] = useState(false);
+
   // Initialize with sample courses similar to the image
   const sampleCourses: RegistrationCourse[] = [
     { id: 106, courseCode: "PNYSD 4221", courseTitle: "Physical Diagnosis & Clinical Skill", lectureHours: 2, labHours: 3, totalHours: 5 },
@@ -90,8 +151,9 @@ export default function RegistrationSlips() {
     // Initialize with sample courses
     setRegistrationCourses(sampleCourses);
     
-    // Fetch students and courses
+    // Fetch students and filter data
     fetchStudents();
+    fetchFilterData();
     fetchCourses();
     
     // Initialize payment receipt number
@@ -100,28 +162,91 @@ export default function RegistrationSlips() {
 
   const fetchStudents = async () => {
     try {
-      // Replace with your actual API call
-      const response = await apiService.get(endPoints.students);
-      setStudents(response);
-      setFilteredStudents(response);
+      setLoading(true);
+      const response = await apiService.get(endPoints.studentsSlip);
+      
+      // Transform API response to match our Student interface
+      const transformedStudents: Student[] = response.map((student: ApiStudent) => ({
+        studentId: student.studentId,
+        username: student.username,
+        fullNameAMH: student.fullNameAMH,
+        fullNameENG: student.fullNameENG,
+        bcysId: student.bcysId,
+        bcysDisplayName: student.bcysDisplayName,
+        departmentId: student.departmentId,
+        departmentName: student.departmentName,
+        programModalityCode: student.programModalityCode,
+        programModalityName: student.programModalityName,
+        programLevelCode: student.programLevelCode,
+        programLevelName: student.programLevelName,
+        age: 22, // Default value - you might want to calculate this from DOB
+        sex: "Male", // Default value - update with actual data if available
+        batch: student.bcysDisplayName?.split('-')[0] || "2024",
+        yearOfStudy: `Year ${student.bcysDisplayName?.split('-')[1] || "1"}`,
+        semester: student.bcysDisplayName?.split('-')[2] === "1" ? "Semester 1" : "Semester 2"
+      }));
+      
+      setStudents(transformedStudents);
+      setFilteredStudents(transformedStudents);
+      setLoading(false);
     } catch (error) {
       console.error("Error fetching students:", error);
-      // For demo, create sample students
-      const sampleStudents: Student[] = [
-        { id: 1, fullName: "John Doe", studentId: "STU001", department: "Medicine", yearOfStudy: "Year 3", semester: "Semester 2", age: 22, sex: "Male", batch: "2022" },
-        { id: 2, fullName: "Jane Smith", studentId: "STU002", department: "Medicine", yearOfStudy: "Year 3", semester: "Semester 2", age: 23, sex: "Female", batch: "2022" },
-        { id: 3, fullName: "Robert Johnson", studentId: "STU003", department: "Medicine", yearOfStudy: "Year 4", semester: "Semester 1", age: 24, sex: "Male", batch: "2021" },
-        { id: 4, fullName: "Emily Brown", studentId: "STU004", department: "Medicine", yearOfStudy: "Year 2", semester: "Semester 1", age: 21, sex: "Female", batch: "2023" },
-        { id: 5, fullName: "Michael Wilson", studentId: "STU005", department: "Medicine", yearOfStudy: "Year 5", semester: "Semester 2", age: 25, sex: "Male", batch: "2020" },
-      ];
-      setStudents(sampleStudents);
-      setFilteredStudents(sampleStudents);
+      setLoading(false);
+      toast.error("Failed to fetch students");
+    }
+  };
+
+  const fetchFilterData = async () => {
+    try {
+      const response = await apiService.get(endPoints.lookupsDropdown);
+      setFilterData(response);
+    } catch (error) {
+      console.error("Error fetching filter data:", error);
+      // Set default filter data
+      setFilterData({
+        departments: [
+          { id: 1, name: "Nursing" },
+          { id: 2, name: "Medicine" },
+          { id: 3, name: "Computer Science" }
+        ],
+        batches: [
+          { id: 1, name: "2024" },
+          { id: 2, name: "2023" },
+          { id: 3, name: "2022" }
+        ],
+        enrollmentTypes: [
+          { id: "CN", name: "Continuing" },
+          { id: "NW", name: "New Student" },
+          { id: "TR", name: "Transfer" }
+        ],
+        classYears: [
+          { id: 1, name: "1" },
+          { id: 2, name: "2" },
+          { id: 3, name: "3" }
+        ],
+        semesters: [
+          { id: "S1", name: "First Semester" },
+          { id: "S2", name: "Second Semester" }
+        ],
+        academicYears: [
+          { id: "202425", name: "2024/2025" },
+          { id: "202324", name: "2023/2024" }
+        ],
+        programLevels: [
+          { id: "DEG", name: "Bachelor's Degree" },
+          { id: "BCH", name: "Bachelor's Degree" }
+        ],
+        programModalities: [
+          { id: "RG", name: "Regular" },
+          { id: "Ex", name: "Extension" }
+        ]
+      });
     }
   };
 
   const fetchCourses = async () => {
     try {
-      const response = await apiService.get(endPoints.courses);
+      const response = await apiService.get(endPoints.allCourses);
       setCourses(response);
     } catch (error) {
       console.error("Error fetching courses:", error);
@@ -139,21 +264,122 @@ export default function RegistrationSlips() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (!query.trim()) {
-      setFilteredStudents(students);
-      return;
+    applyFiltersAndSearch(query);
+  };
+
+  const handleFilterChange = (filterName: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [filterName]: value
+    }));
+    applyFiltersAndSearch(searchQuery);
+  };
+
+  const applyFiltersAndSearch = (searchQuery: string = "") => {
+    let filtered = [...students];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(student =>
+        student.fullNameENG.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.fullNameAMH.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        student.studentId.toString().includes(searchQuery)
+      );
     }
-    
-    const filtered = students.filter(student =>
-      student.fullName.toLowerCase().includes(query.toLowerCase()) ||
-      student.studentId.toLowerCase().includes(query.toLowerCase())
-    );
+
+    // Apply other filters using IDs
+    if (filters.departmentId) {
+      const departmentName = filterData.departments.find(d => d.id.toString() === filters.departmentId)?.name;
+      if (departmentName) {
+        filtered = filtered.filter(student => 
+          student.departmentName === departmentName
+        );
+      }
+    }
+
+    if (filters.batchId) {
+      const batchName = filterData.batches.find(b => b.id.toString() === filters.batchId)?.name;
+      if (batchName) {
+        filtered = filtered.filter(student => 
+          student.batch === batchName
+        );
+      }
+    }
+
+    if (filters.enrollmentTypeId) {
+      const enrollmentTypeName = filterData.enrollmentTypes.find(e => e.id === filters.enrollmentTypeId)?.name;
+      if (enrollmentTypeName) {
+        filtered = filtered.filter(student => 
+          student.programModalityName === enrollmentTypeName
+        );
+      }
+    }
+
+    if (filters.classYearId) {
+      const classYearName = filterData.classYears.find(c => c.id.toString() === filters.classYearId)?.name;
+      if (classYearName) {
+        filtered = filtered.filter(student => 
+          student.yearOfStudy?.includes(classYearName)
+        );
+      }
+    }
+
+    if (filters.semesterId) {
+      const semesterName = filterData.semesters.find(s => s.id === filters.semesterId)?.name;
+      if (semesterName) {
+        filtered = filtered.filter(student => 
+          student.semester?.toLowerCase().includes(semesterName.toLowerCase())
+        );
+      }
+    }
+
+    if (filters.programLevelId) {
+      filtered = filtered.filter(student => 
+        student.programLevelCode === filters.programLevelId
+      );
+    }
+
+    if (filters.programModalityId) {
+      filtered = filtered.filter(student => 
+        student.programModalityCode === filters.programModalityId
+      );
+    }
+
     setFilteredStudents(filtered);
+    setSelectAll(false);
   };
 
   const handleSelectStudent = (student: Student) => {
     setSelectedStudent(student);
     setPaymentReceiptNo(`PAY-${student.studentId}-${Date.now().toString().slice(-6)}`);
+    
+    // Update selected students array
+    const isSelected = selectedStudents.some(s => s.studentId === student.studentId);
+    if (isSelected) {
+      setSelectedStudents(prev => prev.filter(s => s.studentId !== student.studentId));
+    } else {
+      setSelectedStudents(prev => [...prev, student]);
+    }
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectAll) {
+      setSelectedStudents([]);
+    } else {
+      setSelectedStudents([...filteredStudents]);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const handleSelectSingleStudent = (student: Student) => {
+    setSelectedStudent(student);
+    setSelectedStudents([student]);
+    setPaymentReceiptNo(`PAY-${student.studentId}-${Date.now().toString().slice(-6)}`);
+  };
+
+  const isStudentSelected = (studentId: number) => {
+    return selectedStudents.some(s => s.studentId === studentId);
   };
 
   const handleAddCourse = () => {
@@ -190,13 +416,32 @@ export default function RegistrationSlips() {
     return { lectureTotal, labTotal, total };
   };
 
+  const handleClearFilters = () => {
+    setFilters({
+      departmentId: "",
+      batchId: "",
+      enrollmentTypeId: "",
+      classYearId: "",
+      semesterId: "",
+      academicYearId: "",
+      programLevelId: "",
+      programModalityId: ""
+    });
+    setSearchQuery("");
+    setFilteredStudents(students);
+    setSelectAll(false);
+  };
 
   const generatePDF = async () => {
-    if (!selectedStudent) {
-      toast.error("Please select a student first");
+    if (!selectedStudent && selectedStudents.length === 0) {
+      toast.error("Please select at least one student first");
       return;
     }
 
+    // If multiple students selected, generate for first one (for now)
+    // You can modify this to generate multiple PDFs or combine them
+    const studentToGenerate = selectedStudent || selectedStudents[0];
+    
     const { lectureTotal, labTotal, total } = calculateTotals();
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -207,7 +452,7 @@ export default function RegistrationSlips() {
 
     let headerY = 15;
 
-    // Load logo from /assets/companylogo.jpg and add to PDF (falls back silently if load fails)
+    // Load logo
     try {
       const fetchDataUrl = async (url: string) => {
         const res = await fetch(url);
@@ -222,7 +467,6 @@ export default function RegistrationSlips() {
       };
 
       const dataUrl = await fetchDataUrl("/assets/companylogo.jpg");
-      // create an Image to get natural dimensions for correct aspect ratio
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const i = new Image();
         i.onload = () => resolve(i);
@@ -230,14 +474,13 @@ export default function RegistrationSlips() {
         i.src = dataUrl;
       });
 
-      const imgDisplayWidth = 28; // mm - adjust size as needed
+      const imgDisplayWidth = 28;
       const imgDisplayHeight = (img.naturalHeight / img.naturalWidth) * imgDisplayWidth;
       const imgX = (pageWidth - imgDisplayWidth) / 2;
       const imgY = 10;
       doc.addImage(dataUrl, imgX, imgY, imgDisplayWidth, imgDisplayHeight);
       headerY = imgY + imgDisplayHeight + 4;
     } catch (e) {
-      // ignore image errors and continue without logo
       headerY = 15;
     }
 
@@ -268,17 +511,17 @@ export default function RegistrationSlips() {
       return y + lines.length * lineHeight;
     };
 
-    curY = wrap(`Full Name of Student: ${selectedStudent.fullName}`, left, curY, usableWidth);
+    curY = wrap(`Full Name of Student: ${studentToGenerate.fullNameENG}`, left, curY, usableWidth);
     curY = wrap(`Date of Registration: ${dateOfRegistration}`, left, curY + 2, usableWidth);
     curY = wrap(
-      `Department: ${selectedStudent.department}, Year Of Study: ${selectedStudent.yearOfStudy}, Semester: ${selectedStudent.semester}`,
+      `Department: ${studentToGenerate.departmentName}, Year Of Study: ${studentToGenerate.yearOfStudy}, Semester: ${studentToGenerate.semester}`,
       left,
       curY + 2,
       usableWidth
     );
 
     // ID / Age / Sex on one line
-    const idLine = `ID No.: ${selectedStudent.studentId}    Age: ${selectedStudent.age}    Sex: ${selectedStudent.sex}`;
+    const idLine = `ID No.: ${studentToGenerate.studentId}    Age: ${studentToGenerate.age}    Sex: ${studentToGenerate.sex}`;
     doc.setFontSize(10);
     doc.text(idLine, left, curY + 6);
     curY += 10;
@@ -362,17 +605,17 @@ export default function RegistrationSlips() {
     }
 
     // Save PDF
-    doc.save(`Registration_Slip_${selectedStudent.studentId}.pdf`);
+    doc.save(`Registration_Slip_${studentToGenerate.studentId}.pdf`);
     toast.success("PDF generated successfully!");
   };
 
-
   const generateExcel = () => {
-    if (!selectedStudent) {
-      toast.error("Please select a student first");
+    if (!selectedStudent && selectedStudents.length === 0) {
+      toast.error("Please select at least one student first");
       return;
     }
 
+    const studentToGenerate = selectedStudent || selectedStudents[0];
     const { lectureTotal, labTotal, total } = calculateTotals();
     
     // Create workbook
@@ -385,9 +628,9 @@ export default function RegistrationSlips() {
       ["OFFICE OF REGISTRAR"],
       ["COURSE REGISTRATION SLIP"],
       [],
-      [`Full Name of Student: ${selectedStudent.fullName}`, `Date of Registration: ${dateOfRegistration}`],
-      [`Department: ${selectedStudent.department}, Year Of Study: ${selectedStudent.yearOfStudy}, Semester: ${selectedStudent.yearOfStudy} Based`],
-      [`ID No.: ${selectedStudent.studentId}`, `Age: ${selectedStudent.age}`, `Sex: ${selectedStudent.sex}`],
+      [`Full Name of Student: ${studentToGenerate.fullNameENG}`, `Date of Registration: ${dateOfRegistration}`],
+      [`Department: ${studentToGenerate.departmentName}, Year Of Study: ${studentToGenerate.yearOfStudy}, Semester: Year Based`],
+      [`ID No.: ${studentToGenerate.studentId}`, `Age: ${studentToGenerate.age}`, `Sex: ${studentToGenerate.sex}`],
       [`Payment Receipt No.: ${paymentReceiptNo}`, `Academic Year: ${academicYear}`, `Enrollment Type: ${enrollmentType}`],
       [],
       ["I am applying to be registered for the following courses."],
@@ -439,15 +682,17 @@ export default function RegistrationSlips() {
 
     // Add to workbook and save
     XLSX.utils.book_append_sheet(wb, ws, "Registration Slip");
-    XLSX.writeFile(wb, `Registration_Slip_${selectedStudent.studentId}.xlsx`);
+    XLSX.writeFile(wb, `Registration_Slip_${studentToGenerate.studentId}.xlsx`);
     toast.success("Excel file generated successfully!");
   };
 
   const handlePrint = () => {
-    if (!selectedStudent) {
-      toast.error("Please select a student first");
+    if (!selectedStudent && selectedStudents.length === 0) {
+      toast.error("Please select at least one student first");
       return;
     }
+    
+    const studentToPrint = selectedStudent || selectedStudents[0];
     
     // Create HTML for printing
     const printContent = document.getElementById('slip-preview')?.innerHTML;
@@ -458,7 +703,7 @@ export default function RegistrationSlips() {
           <!DOCTYPE html>
           <html>
           <head>
-            <title>Registration Slip - ${selectedStudent.fullName}</title>
+            <title>Registration Slip - ${studentToPrint.fullNameENG}</title>
             <style>
               body { font-family: Arial, sans-serif; margin: 20px; }
               .print-header { text-align: center; margin-bottom: 20px; }
@@ -504,15 +749,20 @@ export default function RegistrationSlips() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={generatePDF} variant="outline" disabled={!selectedStudent}>
+          <div className="mr-4">
+            <span className="text-sm text-gray-600">
+              Selected: {selectedStudents.length} student(s)
+            </span>
+          </div>
+          <Button onClick={generatePDF} variant="outline" disabled={selectedStudents.length === 0}>
             <Download className="mr-2 h-4 w-4" />
             PDF
           </Button>
-          <Button onClick={generateExcel} variant="outline" disabled={!selectedStudent}>
+          <Button onClick={generateExcel} variant="outline" disabled={selectedStudents.length === 0}>
             <FileText className="mr-2 h-4 w-4" />
             Excel
           </Button>
-          <Button onClick={handlePrint} disabled={!selectedStudent}>
+          <Button onClick={handlePrint} disabled={selectedStudents.length === 0}>
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
@@ -521,68 +771,253 @@ export default function RegistrationSlips() {
 
       {/* Top Section: Student and Course Selection Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Student Search */}
+        {/* Left Column - Student Search and Filters */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Search Student
+              Search & Filter Students
             </CardTitle>
             <CardDescription>
-              Find student to generate registration slip
+              Find and select students to generate registration slips
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Search Bar */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search by name or student ID..."
+                placeholder="Search by name, ID, or username..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
               />
             </div>
 
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {filteredStudents.map((student) => (
-                <Card
-                  key={student.id}
-                  className={`cursor-pointer hover:shadow-md transition-all ${
-                    selectedStudent?.id === student.id
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                      : ""
-                  }`}
-                  onClick={() => handleSelectStudent(student)}
-                >
-                  <CardContent className="p-4">
-                    <div className="font-medium">{student.fullName}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      ID: {student.studentId} | {student.department}
-                    </div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                      Year: {student.yearOfStudy} | Batch: {student.batch}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            {/* Filter Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  Filters
+                </Label>
+                <Button variant="ghost" size="sm" onClick={handleClearFilters}>
+                  Clear All
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Department Filter */}
+                <div className="space-y-1">
+                  <Label htmlFor="department" className="text-xs">Department</Label>
+                  <Select 
+                    value={filters.departmentId} 
+                    onValueChange={(value) => handleFilterChange("departmentId", value)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="All Departments" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterData.departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id.toString()}>
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Batch Filter */}
+                <div className="space-y-1">
+                  <Label htmlFor="batch" className="text-xs">Batch</Label>
+                  <Select 
+                    value={filters.batchId} 
+                    onValueChange={(value) => handleFilterChange("batchId", value)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="All Batches" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterData.batches.map((batch) => (
+                        <SelectItem key={batch.id} value={batch.id.toString()}>
+                          {batch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Enrollment Type Filter */}
+                <div className="space-y-1">
+                  <Label htmlFor="enrollmentType" className="text-xs">Enrollment Type</Label>
+                  <Select 
+                    value={filters.enrollmentTypeId} 
+                    onValueChange={(value) => handleFilterChange("enrollmentTypeId", value)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterData.enrollmentTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Program Level Filter */}
+                <div className="space-y-1">
+                  <Label htmlFor="programLevel" className="text-xs">Program Level</Label>
+                  <Select 
+                    value={filters.programLevelId} 
+                    onValueChange={(value) => handleFilterChange("programLevelId", value)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="All Levels" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterData.programLevels.map((level) => (
+                        <SelectItem key={level.id} value={level.id}>
+                          {level.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Class Year Filter */}
+                <div className="space-y-1">
+                  <Label htmlFor="classYear" className="text-xs">Class Year</Label>
+                  <Select
+                    value={filters.classYearId}
+                    onValueChange={(value) => handleFilterChange("classYearId", value)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="All Years" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterData.classYears.map((year) => (
+                        <SelectItem key={year.id} value={year.id.toString()}>
+                          {year.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Program Modality Filter */}
+                <div className="space-y-1">
+                  <Label htmlFor="programModality" className="text-xs">Program Modality</Label>
+                  <Select
+                    value={filters.programModalityId}
+                    onValueChange={(value) => handleFilterChange("programModalityId", value)}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="All Modalities" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filterData.programModalities.map((modality) => (
+                        <SelectItem key={modality.id} value={modality.id}>
+                          {modality.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
 
-            {selectedStudent && (
-              <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                <CardContent className="p-4">
-                  <div className="font-bold text-green-700 dark:text-green-400">
-                    Selected Student
-                  </div>
-                  <div className="mt-2">
-                    <div className="font-medium">{selectedStudent.fullName}</div>
-                    <div className="text-sm">ID: {selectedStudent.studentId}</div>
-                    <div className="text-sm">
-                      {selectedStudent.department} - {selectedStudent.yearOfStudy}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Student List Header */}
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleSelectAll}
+                  className="h-8"
+                >
+                  {selectAll ? (
+                    <CheckSquare className="h-4 w-4 mr-1" />
+                  ) : (
+                    <Square className="h-4 w-4 mr-1" />
+                  )}
+                  {selectAll ? "Deselect All" : "Select All"}
+                </Button>
+                <span className="text-sm text-gray-500">
+                  {filteredStudents.length} students found
+                </span>
+              </div>
+              <span className="text-sm font-medium">
+                Selected: {selectedStudents.length}
+              </span>
+            </div>
+
+            {/* Student List */}
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                  <p className="mt-2 text-sm text-gray-500">Loading students...</p>
+                </div>
+              ) : filteredStudents.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <User className="h-12 w-12 mx-auto opacity-50 mb-2" />
+                  <p>No students found</p>
+                  <p className="text-sm">Try adjusting your filters or search</p>
+                </div>
+              ) : (
+                filteredStudents.map((student) => {
+                  const isSelected = isStudentSelected(student.studentId);
+                  return (
+                    <Card
+                      key={student.studentId}
+                      className={`cursor-pointer hover:shadow-md transition-all ${
+                        isSelected
+                          ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                          : selectedStudent?.studentId === student.studentId
+                          ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                          : ""
+                      }`}
+                      onClick={() => handleSelectStudent(student)}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-5 h-5 flex items-center justify-center rounded border ${
+                              isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+                            }`}>
+                              {isSelected && <Check className="h-3 w-3 text-white" />}
+                            </div>
+                            <div>
+                              <div className="font-medium text-sm">{student.fullNameENG}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                ID: {student.studentId} | {student.departmentName}
+                              </div>
+                              <div className="text-xs text-gray-400 dark:text-gray-500">
+                                Batch: {student.batch} | {student.yearOfStudy} | {student.programModalityName}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectSingleStudent(student);
+                            }}
+                          >
+                            Select Only
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -615,9 +1050,17 @@ export default function RegistrationSlips() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2024/2025">2024/2025</SelectItem>
-                    <SelectItem value="2023/2024">2023/2024</SelectItem>
-                    <SelectItem value="2022/2023">2022/2023</SelectItem>
+                    {filterData.academicYears?.map((year) => (
+                      <SelectItem key={year.id} value={year.name}>
+                        {year.name}
+                      </SelectItem>
+                    )) || (
+                      <>
+                        <SelectItem value="2024/2025">2024/2025</SelectItem>
+                        <SelectItem value="2023/2024">2023/2024</SelectItem>
+                        <SelectItem value="2022/2023">2022/2023</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -631,9 +1074,17 @@ export default function RegistrationSlips() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Regular">Regular</SelectItem>
-                    <SelectItem value="Extension">Extension</SelectItem>
-                    <SelectItem value="Distance">Distance</SelectItem>
+                    {filterData.enrollmentTypes?.map((type) => (
+                      <SelectItem key={type.id} value={type.name}>
+                        {type.name}
+                      </SelectItem>
+                    )) || (
+                      <>
+                        <SelectItem value="Regular">Regular</SelectItem>
+                        <SelectItem value="Extension">Extension</SelectItem>
+                        <SelectItem value="Distance">Distance</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -713,6 +1164,26 @@ export default function RegistrationSlips() {
                 </Table>
               </div>
             </div>
+
+            {/* Selected Students Summary */}
+            {selectedStudents.length > 0 && (
+              <div className="pt-4 border-t">
+                <Label className="mb-2">Selected Students ({selectedStudents.length})</Label>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {selectedStudents.slice(0, 5).map((student) => (
+                    <div key={student.studentId} className="flex items-center justify-between text-sm p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                      <span>{student.fullNameENG}</span>
+                      <span className="text-xs text-gray-500">{student.studentId}</span>
+                    </div>
+                  ))}
+                  {selectedStudents.length > 5 && (
+                    <div className="text-center text-sm text-gray-500 p-2">
+                      ... and {selectedStudents.length - 5} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -726,6 +1197,11 @@ export default function RegistrationSlips() {
           </CardTitle>
           <CardDescription>
             Preview of the registration slip - This will be used for printing
+            {selectedStudents.length > 1 && (
+              <span className="ml-2 text-blue-600">
+                (Showing preview for {selectedStudent?.fullNameENG || selectedStudents[0]?.fullNameENG})
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -740,17 +1216,17 @@ export default function RegistrationSlips() {
 
             {/* Student Info */}
             <div className="space-y-3 text-sm">
-              <div><strong>Full Name of Student:</strong> {selectedStudent?.fullName || "________________"}</div>
+              <div><strong>Full Name of Student:</strong> {(selectedStudent || selectedStudents[0])?.fullNameENG || "________________"}</div>
               <div><strong>Date of Registration:</strong> {dateOfRegistration}</div>
               <div>
-                <strong>Department:</strong> {selectedStudent?.department || "Medicine"}, 
-                <strong> Year Of Study:</strong> {selectedStudent?.yearOfStudy || "Year 3"}, 
+                <strong>Department:</strong> {(selectedStudent || selectedStudents[0])?.departmentName || "Medicine"}, 
+                <strong> Year Of Study:</strong> {(selectedStudent || selectedStudents[0])?.yearOfStudy || "Year 3"}, 
                 <strong> Semester:</strong> Year Based
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <div><strong>ID No.:</strong> {selectedStudent?.studentId || "______"}</div>
-                <div><strong>Age:</strong> {selectedStudent?.age || "___"}</div>
-                <div><strong>Sex:</strong> {selectedStudent?.sex || "___"}</div>
+                <div><strong>ID No.:</strong> {(selectedStudent || selectedStudents[0])?.studentId || "______"}</div>
+                <div><strong>Age:</strong> {(selectedStudent || selectedStudents[0])?.age || "___"}</div>
+                <div><strong>Sex:</strong> {(selectedStudent || selectedStudents[0])?.sex || "___"}</div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div><strong>Payment Receipt No.:</strong> {paymentReceiptNo || "______"}</div>
@@ -822,7 +1298,7 @@ export default function RegistrationSlips() {
               </ol>
             </div>
 
-            {!selectedStudent && (
+            {selectedStudents.length === 0 && !selectedStudent && (
               <div className="text-center py-12 text-gray-500 dark:text-gray-400 border-2 border-dashed rounded-lg">
                 <User className="h-16 w-16 mx-auto mb-4 opacity-50" />
                 <p className="text-lg">Select a student to preview registration slip</p>

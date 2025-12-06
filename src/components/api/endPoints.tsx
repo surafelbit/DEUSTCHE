@@ -54,6 +54,8 @@ const endPoints = {
   programLevelByCode: "/program-levels/:id",
   programModalities: "/program-modality",
   programModalityByCode: "/program-modality/:id",
+  studentsSlip: "/students/slip-production", 
+  lookupsDropdown: "/filters/options",
 };
 
 export default endPoints;

@@ -9,10 +9,10 @@ const noAuthEndpoints = [
   "/region",
   "/school-backgrounds",
   "/departments",
-  //"/program-modality",
   "/class-years",
   "/semesters",
   "/program-levels",
+  // "/filters/options",
   // '/program-modality',
 ];
 
