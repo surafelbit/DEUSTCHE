@@ -264,18 +264,16 @@ export default function RegistrationSlips() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    applyFiltersAndSearch(query);
+    applyFiltersAndSearch(query, filters);
   };
 
   const handleFilterChange = (filterName: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterName]: value
-    }));
-    applyFiltersAndSearch(searchQuery);
+    const newFilters = { ...filters, [filterName]: value };
+    setFilters(newFilters);
+    applyFiltersAndSearch(searchQuery, newFilters);
   };
 
-  const applyFiltersAndSearch = (searchQuery: string = "") => {
+  const applyFiltersAndSearch = (searchQuery: string = "", currentFilters = filters) => {
     let filtered = [...students];
 
     // Apply search filter
@@ -289,60 +287,60 @@ export default function RegistrationSlips() {
     }
 
     // Apply other filters using IDs
-    if (filters.departmentId) {
-      const departmentName = filterData.departments.find(d => d.id.toString() === filters.departmentId)?.name;
+    if (currentFilters.departmentId) {
+      const departmentName = filterData.departments.find(d => d.id.toString() === currentFilters.departmentId)?.name;
       if (departmentName) {
-        filtered = filtered.filter(student => 
+        filtered = filtered.filter(student =>
           student.departmentName === departmentName
         );
       }
     }
 
-    if (filters.batchId) {
-      const batchName = filterData.batches.find(b => b.id.toString() === filters.batchId)?.name;
+    if (currentFilters.batchId) {
+      const batchName = filterData.batches.find(b => b.id.toString() === currentFilters.batchId)?.name;
       if (batchName) {
-        filtered = filtered.filter(student => 
+        filtered = filtered.filter(student =>
           student.batch === batchName
         );
       }
     }
 
-    if (filters.enrollmentTypeId) {
-      const enrollmentTypeName = filterData.enrollmentTypes.find(e => e.id === filters.enrollmentTypeId)?.name;
+    if (currentFilters.enrollmentTypeId) {
+      const enrollmentTypeName = filterData.enrollmentTypes.find(e => e.id === currentFilters.enrollmentTypeId)?.name;
       if (enrollmentTypeName) {
-        filtered = filtered.filter(student => 
+        filtered = filtered.filter(student =>
           student.programModalityName === enrollmentTypeName
         );
       }
     }
 
-    if (filters.classYearId) {
-      const classYearName = filterData.classYears.find(c => c.id.toString() === filters.classYearId)?.name;
+    if (currentFilters.classYearId) {
+      const classYearName = filterData.classYears.find(c => c.id.toString() === currentFilters.classYearId)?.name;
       if (classYearName) {
-        filtered = filtered.filter(student => 
+        filtered = filtered.filter(student =>
           student.yearOfStudy?.includes(classYearName)
         );
       }
     }
 
-    if (filters.semesterId) {
-      const semesterName = filterData.semesters.find(s => s.id === filters.semesterId)?.name;
+    if (currentFilters.semesterId) {
+      const semesterName = filterData.semesters.find(s => s.id === currentFilters.semesterId)?.name;
       if (semesterName) {
-        filtered = filtered.filter(student => 
+        filtered = filtered.filter(student =>
           student.semester?.toLowerCase().includes(semesterName.toLowerCase())
         );
       }
     }
 
-    if (filters.programLevelId) {
-      filtered = filtered.filter(student => 
-        student.programLevelCode === filters.programLevelId
+    if (currentFilters.programLevelId) {
+      filtered = filtered.filter(student =>
+        student.programLevelCode === currentFilters.programLevelId
       );
     }
 
-    if (filters.programModalityId) {
-      filtered = filtered.filter(student => 
-        student.programModalityCode === filters.programModalityId
+    if (currentFilters.programModalityId) {
+      filtered = filtered.filter(student =>
+        student.programModalityCode === currentFilters.programModalityId
       );
     }
 
@@ -480,7 +478,7 @@ export default function RegistrationSlips() {
       const imgY = 10;
       doc.addImage(dataUrl, imgX, imgY, imgDisplayWidth, imgDisplayHeight);
       headerY = imgY + imgDisplayHeight + 4;
-    } catch (e) {
+    } catch {
       headerY = 15;
     }
 
