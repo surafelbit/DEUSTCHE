@@ -50,7 +50,6 @@ export default function RegistrarLayout() {
     { name: "Add New Student", href: "/registrar/add-student", icon: UserPlus },
     { name: "Students", href: "/registrar/students", icon: Users },
     { name: "Departments", href: "/registrar/departments", icon: Layers },
-    // { name: "Courses", href: "/registrar/courses", icon: BookOpen },
     {
       name: "Scores",
       href: "/registrar/scores",
@@ -71,7 +70,8 @@ export default function RegistrarLayout() {
   }
   const [extra, setExtra] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
-
+  const [courseOpen, setCourseOpen] = useState(false);
+  const [programOpen, setProgramOpen] = useState(false);
   return (
     <div className=" flex min-h-screen bg-gray-50 dark:bg-gray-900 ">
       {/* Mobile sidebar backdrop */}
@@ -298,22 +298,160 @@ export default function RegistrarLayout() {
                     Impairments
                   </Link>
 
-                  <Link
-                    to="/registrar/settings/program-modality"
-                    className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                      location.pathname.includes(
-                        "/registrar/settings/program-modality"
-                      )
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
-                        : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900"
-                    }`}
-                    onClick={() =>
-                      window.innerWidth <= 1024 && setSidebarOpen(false)
-                    }
-                  >
-                    Program Modalities
-                  </Link>
-                  <Link
+                  <div className=" space-y-1">
+                    <button
+                      className={`flex items-center w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        programOpen ||
+                        location.pathname.includes(
+                          "/registrar/settings/program"
+                        )
+                          ? "bg-gray-100 dark:text-gray-300 dark:bg-gray-700"
+                          : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      }`}
+                      onClick={() => {
+                        setProgramOpen(!programOpen);
+                        window.innerWidth <= 1024 && setSidebarOpen(false);
+                      }}
+                    >
+                      <div className="flex justify-between w-full">
+                        <span>Program</span>
+                        <svg
+                          className={`mr-3 ml-2 h-5 w-5 transition-transform duration-200 ${
+                            programOpen ? "rotate-90" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
+                    </button>
+                    {programOpen && (
+                      <div className="pl-6 space-y-1">
+                        <Link
+                          to="/registrar/settings/program-level"
+                          className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            location.pathname.includes(
+                              "/registrar/settings/program-level"
+                            )
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900"
+                          }`}
+                          onClick={() =>
+                            window.innerWidth <= 1024 && setSidebarOpen(false)
+                          }
+                        >
+                          Program Level
+                        </Link>
+                        <Link
+                          to="/registrar/settings/program-modality"
+                          className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            location.pathname.includes(
+                              "/registrar/settings/program-modality"
+                            )
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900"
+                          }`}
+                          onClick={() =>
+                            window.innerWidth <= 1024 && setSidebarOpen(false)
+                          }
+                        >
+                          Program Modality
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                  <div className=" space-y-1">
+                    <button
+                      className={`flex items-center w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        courseOpen ||
+                        location.pathname.includes("/registrar/settings/course")
+                          ? "bg-gray-100 dark:text-gray-300 dark:bg-gray-700"
+                          : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                      }`}
+                      onClick={() => {
+                        setCourseOpen(!courseOpen);
+                        window.innerWidth <= 1024 && setSidebarOpen(false);
+                      }}
+                    >
+                      <div className="flex justify-between w-full">
+                        <span>Courses</span>
+                        <svg
+                          className={`mr-3 ml-2 h-5 w-5 transition-transform duration-200 ${
+                            courseOpen ? "rotate-90" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </div>
+                    </button>
+                    {courseOpen && (
+                      <div className="pl-6 space-y-1">
+                        <Link
+                          to="/registrar/settings/courses"
+                          className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            location.pathname.includes(
+                              "/registrar/settings/courses"
+                            )
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900"
+                          }`}
+                          onClick={() =>
+                            window.innerWidth <= 1024 && setSidebarOpen(false)
+                          }
+                        >
+                          Course
+                        </Link>
+                        <Link
+                          to="/registrar/settings/course-category"
+                          className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            location.pathname.includes(
+                              "/registrar/settings/course-category"
+                            )
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900"
+                          }`}
+                          onClick={() =>
+                            window.innerWidth <= 1024 && setSidebarOpen(false)
+                          }
+                        >
+                          Course Category
+                        </Link>
+                        <Link
+                          to="/registrar/settings/course-source"
+                          className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                            location.pathname.includes(
+                              "/registrar/settings/course-source"
+                            )
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                              : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900"
+                          }`}
+                          onClick={() =>
+                            window.innerWidth <= 1024 && setSidebarOpen(false)
+                          }
+                        >
+                          Course Source
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                  {/* <Link
                     to="/registrar/settings/course-category"
                     className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
                       location.pathname.includes(
@@ -327,7 +465,7 @@ export default function RegistrarLayout() {
                     }
                   >
                     Course Category
-                  </Link>
+                  </Link> */}
                   <Link
                     to="/registrar/settings/batches"
                     className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
@@ -400,6 +538,19 @@ export default function RegistrarLayout() {
                     }
                   >
                     semseters
+                  </Link>
+                  <Link
+                    to="/registrar/settings/grading-systems"
+                    className={`flex items-center px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      location.pathname.includes("/registrar/settings/grading")
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                        : "text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-900"
+                    }`}
+                    onClick={() =>
+                      window.innerWidth <= 1024 && setSidebarOpen(false)
+                    }
+                  >
+                    Grading System
                   </Link>
                   <Link
                     to="/registrar/settings/attritions"

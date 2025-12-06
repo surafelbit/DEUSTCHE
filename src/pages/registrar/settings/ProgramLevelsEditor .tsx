@@ -6,44 +6,44 @@ import {
   FaList,
   FaTh,
   FaSpinner,
+  FaCheckCircle,
 } from "react-icons/fa";
 import apiService from "@/components/api/apiService";
 import endPoints from "@/components/api/endPoints";
 
-type ProgramModality = {
-  modalityCode: string;
-  modality: string;
-  programLevelCode: string;
+type ProgramLevel = {
+  code: string;
+  name: string;
+  remark: string;
+  active: boolean;
 };
 
-const AVAILABLE_PROGRAM_LEVELS = [
-  { code: "DEG", name: "Degree" },
-  { code: "DIP", name: "Diploma" },
-  { code: "MSC", name: "Masters" },
-];
-
-const ProgramModalitiesEditor = () => {
-  const [modalities, setModalities] = useState<ProgramModality[]>([]);
+const ProgramLevelsEditor = () => {
+  const [programLevels, setProgramLevels] = useState<ProgramLevel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch modalities on mount
+  // Fetch program levels on mount
+  const fetchProgramLevels = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiService.get(endPoints.programLevels);
+      console.log("API Response:", response);
+      setProgramLevels(response);
+    } catch (err: any) {
+      console.error("Failed to fetch program levels:", err);
+      setError(
+        err.response?.data?.error ||
+          "Failed to load program levels. Please try again later."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchModalities = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await apiService.get(endPoints.programModality);
-        console.log("API Response:", response);
-        setModalities(response);
-      } catch (err: any) {
-        console.error("Failed to fetch program modalities:", err);
-        setError("Failed to load program modalities. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchModalities();
+    fetchProgramLevels();
   }, []);
 
   if (loading) {
@@ -61,8 +61,8 @@ const ProgramModalitiesEditor = () => {
         <h2 className="text-2xl font-bold mb-4">Error</h2>
         <p>{error}</p>
         <button
-          onClick={() => window.location.reload()}
-          className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          onClick={fetchProgramLevels}
+          className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
         >
           Retry
         </button>
@@ -73,19 +73,29 @@ const ProgramModalitiesEditor = () => {
   return (
     <div className="min-h-screen p-6 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       <header className="mb-10">
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          DHFM Program Modalities Editor
-        </h1>
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
+          <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            DHFM Program Levels Editor
+          </h1>
+          <button
+            onClick={fetchProgramLevels}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+          >
+            <FaCheckCircle />
+            Refresh
+          </button>
+        </div>
         <p className="text-lg mt-2 text-gray-600 dark:text-gray-400">
-          ({modalities.length} program modalities)
+          ({programLevels.length} program levels)
         </p>
       </header>
       <main>
         <CrudSection
-          title="Program Modalities"
-          data={modalities}
-          setData={setModalities}
-          programLevels={AVAILABLE_PROGRAM_LEVELS}
+          title="Program Levels"
+          data={programLevels}
+          setData={setProgramLevels}
+          refetch={fetchProgramLevels}
         />
       </main>
     </div>
@@ -96,19 +106,20 @@ const CrudSection = ({
   title,
   data,
   setData,
-  programLevels,
+  refetch,
 }: {
   title: string;
-  data: ProgramModality[];
-  setData: React.Dispatch<React.SetStateAction<ProgramModality[]>>;
-  programLevels: { code: string; name: string }[];
+  data: ProgramLevel[];
+  setData: React.Dispatch<React.SetStateAction<ProgramLevel[]>>;
+  refetch: () => Promise<void>;
 }) => {
   const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState<ProgramModality | null>(null);
+  const [editingItem, setEditingItem] = useState<ProgramLevel | null>(null);
   const [formData, setFormData] = useState({
-    modalityCode: "",
-    modality: "",
-    programLevelCode: "",
+    code: "",
+    name: "",
+    remark: "",
+    active: true,
   });
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -120,9 +131,10 @@ const CrudSection = ({
 
   const filteredData = data.filter(
     (item) =>
-      item.modalityCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.modality.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.programLevelCode.toLowerCase().includes(searchTerm.toLowerCase())
+      item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.remark.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${item.active}`.includes(searchTerm)
   );
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -139,18 +151,33 @@ const CrudSection = ({
     }
   }, [filteredData.length, currentPage, totalPages, showAll]);
 
-  const handleOpenModal = (item: ProgramModality | null = null) => {
-    if (item && !window.confirm(`Edit modality "${item.modality}"?`)) return;
-    setEditingItem(item);
-    setFormData(
-      item
-        ? {
-            modalityCode: item.modalityCode,
-            modality: item.modality,
-            programLevelCode: item.programLevelCode,
-          }
-        : { modalityCode: "", modality: "", programLevelCode: "" }
-    );
+  const handleOpenModal = async (item: ProgramLevel | null = null) => {
+    if (item && !window.confirm(`Edit program level "${item.name}"?`)) return;
+
+    if (item) {
+      try {
+        // Fetch latest data for editing
+        const response = await apiService.get(
+          `${endPoints.programLevels}/${item.code}`
+        );
+        setEditingItem(response);
+        setFormData({
+          code: response.code,
+          name: response.name,
+          remark: response.remark || "",
+          active: response.active !== undefined ? response.active : true,
+        });
+      } catch (err: any) {
+        setFormError(
+          err.response?.data?.error ||
+            "Failed to load program level for editing."
+        );
+        return;
+      }
+    } else {
+      setEditingItem(null);
+      setFormData({ code: "", name: "", remark: "", active: true });
+    }
     setFormError("");
     setShowModal(true);
   };
@@ -158,44 +185,39 @@ const CrudSection = ({
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingItem(null);
-    setFormData({ modalityCode: "", modality: "", programLevelCode: "" });
+    setFormData({ code: "", name: "", remark: "", active: true });
     setFormError("");
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target as any;
+    if (name === "active") {
+      setFormData((prev) => ({ ...prev, [name]: value === "true" }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const validateForm = () => {
-    if (
-      !formData.modalityCode.trim() ||
-      !formData.modality.trim() ||
-      !formData.programLevelCode.trim()
-    ) {
-      setFormError(
-        "Modality Code, Modality name, and Program Level are all required."
-      );
+    if (!formData.code.trim() || !formData.name.trim()) {
+      setFormError("Code and Name are required.");
+      return false;
+    }
+    if (formData.code.length > 10) {
+      setFormError("Code must be 10 characters or less.");
       return false;
     }
     const existing = data.find(
       (d) =>
-        d.modalityCode === formData.modalityCode &&
-        (!editingItem || d.modalityCode !== editingItem.modalityCode)
+        d.code === formData.code &&
+        (!editingItem || d.code !== editingItem.code)
     );
     if (existing) {
-      setFormError("Modality Code must be unique.");
-      return false;
-    }
-    if (
-      !programLevels.some(
-        (pl) =>
-          pl.code.toLowerCase() === formData.programLevelCode.toLowerCase()
-      )
-    ) {
-      setFormError("Selected Program level is invalid or inactive.");
+      setFormError("Code must be unique.");
       return false;
     }
     return true;
@@ -209,53 +231,69 @@ const CrudSection = ({
 
     try {
       if (editingItem) {
-        // ✅ FIXED: UPDATE - Use endPoints consistently
-        if (!window.confirm(`Update modality "${editingItem.modality}"?`))
+        // Update existing
+        if (!window.confirm(`Update program level "${editingItem.name}"?`))
           return;
-        await apiService.put(
-          `${endPoints.programModality}/${editingItem.modalityCode}`,
-          formData
+
+        const updateData = {
+          name: formData.name,
+          remark: formData.remark,
+          active: formData.active,
+        };
+
+        const response = await apiService.put(
+          `${endPoints.programLevels}/${editingItem.code}`,
+          updateData
+        );
+
+        setData((prev) =>
+          prev.map((item) => (item.code === editingItem.code ? response : item))
         );
       } else {
-        // ✅ FIXED: POST - Use endPoints.programModality
-        if (!window.confirm(`Add modality "${formData.modality}"?`)) return;
-        console.log("POST Payload:", formData); // ✅ Debug log
-        await apiService.post(endPoints.programModality, formData);
+        // Create new
+        if (!window.confirm(`Add program level "${formData.name}"?`)) return;
+
+        const createData = {
+          code: formData.code,
+          name: formData.name,
+          remark: formData.remark,
+        };
+
+        const response = await apiService.post(
+          endPoints.programLevels,
+          createData
+        );
+
+        setData((prev) => [...prev, { ...response, active: true }]);
       }
 
-      // ✅ FIXED: Refresh with endPoints
-      const response = await apiService.get(endPoints.programModality);
-      setData(response);
       handleCloseModal();
+      refetch(); // Refresh from server
     } catch (err: any) {
       console.error("Submit error:", err);
-      console.error("Error response:", err.response?.data); // ✅ Debug log
       setFormError(
-        err.response?.data?.error || "Failed to save program modality."
+        err.response?.data?.error || "Failed to save program level."
       );
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (modalityCode: string) => {
-    const modalityName = data.find(
-      (d) => d.modalityCode === modalityCode
-    )?.modality;
+  const handleDelete = async (code: string) => {
+    const programLevelName = data.find((d) => d.code === code)?.name;
     if (
       !window.confirm(
-        `Are you sure you want to delete modality "${modalityName}"? This action cannot be undone.`
+        `Are you sure you want to delete program level "${programLevelName}"? This action cannot be undone.`
       )
     )
       return;
 
     try {
-      await apiService.delete(`${endPoints.programModality}/${modalityCode}`);
-      const response = await apiService.get(endPoints.programModality);
-      setData(response);
+      await apiService.delete(`${endPoints.programLevels}/${code}`);
+      setData((prev) => prev.filter((d) => d.code !== code));
     } catch (err: any) {
       console.error("Delete error:", err);
-      alert(err.response?.data?.error || "Failed to delete program modality.");
+      alert(err.response?.data?.error || "Failed to delete program level.");
     }
   };
 
@@ -269,9 +307,10 @@ const CrudSection = ({
         <div className="flex gap-3 flex-wrap">
           <button
             onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-5 py-2 rounded-full font-semibold bg-blue-500 hover:bg-blue-600 text-white shadow-md transition-transform duration-200 transform hover:scale-105"
+            disabled={saving}
+            className="flex items-center gap-2 px-5 py-2 rounded-full font-semibold bg-blue-500 hover:bg-blue-600 text-white shadow-md transition-transform duration-200 transform hover:scale-105 disabled:opacity-50"
           >
-            <FaPlus /> Add Modality
+            <FaPlus /> Add Level
           </button>
           <button
             onClick={() => setShowAll(!showAll)}
@@ -292,7 +331,7 @@ const CrudSection = ({
       {/* Search */}
       <input
         type="text"
-        placeholder="Search modalities by code, name, or level"
+        placeholder="Search by code, name, remark, or status..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         className="w-full p-4 mb-6 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700"
@@ -305,13 +344,16 @@ const CrudSection = ({
             <thead className="bg-gray-100 dark:bg-gray-700">
               <tr>
                 <th className="p-4 text-left font-semibold text-gray-900 dark:text-gray-100">
-                  Modality Code
+                  Code
                 </th>
                 <th className="p-4 text-left font-semibold text-gray-900 dark:text-gray-100">
-                  Modality Name
+                  Name
                 </th>
                 <th className="p-4 text-left font-semibold text-gray-900 dark:text-gray-100">
-                  Program Level
+                  Remark
+                </th>
+                <th className="p-4 text-center font-semibold text-gray-900 dark:text-gray-100">
+                  Status
                 </th>
                 <th className="p-4 text-right font-semibold text-gray-900 dark:text-gray-100">
                   Actions
@@ -321,14 +363,25 @@ const CrudSection = ({
             <tbody>
               {paginatedData.map((item) => (
                 <tr
-                  key={item.modalityCode}
+                  key={item.code}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700 border-b transition-colors duration-200"
                 >
                   <td className="p-4 font-mono bg-gray-100 dark:bg-gray-800">
-                    {item.modalityCode}
+                    {item.code}
                   </td>
-                  <td className="p-4">{item.modality}</td>
-                  <td className="p-4">{item.programLevelCode}</td>
+                  <td className="p-4 font-medium">{item.name}</td>
+                  <td className="p-4 text-sm">{item.remark}</td>
+                  <td className="p-4 text-center">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        item.active
+                          ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200"
+                          : "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200"
+                      }`}
+                    >
+                      {item.active ? "Active" : "Inactive"}
+                    </span>
+                  </td>
                   <td className="p-4 text-right">
                     <div className="flex justify-end gap-2">
                       <button
@@ -339,7 +392,7 @@ const CrudSection = ({
                         <FaEdit />
                       </button>
                       <button
-                        onClick={() => handleDelete(item.modalityCode)}
+                        onClick={() => handleDelete(item.code)}
                         className="p-2 rounded-lg text-red-600 hover:bg-red-100 dark:hover:bg-red-900 transition-all"
                         title="Delete"
                       >
@@ -356,14 +409,27 @@ const CrudSection = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {paginatedData.map((item) => (
             <div
-              key={item.modalityCode}
-              className="p-5 rounded-lg shadow-md bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition transform hover:scale-105"
+              key={item.code}
+              className={`p-5 rounded-lg shadow-md transition transform hover:scale-105 ${
+                item.active
+                  ? "bg-green-50 dark:bg-green-900/30 border-2 border-green-200 dark:border-green-600"
+                  : "bg-gray-100 dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600"
+              }`}
             >
-              <h3 className="font-bold text-lg">{item.modalityCode}</h3>
-              <p className="mb-1">{item.modality}</p>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                Level: {item.programLevelCode}
+              <h3 className="font-bold text-lg font-mono">{item.code}</h3>
+              <p className="mb-1 font-semibold">{item.name}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                {item.remark}
               </p>
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                  item.active
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200"
+                    : "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200"
+                }`}
+              >
+                {item.active ? "Active" : "Inactive"}
+              </span>
               <div className="flex justify-end gap-3 mt-3">
                 <button
                   onClick={() => handleOpenModal(item)}
@@ -372,7 +438,7 @@ const CrudSection = ({
                   <FaEdit />
                 </button>
                 <button
-                  onClick={() => handleDelete(item.modalityCode)}
+                  onClick={() => handleDelete(item.code)}
                   className="p-2 rounded-full text-red-500 hover:bg-red-600/50 dark:hover:bg-red-800/50 transition transform hover:scale-110"
                 >
                   <FaTrash />
@@ -413,7 +479,7 @@ const CrudSection = ({
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <h3 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              {editingItem ? "Edit" : "Add"} Program Modality
+              {editingItem ? "Edit" : "Add"} Program Level
             </h3>
             {formError && (
               <div className="p-4 mb-6 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300">
@@ -429,36 +495,42 @@ const CrudSection = ({
 
             <input
               type="text"
-              name="modalityCode"
-              value={formData.modalityCode}
+              name="code"
+              value={formData.code}
               onChange={handleChange}
-              placeholder="Modality Code (e.g. REG-DEG)"
+              placeholder="Code (e.g. DEG)"
               disabled={!!editingItem || saving}
-              className="w-full mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              className="w-full mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 font-mono"
             />
             <input
               type="text"
-              name="modality"
-              value={formData.modality}
+              name="name"
+              value={formData.name}
               onChange={handleChange}
-              placeholder="Modality Name (e.g. Regular)"
+              placeholder="Name (e.g. Bachelor's Degree)"
               disabled={saving}
               className="w-full mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             />
-            <select
-              name="programLevelCode"
-              value={formData.programLevelCode}
+            <textarea
+              name="remark"
+              value={formData.remark}
               onChange={handleChange}
+              placeholder="Remark (optional)"
               disabled={saving}
-              className="w-full mb-6 p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              <option value="">Select Program Level</option>
-              {programLevels.map((pl) => (
-                <option key={pl.code} value={pl.code}>
-                  {pl.name} ({pl.code})
-                </option>
-              ))}
-            </select>
+              rows={3}
+              className="w-full mb-4 p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-vertical"
+            />
+            <label className="flex items-center gap-3 mb-6 p-4 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700">
+              <input
+                type="checkbox"
+                name="active"
+                checked={formData.active}
+                onChange={handleChange}
+                disabled={saving}
+                className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium">Active</span>
+            </label>
 
             <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700">
               <button
@@ -492,4 +564,4 @@ const CrudSection = ({
   );
 };
 
-export default ProgramModalitiesEditor;
+export default ProgramLevelsEditor;
