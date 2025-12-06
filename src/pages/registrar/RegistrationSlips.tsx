@@ -57,6 +57,8 @@ interface Course {
   creditHours: number;
   lectureHours: number;
   labHours: number;
+  departmentId: number;
+  classYearId: number;
 }
 
 interface RegistrationCourse {
@@ -94,10 +96,54 @@ interface ApiStudent {
   programLevelName: string;
 }
 
+interface Bcys {
+  bcysId: number;
+  batchId: number;
+  classYearId: number;
+  semesterId: string;
+  entryYearId: number | null;
+  classStartGC: string | null;
+  classStartEC: string | null;
+  classEndGC: string | null;
+  classEndEC: string | null;
+  gradingSystemId: number;
+  name: string;
+}
+
+interface ApiCourse {
+  theoryHrs: number;
+  labHrs: number;
+  category: {
+    catID: number;
+    catName: string;
+  };
+  department: {
+    dptID: number;
+    deptName: string;
+    totalCrHr: number | null;
+    departmentCode: string;
+    programModality: string | null;
+    programLevel: string | null;
+  };
+  prerequisites: any[];
+  classYear: {
+    id: number;
+    classYear: string;
+  };
+  semester: {
+    academicPeriodCode: string;
+    academicPeriod: string;
+  };
+  ccode: string;
+  cid: number;
+  ctitle: string;
+}
+
 export default function RegistrationSlips() {
   // States
   const [students, setStudents] = useState<Student[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -107,8 +153,7 @@ export default function RegistrationSlips() {
   
   // Form states
   const [dateOfRegistration, setDateOfRegistration] = useState(new Date().toISOString().split('T')[0]);
-  const [academicYear, setAcademicYear] = useState("2024/2025");
-  const [enrollmentType, setEnrollmentType] = useState("Regular");
+  const [batchClassYear, setBatchClassYear] = useState("");
   const [paymentReceiptNo, setPaymentReceiptNo] = useState("");
   
   // Filter states
@@ -134,56 +179,59 @@ export default function RegistrationSlips() {
     programModalityId: ""
   });
   
+  const [bcysList, setBcysList] = useState<Bcys[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Initialize with sample courses similar to the image
-  const sampleCourses: RegistrationCourse[] = [
-    { id: 106, courseCode: "PNYSD 4221", courseTitle: "Physical Diagnosis & Clinical Skill", lectureHours: 2, labHours: 3, totalHours: 5 },
-    { id: 107, courseCode: "CLAS 4222", courseTitle: "Clinical Laboratory Methods", lectureHours: 2, labHours: 1, totalHours: 3 },
-    { id: 108, courseCode: "INTMED 4232", courseTitle: "Internal Medicine_1", lectureHours: 8, labHours: 3, totalHours: 11 },
-    { id: 109, courseCode: "SURG 4241", courseTitle: "General Surgery_1", lectureHours: 8, labHours: 3, totalHours: 11 },
-    { id: 110, courseCode: "OBGYN 4251", courseTitle: "Obstetrics/Gynaecology_1", lectureHours: 8, labHours: 3, totalHours: 11 },
-    { id: 111, courseCode: "PAED 4261", courseTitle: "Pediatrics_1", lectureHours: 8, labHours: 3, totalHours: 11 },
-  ];
+  const [coursesLoading, setCoursesLoading] = useState(false);
 
   useEffect(() => {
-    // Initialize with sample courses
-    setRegistrationCourses(sampleCourses);
+    // Initialize payment receipt number
+    setPaymentReceiptNo("");
     
-    // Fetch students and filter data
+    // Fetch students, filter data, BCYS, and all courses
     fetchStudents();
     fetchFilterData();
-    fetchCourses();
-    
-    // Initialize payment receipt number
-    setPaymentReceiptNo(`PAY-${Date.now().toString().slice(-6)}`);
+    fetchBcysList();
+    fetchAllCourses();
   }, []);
+
+  useEffect(() => {
+    // When filters change, update filtered courses
+    updateFilteredCourses();
+  }, [filters, allCourses, batchClassYear]);
 
   const fetchStudents = async () => {
     try {
       setLoading(true);
       const response = await apiService.get(endPoints.studentsSlip);
       
+      // Check if response is an array
+      if (!Array.isArray(response)) {
+        console.error("Students API did not return an array:", response);
+        toast.error("Invalid students data received");
+        setLoading(false);
+        return;
+      }
+      
       // Transform API response to match our Student interface
       const transformedStudents: Student[] = response.map((student: ApiStudent) => ({
-        studentId: student.studentId,
-        username: student.username,
-        fullNameAMH: student.fullNameAMH,
-        fullNameENG: student.fullNameENG,
-        bcysId: student.bcysId,
-        bcysDisplayName: student.bcysDisplayName,
-        departmentId: student.departmentId,
-        departmentName: student.departmentName,
-        programModalityCode: student.programModalityCode,
-        programModalityName: student.programModalityName,
-        programLevelCode: student.programLevelCode,
-        programLevelName: student.programLevelName,
+        studentId: student.studentId || 0,
+        username: student.username || "",
+        fullNameAMH: student.fullNameAMH || "",
+        fullNameENG: student.fullNameENG || "",
+        bcysId: student.bcysId || 0,
+        bcysDisplayName: student.bcysDisplayName || "",
+        departmentId: student.departmentId || 0,
+        departmentName: student.departmentName || "",
+        programModalityCode: student.programModalityCode || "",
+        programModalityName: student.programModalityName || "",
+        programLevelCode: student.programLevelCode || "",
+        programLevelName: student.programLevelName || "",
         age: 22, // Default value - you might want to calculate this from DOB
         sex: "Male", // Default value - update with actual data if available
-        batch: student.bcysDisplayName?.split('-')[0] || "2024",
-        yearOfStudy: `Year ${student.bcysDisplayName?.split('-')[1] || "1"}`,
-        semester: student.bcysDisplayName?.split('-')[2] === "1" ? "Semester 1" : "Semester 2"
+        batch: student.bcysDisplayName?.split?.('-')?.[0] || "2024",
+        yearOfStudy: `Year ${student.bcysDisplayName?.split?.('-')?.[1] || "1"}`,
+        semester: student.bcysDisplayName?.split?.('-')?.[2] === "1" ? "Semester 1" : "Semester 2"
       }));
       
       setStudents(transformedStudents);
@@ -199,67 +247,81 @@ export default function RegistrationSlips() {
   const fetchFilterData = async () => {
     try {
       const response = await apiService.get(endPoints.lookupsDropdown);
-      setFilterData(response);
+      if (response) {
+        setFilterData(response);
+      }
     } catch (error) {
       console.error("Error fetching filter data:", error);
-      // Set default filter data
-      setFilterData({
-        departments: [
-          { id: 1, name: "Nursing" },
-          { id: 2, name: "Medicine" },
-          { id: 3, name: "Computer Science" }
-        ],
-        batches: [
-          { id: 1, name: "2024" },
-          { id: 2, name: "2023" },
-          { id: 3, name: "2022" }
-        ],
-        enrollmentTypes: [
-          { id: "CN", name: "Continuing" },
-          { id: "NW", name: "New Student" },
-          { id: "TR", name: "Transfer" }
-        ],
-        classYears: [
-          { id: 1, name: "1" },
-          { id: 2, name: "2" },
-          { id: 3, name: "3" }
-        ],
-        semesters: [
-          { id: "S1", name: "First Semester" },
-          { id: "S2", name: "Second Semester" }
-        ],
-        academicYears: [
-          { id: "202425", name: "2024/2025" },
-          { id: "202324", name: "2023/2024" }
-        ],
-        programLevels: [
-          { id: "DEG", name: "Bachelor's Degree" },
-          { id: "BCH", name: "Bachelor's Degree" }
-        ],
-        programModalities: [
-          { id: "RG", name: "Regular" },
-          { id: "Ex", name: "Extension" }
-        ]
-      });
     }
   };
 
-  const fetchCourses = async () => {
+  const fetchBcysList = async () => {
     try {
+      const response = await apiService.get(endPoints.batchClassSemsterYear);
+      if (Array.isArray(response)) {
+        setBcysList(response);
+      }
+    } catch (error) {
+      console.error("Error fetching BCYS list:", error);
+    }
+  };
+
+  const fetchAllCourses = async () => {
+    try {
+      setCoursesLoading(true);
       const response = await apiService.get(endPoints.allCourses);
-      setCourses(response);
+      
+      // Check if response is an array
+      if (!Array.isArray(response)) {
+        console.error("Courses API did not return an array:", response);
+        toast.error("Invalid courses data received");
+        setCoursesLoading(false);
+        return;
+      }
+      
+      // Transform the API response to match our Course interface
+      const transformedCourses: Course[] = response.map((apiCourse: ApiCourse) => ({
+        id: apiCourse.cid || 0,
+        courseCode: apiCourse.ccode || "",
+        courseTitle: apiCourse.ctitle || "",
+        creditHours: (apiCourse.theoryHrs || 0) + (apiCourse.labHrs || 0),
+        lectureHours: apiCourse.theoryHrs || 0,
+        labHours: apiCourse.labHrs || 0,
+        departmentId: apiCourse.department?.dptID || 0,
+        classYearId: apiCourse.classYear?.id || 0
+      }));
+      
+      setAllCourses(transformedCourses);
+      setFilteredCourses(transformedCourses);
+      setCoursesLoading(false);
     } catch (error) {
       console.error("Error fetching courses:", error);
-      // Sample courses for demo
-      const sampleCoursesData: Course[] = [
-        { id: 1, courseCode: "MED101", courseTitle: "Anatomy", creditHours: 4, lectureHours: 3, labHours: 1 },
-        { id: 2, courseCode: "MED102", courseTitle: "Physiology", creditHours: 3, lectureHours: 2, labHours: 1 },
-        { id: 3, courseCode: "MED103", courseTitle: "Biochemistry", creditHours: 3, lectureHours: 3, labHours: 0 },
-        { id: 4, courseCode: "MED104", courseTitle: "Pharmacology", creditHours: 4, lectureHours: 3, labHours: 1 },
-        { id: 5, courseCode: "MED105", courseTitle: "Pathology", creditHours: 4, lectureHours: 3, labHours: 1 },
-      ];
-      setCourses(sampleCoursesData);
+      setCoursesLoading(false);
+      toast.error("Failed to fetch courses");
     }
+  };
+
+  const updateFilteredCourses = () => {
+    let filtered = [...allCourses];
+
+    // Filter by department if selected
+    if (filters.departmentId) {
+      filtered = filtered.filter(course => 
+        course.departmentId.toString() === filters.departmentId
+      );
+    }
+
+    // Filter by class year if selected - only if batchClassYear is set
+    if (filters.classYearId && batchClassYear) {
+      const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+      if (selectedBcys) {
+        filtered = filtered.filter(course => 
+          course.classYearId === selectedBcys.classYearId
+        );
+      }
+    }
+
+    setFilteredCourses(filtered);
   };
 
   const handleSearch = (query: string) => {
@@ -271,6 +333,7 @@ export default function RegistrationSlips() {
     const newFilters = { ...filters, [filterName]: value };
     setFilters(newFilters);
     applyFiltersAndSearch(searchQuery, newFilters);
+    updateFilteredCourses();
   };
 
   const applyFiltersAndSearch = (searchQuery: string = "", currentFilters = filters) => {
@@ -350,7 +413,7 @@ export default function RegistrationSlips() {
 
   const handleSelectStudent = (student: Student) => {
     setSelectedStudent(student);
-    setPaymentReceiptNo(`PAY-${student.studentId}-${Date.now().toString().slice(-6)}`);
+    setPaymentReceiptNo(""); // Clear payment receipt when selecting new student
     
     // Update selected students array
     const isSelected = selectedStudents.some(s => s.studentId === student.studentId);
@@ -373,7 +436,7 @@ export default function RegistrationSlips() {
   const handleSelectSingleStudent = (student: Student) => {
     setSelectedStudent(student);
     setSelectedStudents([student]);
-    setPaymentReceiptNo(`PAY-${student.studentId}-${Date.now().toString().slice(-6)}`);
+    setPaymentReceiptNo(""); // Clear payment receipt
   };
 
   const isStudentSelected = (studentId: number) => {
@@ -386,7 +449,7 @@ export default function RegistrationSlips() {
       return;
     }
 
-    const course = courses.find(c => c.courseCode === selectedCourse);
+    const course = filteredCourses.find(c => c.courseCode === selectedCourse);
     if (course) {
       const newCourse: RegistrationCourse = {
         id: Date.now(),
@@ -428,6 +491,8 @@ export default function RegistrationSlips() {
     setSearchQuery("");
     setFilteredStudents(students);
     setSelectAll(false);
+    // Reset filtered courses to show all courses
+    setFilteredCourses(allCourses);
   };
 
   const generatePDF = async () => {
@@ -524,8 +589,10 @@ export default function RegistrationSlips() {
     doc.text(idLine, left, curY + 6);
     curY += 10;
 
-    // Payment / Academic / Enrollment on one line
-    const payLine = `Payment Receipt No.: ${paymentReceiptNo}    Academic Year: ${academicYear}    Enrollment Type: ${enrollmentType}`;
+    // Payment / Batch Class Year / Enrollment on one line
+    const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+    const bcysName = selectedBcys ? selectedBcys.name : "________________";
+    const payLine = `Payment Receipt No.: ${paymentReceiptNo || "________________"}    Batch Class Year: ${bcysName}    Enrollment Type: ${studentToGenerate.programModalityName || "Regular"}`;
     doc.text(payLine, left, curY + 2);
 
     // Course registration table
@@ -537,7 +604,7 @@ export default function RegistrationSlips() {
     const tableStartY = Math.max(95, introTextY + 6);
 
     const tableData = registrationCourses.map((course, index) => [
-      (106 + index).toString(),
+      (index + 1).toString(),
       course.courseCode,
       course.courseTitle,
       course.lectureHours.toString(),
@@ -615,6 +682,8 @@ export default function RegistrationSlips() {
 
     const studentToGenerate = selectedStudent || selectedStudents[0];
     const { lectureTotal, labTotal, total } = calculateTotals();
+    const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+    const bcysName = selectedBcys ? selectedBcys.name : "________________";
     
     // Create workbook
     const wb = XLSX.utils.book_new();
@@ -629,7 +698,7 @@ export default function RegistrationSlips() {
       [`Full Name of Student: ${studentToGenerate.fullNameENG}`, `Date of Registration: ${dateOfRegistration}`],
       [`Department: ${studentToGenerate.departmentName}, Year Of Study: ${studentToGenerate.yearOfStudy}, Semester: Year Based`],
       [`ID No.: ${studentToGenerate.studentId}`, `Age: ${studentToGenerate.age}`, `Sex: ${studentToGenerate.sex}`],
-      [`Payment Receipt No.: ${paymentReceiptNo}`, `Academic Year: ${academicYear}`, `Enrollment Type: ${enrollmentType}`],
+      [`Payment Receipt No.: ${paymentReceiptNo || "________________"}`, `Batch Class Year: ${bcysName}`, `Enrollment Type: ${studentToGenerate.programModalityName || "Regular"}`],
       [],
       ["I am applying to be registered for the following courses."],
       [],
@@ -639,7 +708,7 @@ export default function RegistrationSlips() {
     // Add course rows
     registrationCourses.forEach((course, index) => {
       slipData.push([
-        (106 + index).toString(),
+        (index + 1).toString(),
         course.courseCode,
         course.courseTitle,
         course.lectureHours.toString(),
@@ -691,6 +760,8 @@ export default function RegistrationSlips() {
     }
     
     const studentToPrint = selectedStudent || selectedStudents[0];
+    const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+    const bcysName = selectedBcys ? selectedBcys.name : "________________";
     
     // Create HTML for printing
     const printContent = document.getElementById('slip-preview')?.innerHTML;
@@ -1033,66 +1104,29 @@ export default function RegistrationSlips() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="date">Date of Registration</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={dateOfRegistration}
-                  onChange={(e) => setDateOfRegistration(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="academic-year">Academic Year</Label>
-                <Select value={academicYear} onValueChange={setAcademicYear}>
+                <Label htmlFor="batch-class-year">Batch Class Year</Label>
+                <Select value={batchClassYear} onValueChange={setBatchClassYear}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select Batch Class Year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {filterData.academicYears?.map((year) => (
-                      <SelectItem key={year.id} value={year.name}>
-                        {year.name}
+                    {bcysList.map((bcys) => (
+                      <SelectItem key={bcys.bcysId} value={bcys.bcysId.toString()}>
+                        {bcys.name}
                       </SelectItem>
-                    )) || (
-                      <>
-                        <SelectItem value="2024/2025">2024/2025</SelectItem>
-                        <SelectItem value="2023/2024">2023/2024</SelectItem>
-                        <SelectItem value="2022/2023">2022/2023</SelectItem>
-                      </>
-                    )}
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+              
               <div className="space-y-2">
-                <Label htmlFor="enrollment">Enrollment Type</Label>
-                <Select value={enrollmentType} onValueChange={setEnrollmentType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterData.enrollmentTypes?.map((type) => (
-                      <SelectItem key={type.id} value={type.name}>
-                        {type.name}
-                      </SelectItem>
-                    )) || (
-                      <>
-                        <SelectItem value="Regular">Regular</SelectItem>
-                        <SelectItem value="Extension">Extension</SelectItem>
-                        <SelectItem value="Distance">Distance</SelectItem>
-                      </>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="receipt">Payment Receipt No.</Label>
+                <Label htmlFor="payment-receipt">Payment Receipt No.</Label>
                 <Input
-                  id="receipt"
+                  id="payment-receipt"
+                  type="text"
+                  placeholder="Enter payment receipt number"
                   value={paymentReceiptNo}
                   onChange={(e) => setPaymentReceiptNo(e.target.value)}
-                  placeholder="Auto-generated"
                 />
               </div>
             </div>
@@ -1100,23 +1134,38 @@ export default function RegistrationSlips() {
             <div className="space-y-2">
               <Label htmlFor="course">Add Course</Label>
               <div className="flex gap-2">
-                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+                <Select 
+                  value={selectedCourse} 
+                  onValueChange={setSelectedCourse}
+                  disabled={coursesLoading}
+                >
                   <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select a course" />
+                    <SelectValue placeholder={coursesLoading ? "Loading courses..." : "Select a course"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {courses.map((course) => (
-                      <SelectItem key={course.id} value={course.courseCode}>
-                        {course.courseCode} - {course.courseTitle}
-                      </SelectItem>
-                    ))}
+                    {filteredCourses.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-gray-500">
+                        No courses found for selected filters
+                      </div>
+                    ) : (
+                      filteredCourses.map((course) => (
+                        <SelectItem key={course.id} value={course.courseCode}>
+                          {course.courseCode} - {course.courseTitle}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
-                <Button onClick={handleAddCourse} disabled={!selectedCourse}>
+                <Button onClick={handleAddCourse} disabled={!selectedCourse || coursesLoading || filteredCourses.length === 0}>
                   <Plus className="h-4 w-4" />
                   Add
                 </Button>
               </div>
+              {filteredCourses.length === 0 && !coursesLoading && (
+                <p className="text-xs text-gray-500">
+                  No courses available. Try adjusting your department or class year filters.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1139,25 +1188,33 @@ export default function RegistrationSlips() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {registrationCourses.map((course) => (
-                      <TableRow key={course.id}>
-                        <TableCell className="font-medium text-xs">{course.courseCode}</TableCell>
-                        <TableCell className="text-xs">{course.courseTitle}</TableCell>
-                        <TableCell className="text-xs">{course.lectureHours}</TableCell>
-                        <TableCell className="text-xs">{course.labHours}</TableCell>
-                        <TableCell className="text-xs">{course.totalHours}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveCourse(course.id)}
-                            className="h-7 w-7 p-0"
-                          >
-                            <Trash2 className="h-3 w-3 text-red-500" />
-                          </Button>
+                    {registrationCourses.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-gray-500 py-4">
+                          No courses added yet. Select courses from the dropdown above.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      registrationCourses.map((course) => (
+                        <TableRow key={course.id}>
+                          <TableCell className="font-medium text-xs">{course.courseCode}</TableCell>
+                          <TableCell className="text-xs">{course.courseTitle}</TableCell>
+                          <TableCell className="text-xs">{course.lectureHours}</TableCell>
+                          <TableCell className="text-xs">{course.labHours}</TableCell>
+                          <TableCell className="text-xs">{course.totalHours}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveCourse(course.id)}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Trash2 className="h-3 w-3 text-red-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -1227,9 +1284,9 @@ export default function RegistrationSlips() {
                 <div><strong>Sex:</strong> {(selectedStudent || selectedStudents[0])?.sex || "___"}</div>
               </div>
               <div className="grid grid-cols-3 gap-4">
-                <div><strong>Payment Receipt No.:</strong> {paymentReceiptNo || "______"}</div>
-                <div><strong>Academic Year:</strong> {academicYear}</div>
-                <div><strong>Enrollment Type:</strong> {enrollmentType}</div>
+                <div><strong>Payment Receipt No.:</strong> {paymentReceiptNo || "________________"}</div>
+                <div><strong>Batch Class Year:</strong> {bcysList.find(b => b.bcysId.toString() === batchClassYear)?.name || "________________"}</div>
+                <div><strong>Enrollment Type:</strong> {(selectedStudent || selectedStudents[0])?.programModalityName || "Regular"}</div>
               </div>
             </div>
 
@@ -1249,23 +1306,31 @@ export default function RegistrationSlips() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {registrationCourses.map((course, index) => (
-                      <TableRow key={course.id}>
-                        <TableCell>{106 + index}</TableCell>
-                        <TableCell>{course.courseCode}</TableCell>
-                        <TableCell>{course.courseTitle}</TableCell>
-                        <TableCell>{course.lectureHours}</TableCell>
-                        <TableCell>{course.labHours}</TableCell>
-                        <TableCell>{course.totalHours}</TableCell>
+                    {registrationCourses.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-gray-500 py-4">
+                          No courses added yet
+                        </TableCell>
                       </TableRow>
-                    ))}
-                    {registrationCourses.length > 0 && (
-                      <TableRow className="font-bold bg-gray-100 dark:bg-gray-700">
-                        <TableCell colSpan={3}>Total</TableCell>
-                        <TableCell>{calculateTotals().lectureTotal}</TableCell>
-                        <TableCell>{calculateTotals().labTotal}</TableCell>
-                        <TableCell>{calculateTotals().total}</TableCell>
-                      </TableRow>
+                    ) : (
+                      <>
+                        {registrationCourses.map((course, index) => (
+                          <TableRow key={course.id}>
+                            <TableCell>{index + 1}</TableCell>
+                            <TableCell>{course.courseCode}</TableCell>
+                            <TableCell>{course.courseTitle}</TableCell>
+                            <TableCell>{course.lectureHours}</TableCell>
+                            <TableCell>{course.labHours}</TableCell>
+                            <TableCell>{course.totalHours}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="font-bold bg-gray-100 dark:bg-gray-700">
+                          <TableCell colSpan={3}>Total</TableCell>
+                          <TableCell>{calculateTotals().lectureTotal}</TableCell>
+                          <TableCell>{calculateTotals().labTotal}</TableCell>
+                          <TableCell>{calculateTotals().total}</TableCell>
+                        </TableRow>
+                      </>
                     )}
                   </TableBody>
                 </Table>
