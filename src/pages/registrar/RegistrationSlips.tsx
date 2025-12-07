@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Search, Download, Printer, FileText, User, Calendar, BookOpen, Plus, Trash2, Filter, Check, CheckSquare, Square, Eye, X, CheckCircle, Circle } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Search, Download, Printer, FileText, User, Calendar, BookOpen, Plus, Trash2, Filter, Check, CheckSquare, Square, Eye, X, CheckCircle, Circle, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ interface Course {
 
 interface RegistrationCourse {
   id: number;
+  courseId: number;
   courseCode: string;
   courseTitle: string;
   lectureHours: number;
@@ -138,6 +139,7 @@ interface PreviewStudent {
     labHours: number;
     totalHours: number;
   }>;
+  accepted?: boolean;
 }
 
 interface GenerateSlipRequest {
@@ -170,13 +172,17 @@ export default function RegistrationSlips() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [registrationCourses, setRegistrationCourses] = useState<RegistrationCourse[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+
+  // Add a new state for dropdown visibility
+  const [isCourseDropdownOpen, setIsCourseDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   
   // Form states
-  const [dateOfRegistration, setDateOfRegistration] = useState(new Date().toISOString().split('T')[0]);
+  const dateOfRegistration = new Date().toISOString().split('T')[0];
   const [batchClassYear, setBatchClassYear] = useState("");
   const [paymentReceiptNo, setPaymentReceiptNo] = useState("");
   
@@ -214,13 +220,18 @@ export default function RegistrationSlips() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [selectedPreviewStudent, setSelectedPreviewStudent] = useState<PreviewStudent | null>(null);
-  const [allAccepted, setAllAccepted] = useState(false);
+
   const [generating, setGenerating] = useState(false);
+
+  // Function to select only a single student
+  const handleSelectSingleStudent = (student: Student) => {
+    setSelectedStudents([student]);
+  };
 
   useEffect(() => {
     // Initialize payment receipt number
     setPaymentReceiptNo("");
-    
+
     // Fetch students, filter data, and BCYS
     fetchStudents();
     fetchFilterData();
@@ -228,30 +239,54 @@ export default function RegistrationSlips() {
     fetchCourses();
   }, []);
 
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsCourseDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const fetchStudents = async () => {
     try {
       setLoading(true);
       const response = await apiService.get(endPoints.studentsSlip);
       
+      // Check if response is valid
+      if (!Array.isArray(response)) {
+        console.error("Invalid students response:", response);
+        setStudents([]);
+        setFilteredStudents([]);
+        setLoading(false);
+        toast.error("Failed to fetch students: Invalid response format");
+        return;
+      }
+      
       // Transform API response to match our Student interface
       const transformedStudents: Student[] = response.map((student: ApiStudent) => ({
-        studentId: student.studentId,
-        username: student.username,
-        fullNameAMH: student.fullNameAMH,
-        fullNameENG: student.fullNameENG,
-        bcysId: student.bcysId,
-        bcysDisplayName: student.bcysDisplayName,
-        departmentId: student.departmentId,
-        departmentName: student.departmentName,
-        programModalityCode: student.programModalityCode,
-        programModalityName: student.programModalityName,
-        programLevelCode: student.programLevelCode,
-        programLevelName: student.programLevelName,
+        studentId: student.studentId || 0,
+        username: student.username || "",
+        fullNameAMH: student.fullNameAMH || "",
+        fullNameENG: student.fullNameENG || "",
+        bcysId: student.bcysId || 0,
+        bcysDisplayName: student.bcysDisplayName || "",
+        departmentId: student.departmentId || 0,
+        departmentName: student.departmentName || "",
+        programModalityCode: student.programModalityCode || "",
+        programModalityName: student.programModalityName || "",
+        programLevelCode: student.programLevelCode || "",
+        programLevelName: student.programLevelName || "",
         age: 22,
         sex: "Male",
-        batch: student.bcysDisplayName?.split('-')[0] || "2024",
-        yearOfStudy: `Year ${student.bcysDisplayName?.split('-')[1] || "1"}`,
-        semester: student.bcysDisplayName?.split('-')[2] === "1" ? "Semester 1" : "Semester 2",
+        batch: (student.bcysDisplayName || "").split('-')[0] || "2024",
+        yearOfStudy: `Year ${(student.bcysDisplayName || "").split('-')[1] || "1"}`,
+        semester: (student.bcysDisplayName || "").split('-')[2] === "1" ? "Semester 1" : "Semester 2",
         accepted: false
       }));
       
@@ -262,13 +297,28 @@ export default function RegistrationSlips() {
       console.error("Error fetching students:", error);
       setLoading(false);
       toast.error("Failed to fetch students");
+      setStudents([]);
+      setFilteredStudents([]);
     }
   };
 
   const fetchFilterData = async () => {
     try {
       const response = await apiService.get(endPoints.lookupsDropdown);
-      setFilterData(response);
+      if (response && typeof response === 'object') {
+        setFilterData({
+          departments: Array.isArray(response.departments) ? response.departments : [],
+          batches: Array.isArray(response.batches) ? response.batches : [],
+          enrollmentTypes: Array.isArray(response.enrollmentTypes) ? response.enrollmentTypes : [],
+          classYears: Array.isArray(response.classYears) ? response.classYears : [],
+          semesters: Array.isArray(response.semesters) ? response.semesters : [],
+          academicYears: Array.isArray(response.academicYears) ? response.academicYears : [],
+          programLevels: Array.isArray(response.programLevels) ? response.programLevels : [],
+          programModalities: Array.isArray(response.programModalities) ? response.programModalities : []
+        });
+      } else {
+        console.error("Invalid filter data response:", response);
+      }
     } catch (error) {
       console.error("Error fetching filter data:", error);
     }
@@ -277,18 +327,41 @@ export default function RegistrationSlips() {
   const fetchBcysList = async () => {
     try {
       const response = await apiService.get(endPoints.batchClassSemsterYear);
-      setBcysList(response);
+      if (Array.isArray(response)) {
+        setBcysList(response);
+      } else {
+        console.error("Invalid BCYS response:", response);
+        setBcysList([]);
+      }
     } catch (error) {
       console.error("Error fetching BCYS list:", error);
+      setBcysList([]);
     }
   };
 
   const fetchCourses = async () => {
     try {
+      setCoursesLoading(true);
+      console.log("Fetching courses from:", endPoints.allCourses);
       const response = await apiService.get(endPoints.allCourses);
-      setCourses(response);
+      console.log("Courses API response:", response);
+
+      // Check if response is valid
+      if (Array.isArray(response)) {
+        console.log("Courses loaded successfully:", response.length, "courses");
+        setCourses(response);
+      } else {
+        console.error("Invalid courses response:", response);
+        setCourses([]);
+        toast.error("Failed to load courses: Invalid response format");
+      }
+
+      setCoursesLoading(false);
     } catch (error) {
       console.error("Error fetching courses:", error);
+      setCoursesLoading(false);
+      toast.error("Failed to load courses");
+      setCourses([]); // Set empty array on error
     }
   };
 
@@ -309,16 +382,16 @@ export default function RegistrationSlips() {
     // Apply search filter
     if (searchQuery.trim()) {
       filtered = filtered.filter(student =>
-        student.fullNameENG.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.fullNameAMH.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.studentId.toString().includes(searchQuery)
+        (student.fullNameENG?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (student.fullNameAMH?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        (student.username?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        student.studentId?.toString().includes(searchQuery)
       );
     }
 
     // Apply other filters
     if (currentFilters.departmentId) {
-      const departmentName = filterData.departments.find(d => d.id.toString() === currentFilters.departmentId)?.name;
+      const departmentName = filterData.departments.find(d => d.id?.toString() === currentFilters.departmentId)?.name;
       if (departmentName) {
         filtered = filtered.filter(student =>
           student.departmentName === departmentName
@@ -327,7 +400,7 @@ export default function RegistrationSlips() {
     }
 
     if (currentFilters.batchId) {
-      const batchName = filterData.batches.find(b => b.id.toString() === currentFilters.batchId)?.name;
+      const batchName = filterData.batches.find(b => b.id?.toString() === currentFilters.batchId)?.name;
       if (batchName) {
         filtered = filtered.filter(student =>
           student.batch === batchName
@@ -345,7 +418,7 @@ export default function RegistrationSlips() {
     }
 
     if (currentFilters.classYearId) {
-      const classYearName = filterData.classYears.find(c => c.id.toString() === currentFilters.classYearId)?.name;
+      const classYearName = filterData.classYears.find(c => c.id?.toString() === currentFilters.classYearId)?.name;
       if (classYearName) {
         filtered = filtered.filter(student =>
           student.yearOfStudy?.includes(classYearName)
@@ -379,8 +452,6 @@ export default function RegistrationSlips() {
   };
 
   const handleSelectStudent = (student: Student) => {
-    setSelectedStudent(student);
-    
     const isSelected = selectedStudents.some(s => s.studentId === student.studentId);
     if (isSelected) {
       setSelectedStudents(prev => prev.filter(s => s.studentId !== student.studentId));
@@ -398,46 +469,69 @@ export default function RegistrationSlips() {
     setSelectAll(!selectAll);
   };
 
-  const handleSelectSingleStudent = (student: Student) => {
-    setSelectedStudent(student);
-    setSelectedStudents([student]);
-  };
+
 
   const isStudentSelected = (studentId: number) => {
     return selectedStudents.some(s => s.studentId === studentId);
   };
 
-  const handleAddCourse = () => {
-    if (!selectedCourse) {
-      toast.error("Please select a course");
+  // Handle multiple course selection
+  const handleCourseSelectionChange = (courseId: string) => {
+    setSelectedCourseIds(prev => {
+      if (prev.includes(courseId)) {
+        return prev.filter(id => id !== courseId);
+      } else {
+        return [...prev, courseId];
+      }
+    });
+  };
+
+  // Add multiple courses at once
+  const handleAddMultipleCourses = () => {
+    if (selectedCourseIds.length === 0) {
+      toast.error("Please select at least one course");
       return;
     }
 
-    const course = courses.find(c => c.courseCode === selectedCourse);
-    if (course) {
-      const newCourse: RegistrationCourse = {
-        id: Date.now(),
-        courseCode: course.courseCode,
-        courseTitle: course.courseTitle,
-        lectureHours: course.lectureHours,
-        labHours: course.labHours,
-        totalHours: course.creditHours
-      };
+    const newCourses: RegistrationCourse[] = [];
+    
+    selectedCourseIds.forEach(courseIdStr => {
+      const courseId = parseInt(courseIdStr);
+      const course = courses.find(c => c && c.id === courseId);
       
-      setRegistrationCourses([...registrationCourses, newCourse]);
-      setSelectedCourse("");
-      toast.success("Course added successfully");
+      if (course && !registrationCourses.some(rc => rc.courseId === course.id)) {
+        const newCourse: RegistrationCourse = {
+          id: Date.now() + Math.random(), // Unique ID
+          courseId: course.id,
+          courseCode: course.courseCode || "N/A",
+          courseTitle: course.courseTitle || "Unknown Course",
+          lectureHours: course.lectureHours || 0,
+          labHours: course.labHours || 0,
+          totalHours: course.creditHours || 0
+        };
+        newCourses.push(newCourse);
+      }
+    });
+
+    if (newCourses.length > 0) {
+      setRegistrationCourses([...registrationCourses, ...newCourses]);
+      setSelectedCourseIds([]);
+      toast.success(`${newCourses.length} course(s) added successfully`);
+    } else {
+      toast.error("Selected courses are already added or not found");
     }
   };
+
+
 
   const handleRemoveCourse = (id: number) => {
     setRegistrationCourses(registrationCourses.filter(course => course.id !== id));
   };
 
   const calculateTotals = () => {
-    const lectureTotal = registrationCourses.reduce((sum, course) => sum + course.lectureHours, 0);
-    const labTotal = registrationCourses.reduce((sum, course) => sum + course.labHours, 0);
-    const total = registrationCourses.reduce((sum, course) => sum + course.totalHours, 0);
+    const lectureTotal = registrationCourses.reduce((sum, course) => sum + (course.lectureHours || 0), 0);
+    const labTotal = registrationCourses.reduce((sum, course) => sum + (course.labHours || 0), 0);
+    const total = registrationCourses.reduce((sum, course) => sum + (course.totalHours || 0), 0);
     return { lectureTotal, labTotal, total };
   };
 
@@ -455,6 +549,12 @@ export default function RegistrationSlips() {
     setSearchQuery("");
     setFilteredStudents(students);
     setSelectAll(false);
+  };
+
+  // Clear all selected courses
+  const handleClearSelectedCourses = () => {
+    setRegistrationCourses([]);
+    setSelectedCourseIds([]);
   };
 
   // New function to handle slip preview
@@ -477,7 +577,7 @@ export default function RegistrationSlips() {
     try {
       setPreviewLoading(true);
       const studentIds = selectedStudents.map(s => s.studentId);
-      const courseIds = registrationCourses.map(c => c.id);
+      const courseIds = registrationCourses.map(c => c.courseId);
       
       const response = await apiService.post(endPoints.slipPreview, {
         studentIds,
@@ -485,14 +585,26 @@ export default function RegistrationSlips() {
         batchClassYearSemesterId: parseInt(batchClassYear)
       });
 
-      setPreviewData(response);
-      setShowPreview(true);
+      if (Array.isArray(response)) {
+        // Add accepted property to each student
+        const previewWithAcceptance = response.map((student: PreviewStudent) => ({
+          ...student,
+          accepted: false
+        }));
+        setPreviewData(previewWithAcceptance);
+        setShowPreview(true);
+        toast.success("Preview generated successfully");
+      } else {
+        console.error("Invalid preview response:", response);
+        toast.error("Invalid preview data received");
+      }
+      
       setPreviewLoading(false);
-      toast.success("Preview generated successfully");
     } catch (error: any) {
       console.error("Error generating preview:", error);
       setPreviewLoading(false);
       toast.error(error.response?.data?.error || "Failed to generate preview");
+      setPreviewData([]);
     }
   };
 
@@ -508,13 +620,11 @@ export default function RegistrationSlips() {
   // Function to accept all students
   const handleAcceptAll = () => {
     setPreviewData(prev => prev.map(student => ({ ...student, accepted: true })));
-    setAllAccepted(true);
   };
 
   // Function to reject all students
   const handleRejectAll = () => {
     setPreviewData(prev => prev.map(student => ({ ...student, accepted: false })));
-    setAllAccepted(false);
   };
 
   // Get accepted students
@@ -621,25 +731,25 @@ export default function RegistrationSlips() {
           return y + lines.length * lineHeight;
         };
 
-        curY = wrap(`Full Name of Student: ${student.fullNameEng}`, left, curY, usableWidth);
+        curY = wrap(`Full Name of Student: ${student.fullNameEng || ""}`, left, curY, usableWidth);
         curY = wrap(`Date of Registration: ${dateOfRegistration}`, left, curY + 2, usableWidth);
         curY = wrap(
-          `Department: ${student.departmentName}, Year Of Study: ${student.classYearName}, Semester: ${student.semesterName}`,
+          `Department: ${student.departmentName || ""}, Year Of Study: ${student.classYearName || ""}, Semester: ${student.semesterName || ""}`,
           left,
           curY + 2,
           usableWidth
         );
 
         // ID / Age / Sex on one line
-        const idLine = `ID No.: ${student.username}    Age: ${student.age}    Sex: ${student.gender}`;
+        const idLine = `ID No.: ${student.username || ""}    Age: ${student.age || ""}    Sex: ${student.gender || ""}`;
         doc.setFontSize(10);
         doc.text(idLine, left, curY + 6);
         curY += 10;
 
         // Payment / Batch Class Year / Enrollment on one line
-        const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+        const selectedBcys = bcysList.find(b => b.bcysId?.toString() === batchClassYear);
         const bcysName = selectedBcys ? selectedBcys.name : "________________";
-        const payLine = `Payment Receipt No.: ${paymentReceiptNo || "________________"}    Batch Class Year: ${bcysName}    Enrollment Type: ${student.enrollmentTypeName}`;
+        const payLine = `Payment Receipt No.: ${paymentReceiptNo || "________________"}    Batch Class Year: ${bcysName}    Enrollment Type: ${student.enrollmentTypeName || ""}`;
         doc.text(payLine, left, curY + 2);
 
         // Course registration table
@@ -650,18 +760,18 @@ export default function RegistrationSlips() {
 
         const tableStartY = Math.max(95, introTextY + 6);
 
-        const tableData = student.courses.map((course, index) => [
+        const tableData = (student.courses || []).map((course, index) => [
           (index + 1).toString(),
-          course.code,
-          course.title,
-          course.lectureHours.toString(),
-          course.labHours.toString(),
-          course.totalHours.toString(),
+          course.code || "",
+          course.title || "",
+          course.lectureHours?.toString() || "0",
+          course.labHours?.toString() || "0",
+          course.totalHours?.toString() || "0",
         ]);
 
-        const lectureTotal = student.courses.reduce((sum, course) => sum + course.lectureHours, 0);
-        const labTotal = student.courses.reduce((sum, course) => sum + course.labHours, 0);
-        const total = student.courses.reduce((sum, course) => sum + course.totalHours, 0);
+        const lectureTotal = (student.courses || []).reduce((sum, course) => sum + (course.lectureHours || 0), 0);
+        const labTotal = (student.courses || []).reduce((sum, course) => sum + (course.labHours || 0), 0);
+        const total = (student.courses || []).reduce((sum, course) => sum + (course.totalHours || 0), 0);
 
         tableData.push(["", "", "Total", lectureTotal.toString(), labTotal.toString(), total.toString()]);
 
@@ -725,8 +835,8 @@ export default function RegistrationSlips() {
       doc.save(`Registration_Slips_${Date.now()}.pdf`);
       
       // Show backend response summary
-      const successCount = response.results.filter(r => r.success).length;
-      const failedCount = response.results.filter(r => !r.success).length;
+      const successCount = response.results?.filter(r => r.success).length || 0;
+      const failedCount = response.results?.filter(r => !r.success).length || 0;
       
       toast.success(`PDF generated! ${successCount} successful, ${failedCount} failed`);
       setGenerating(false);
@@ -748,7 +858,7 @@ export default function RegistrationSlips() {
     const wb = XLSX.utils.book_new();
     
     acceptedStudents.forEach((student, studentIndex) => {
-      const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+      const selectedBcys = bcysList.find(b => b.bcysId?.toString() === batchClassYear);
       const bcysName = selectedBcys ? selectedBcys.name : "________________";
       
       const slipData = [
@@ -757,30 +867,30 @@ export default function RegistrationSlips() {
         ["OFFICE OF REGISTRAR"],
         ["COURSE REGISTRATION SLIP"],
         [],
-        [`Full Name of Student: ${student.fullNameEng}`, `Date of Registration: ${dateOfRegistration}`],
-        [`Department: ${student.departmentName}, Year Of Study: ${student.classYearName}, Semester: ${student.semesterName}`],
-        [`ID No.: ${student.username}`, `Age: ${student.age}`, `Sex: ${student.gender}`],
-        [`Payment Receipt No.: ${paymentReceiptNo || "________________"}`, `Batch Class Year: ${bcysName}`, `Enrollment Type: ${student.enrollmentTypeName}`],
+        [`Full Name of Student: ${student.fullNameEng || ""}`, `Date of Registration: ${dateOfRegistration}`],
+        [`Department: ${student.departmentName || ""}, Year Of Study: ${student.classYearName || ""}, Semester: ${student.semesterName || ""}`],
+        [`ID No.: ${student.username || ""}`, `Age: ${student.age || ""}`, `Sex: ${student.gender || ""}`],
+        [`Payment Receipt No.: ${paymentReceiptNo || "________________"}`, `Batch Class Year: ${bcysName}`, `Enrollment Type: ${student.enrollmentTypeName || ""}`],
         [],
         ["I am applying to be registered for the following courses."],
         [],
         ["R.No.", "COURSE CODE", "COURSE TITLE", "Lecture", "Lab/prac", "Total"]
       ];
 
-      student.courses.forEach((course, index) => {
+      (student.courses || []).forEach((course, index) => {
         slipData.push([
           (index + 1).toString(),
-          course.code,
-          course.title,
-          course.lectureHours.toString(),
-          course.labHours.toString(),
-          course.totalHours.toString()
+          course.code || "",
+          course.title || "",
+          course.lectureHours?.toString() || "0",
+          course.labHours?.toString() || "0",
+          course.totalHours?.toString() || "0"
         ]);
       });
 
-      const lectureTotal = student.courses.reduce((sum, course) => sum + course.lectureHours, 0);
-      const labTotal = student.courses.reduce((sum, course) => sum + course.labHours, 0);
-      const total = student.courses.reduce((sum, course) => sum + course.totalHours, 0);
+      const lectureTotal = (student.courses || []).reduce((sum, course) => sum + (course.lectureHours || 0), 0);
+      const labTotal = (student.courses || []).reduce((sum, course) => sum + (course.labHours || 0), 0);
+      const total = (student.courses || []).reduce((sum, course) => sum + (course.totalHours || 0), 0);
 
       slipData.push(["", "", "Total", lectureTotal.toString(), labTotal.toString(), total.toString()]);
       
@@ -828,11 +938,11 @@ export default function RegistrationSlips() {
       let printContent = '';
       
       acceptedStudents.forEach((student, index) => {
-        const selectedBcys = bcysList.find(b => b.bcysId.toString() === batchClassYear);
+        const selectedBcys = bcysList.find(b => b.bcysId?.toString() === batchClassYear);
         const bcysName = selectedBcys ? selectedBcys.name : "________________";
-        const lectureTotal = student.courses.reduce((sum, course) => sum + course.lectureHours, 0);
-        const labTotal = student.courses.reduce((sum, course) => sum + course.labHours, 0);
-        const total = student.courses.reduce((sum, course) => sum + course.totalHours, 0);
+        const lectureTotal = (student.courses || []).reduce((sum, course) => sum + (course.lectureHours || 0), 0);
+        const labTotal = (student.courses || []).reduce((sum, course) => sum + (course.labHours || 0), 0);
+        const total = (student.courses || []).reduce((sum, course) => sum + (course.totalHours || 0), 0);
 
         printContent += `
           <div style="page-break-after: ${index < acceptedStudents.length - 1 ? 'always' : 'auto'}; margin-bottom: 40px;">
@@ -844,18 +954,18 @@ export default function RegistrationSlips() {
             </div>
 
             <div style="font-size: 11px; margin-bottom: 20px;">
-              <div><strong>Full Name of Student:</strong> ${student.fullNameEng}</div>
+              <div><strong>Full Name of Student:</strong> ${student.fullNameEng || ""}</div>
               <div><strong>Date of Registration:</strong> ${dateOfRegistration}</div>
-              <div><strong>Department:</strong> ${student.departmentName}, <strong>Year Of Study:</strong> ${student.classYearName}, <strong>Semester:</strong> ${student.semesterName}</div>
+              <div><strong>Department:</strong> ${student.departmentName || ""}, <strong>Year Of Study:</strong> ${student.classYearName || ""}, <strong>Semester:</strong> ${student.semesterName || ""}</div>
               <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 10px;">
-                <div><strong>ID No.:</strong> ${student.username}</div>
-                <div><strong>Age:</strong> ${student.age}</div>
-                <div><strong>Sex:</strong> ${student.gender}</div>
+                <div><strong>ID No.:</strong> ${student.username || ""}</div>
+                <div><strong>Age:</strong> ${student.age || ""}</div>
+                <div><strong>Sex:</strong> ${student.gender || ""}</div>
               </div>
               <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 10px;">
                 <div><strong>Payment Receipt No.:</strong> ${paymentReceiptNo || "________________"}</div>
                 <div><strong>Batch Class Year:</strong> ${bcysName}</div>
-                <div><strong>Enrollment Type:</strong> ${student.enrollmentTypeName}</div>
+                <div><strong>Enrollment Type:</strong> ${student.enrollmentTypeName || ""}</div>
               </div>
             </div>
 
@@ -873,14 +983,14 @@ export default function RegistrationSlips() {
                   </tr>
                 </thead>
                 <tbody>
-                  ${student.courses.map((course, index) => `
+                  ${(student.courses || []).map((course, index) => `
                     <tr>
                       <td style="padding: 6px; border: 1px solid #ddd;">${index + 1}</td>
-                      <td style="padding: 6px; border: 1px solid #ddd;">${course.code}</td>
-                      <td style="padding: 6px; border: 1px solid #ddd;">${course.title}</td>
-                      <td style="padding: 6px; border: 1px solid #ddd;">${course.lectureHours}</td>
-                      <td style="padding: 6px; border: 1px solid #ddd;">${course.labHours}</td>
-                      <td style="padding: 6px; border: 1px solid #ddd;">${course.totalHours}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.code || ""}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.title || ""}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.lectureHours || 0}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.labHours || 0}</td>
+                      <td style="padding: 6px; border: 1px solid #ddd;">${course.totalHours || 0}</td>
                     </tr>
                   `).join('')}
                   <tr style="font-weight: bold; background-color: #f0f0f0;">
@@ -961,9 +1071,9 @@ export default function RegistrationSlips() {
 
   // Calculate totals for a specific student
   const calculateStudentTotals = (student: PreviewStudent) => {
-    const lectureTotal = student.courses.reduce((sum, course) => sum + course.lectureHours, 0);
-    const labTotal = student.courses.reduce((sum, course) => sum + course.labHours, 0);
-    const total = student.courses.reduce((sum, course) => sum + course.totalHours, 0);
+    const lectureTotal = (student.courses || []).reduce((sum, course) => sum + (course.lectureHours || 0), 0);
+    const labTotal = (student.courses || []).reduce((sum, course) => sum + (course.labHours || 0), 0);
+    const total = (student.courses || []).reduce((sum, course) => sum + (course.totalHours || 0), 0);
     return { lectureTotal, labTotal, total };
   };
 
@@ -1188,8 +1298,6 @@ export default function RegistrationSlips() {
                       className={`cursor-pointer hover:shadow-md transition-all ${
                         isSelected
                           ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                          : selectedStudent?.studentId === student.studentId
-                          ? "border-green-500 bg-green-50 dark:bg-green-900/20"
                           : ""
                       }`}
                       onClick={() => handleSelectStudent(student)}
@@ -1241,7 +1349,7 @@ export default function RegistrationSlips() {
               Course Selection
             </CardTitle>
             <CardDescription>
-              Add courses to the registration slip
+              Select multiple courses and add them at once
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1275,30 +1383,132 @@ export default function RegistrationSlips() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="course">Add Course</Label>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="course">Select Courses</Label>
+                  {courses.length === 0 && !coursesLoading && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        console.log("Retrying course fetch...");
+                        fetchCourses();
+                      }}
+                      className="h-6 text-xs"
+                    >
+                      Retry Load
+                    </Button>
+                  )}
+                </div>
+                <span className="text-sm text-gray-500">
+                  {selectedCourseIds.length} selected
+                </span>
+              </div>
+              
+              {/* Custom dropdown for course selection */}
+              <div className="relative" ref={dropdownRef}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between"
+                  onClick={() => {
+                    if (courses.length === 0 && !coursesLoading) {
+                      console.log("No courses loaded, retrying fetch...");
+                      fetchCourses();
+                    } else {
+                      setIsCourseDropdownOpen(!isCourseDropdownOpen);
+                    }
+                  }}
+                >
+                  <span>
+                    {selectedCourseIds.length > 0
+                      ? `${selectedCourseIds.length} course${selectedCourseIds.length > 1 ? 's' : ''} selected`
+                      : 'Select Courses'
+                    }
+                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isCourseDropdownOpen ? 'rotate-180' : ''}`} />
+                </Button>
+
+                {isCourseDropdownOpen && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    {coursesLoading ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
+                        <p className="mt-2 text-sm text-gray-500">Loading courses...</p>
+                      </div>
+                    ) : courses.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No courses available</p>
+                        <p className="text-xs">Click here to retry loading courses</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 p-2">
+                        {courses.map((course) => {
+                          // Extract values with defaults to handle different API formats and missing properties
+                          const courseId = course?.id ?? 0;
+                          const courseCode = course?.courseCode || "N/A";
+                          const courseTitle = course?.courseTitle || "Unknown Course";
+                          const lectureHours = course?.lectureHours ?? 0;
+                          const labHours = course?.labHours ?? 0;
+                          const creditHours = course?.creditHours ?? 0;
+
+                          return (
+                            <div
+                              key={courseId}
+                              className={`flex items-center p-2 rounded cursor-pointer hover:bg-gray-100 ${
+                                selectedCourseIds.includes(courseId.toString()) ? 'bg-blue-50' : ''
+                              }`}
+                              onClick={() => handleCourseSelectionChange(courseId.toString())}
+                            >
+                              <div className={`w-5 h-5 flex items-center justify-center rounded border mr-3 ${
+                                selectedCourseIds.includes(courseId.toString())
+                                  ? 'bg-blue-500 border-blue-500'
+                                  : 'border-gray-300'
+                              }`}>
+                                {selectedCourseIds.includes(courseId.toString()) && (
+                                  <Check className="h-3 w-3 text-white" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-medium text-sm">
+                                  {courseCode} - {courseTitle}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Lecture: {lectureHours}h | Lab: {labHours}h | Total: {creditHours} CH
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-2">
-                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select a course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map((course) => (
-                      <SelectItem key={course.id} value={course.courseCode}>
-                        {course.courseCode} - {course.courseTitle}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={handleAddCourse} disabled={!selectedCourse}>
-                  <Plus className="h-4 w-4" />
-                  Add
+                <Button 
+                  onClick={handleAddMultipleCourses} 
+                  className="flex-1"
+                  disabled={selectedCourseIds.length === 0 || coursesLoading}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Selected ({selectedCourseIds.length})
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleClearSelectedCourses}
+                  disabled={registrationCourses.length === 0}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear All
                 </Button>
               </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label>Selected Courses</Label>
+                <Label>Selected Courses ({registrationCourses.length})</Label>
                 <span className="text-sm text-gray-500">
                   Total: {calculateTotals().total} credit hours
                 </span>
@@ -1335,6 +1545,13 @@ export default function RegistrationSlips() {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {registrationCourses.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-4 text-gray-500">
+                          No courses selected yet
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -1449,7 +1666,7 @@ export default function RegistrationSlips() {
                         <TableCell>{student.fullNameEng}</TableCell>
                         <TableCell>{student.departmentName}</TableCell>
                         <TableCell>{student.batchDisplayName}</TableCell>
-                        <TableCell>{student.courses.length} courses</TableCell>
+                        <TableCell>{student.courses?.length || 0} courses</TableCell>
                         <TableCell>{total} hours</TableCell>
                         <TableCell>
                           <Button
@@ -1574,7 +1791,7 @@ export default function RegistrationSlips() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedPreviewStudent.courses.map((course, index) => (
+                      {(selectedPreviewStudent.courses || []).map((course, index) => (
                         <TableRow key={course.courseId}>
                           <TableCell>{index + 1}</TableCell>
                           <TableCell>{course.code}</TableCell>
@@ -1584,7 +1801,7 @@ export default function RegistrationSlips() {
                           <TableCell>{course.totalHours}</TableCell>
                         </TableRow>
                       ))}
-                      {selectedPreviewStudent.courses.length > 0 && (
+                      {(selectedPreviewStudent.courses || []).length > 0 && (
                         <TableRow className="font-bold bg-gray-100">
                           <TableCell colSpan={3}>Total</TableCell>
                           <TableCell>{calculateStudentTotals(selectedPreviewStudent).lectureTotal}</TableCell>
