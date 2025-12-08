@@ -53,12 +53,11 @@ interface Student {
 }
 
 interface Course {
-  id: number;
-  courseCode: string;
-  courseTitle: string;
-  creditHours: number;
-  lectureHours: number;
-  labHours: number;
+  cid: number;           
+  ccode: string;          
+  ctitle: string;       
+  theoryHrs: number;   
+  labHrs: number;         
 }
 
 interface RegistrationCourse {
@@ -336,34 +335,51 @@ export default function RegistrationSlips() {
     } catch (error) {
       console.error("Error fetching BCYS list:", error);
       setBcysList([]);
-    }
+    }   
   };
 
-  const fetchCourses = async () => {
-    try {
-      setCoursesLoading(true);
-      console.log("Fetching courses from:", endPoints.allCourses);
-      const response = await apiService.get(endPoints.allCourses);
-      console.log("Courses API response:", response);
+const fetchCourses = async () => {
+  try {
+    setCoursesLoading(true);
+    console.log("Fetching courses from:", endPoints.allCourses);
+    const response = await apiService.get(endPoints.allCourses);
+    console.log("Courses API response structure:", response);
 
-      // Check if response is valid
-      if (Array.isArray(response)) {
-        console.log("Courses loaded successfully:", response.length, "courses");
-        setCourses(response);
-      } else {
-        console.error("Invalid courses response:", response);
-        setCourses([]);
-        toast.error("Failed to load courses: Invalid response format");
-      }
-
-      setCoursesLoading(false);
-    } catch (error) {
-      console.error("Error fetching courses:", error);
-      setCoursesLoading(false);
-      toast.error("Failed to load courses");
-      setCourses([]); // Set empty array on error
+    // Check if response is valid
+    if (Array.isArray(response)) {
+      console.log("Courses loaded successfully:", response.length, "courses");
+      
+      // Transform the API response to match our Course interface
+      const transformedCourses = response.map((course: any) => {
+        // Calculate total credit hours (usually theory + lab)
+        const totalHours = (course.theoryHrs || 0) + (course.labHrs || 0);
+        
+        return {
+          cid: course.cid || 0,
+          ccode: course.ccode || "N/A",
+          ctitle: course.ctitle || "Unknown Course",
+          theoryHrs: course.theoryHrs || 0,
+          labHrs: course.labHrs || 0,
+          creditHours: totalHours // Add calculated credit hours
+        };
+      });
+      
+      setCourses(transformedCourses);
+      console.log("Transformed courses:", transformedCourses.slice(0, 3)); // Log first 3 for debugging
+    } else {
+      console.error("Invalid courses response:", response);
+      setCourses([]);
+      toast.error("Failed to load courses: Invalid response format");
     }
-  };
+
+    setCoursesLoading(false);
+  } catch (error) {
+    console.error("Error fetching courses:", error);
+    setCoursesLoading(false);
+    toast.error("Failed to load courses");
+    setCourses([]);
+  }
+};
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -487,40 +503,42 @@ export default function RegistrationSlips() {
   };
 
   // Add multiple courses at once
-  const handleAddMultipleCourses = () => {
-    if (selectedCourseIds.length === 0) {
-      toast.error("Please select at least one course");
-      return;
-    }
+const handleAddMultipleCourses = () => {
+  if (selectedCourseIds.length === 0) {
+    toast.error("Please select at least one course");
+    return;
+  }
 
-    const newCourses: RegistrationCourse[] = [];
+  const newCourses: RegistrationCourse[] = [];
+  
+  selectedCourseIds.forEach(courseIdStr => {
+    const courseId = parseInt(courseIdStr);
+    const course = courses.find(c => c && c.cid === courseId); // Changed from id to cid
     
-    selectedCourseIds.forEach(courseIdStr => {
-      const courseId = parseInt(courseIdStr);
-      const course = courses.find(c => c && c.id === courseId);
+    if (course && !registrationCourses.some(rc => rc.courseId === course.cid)) {
+      const totalHours = (course.theoryHrs || 0) + (course.labHrs || 0);
       
-      if (course && !registrationCourses.some(rc => rc.courseId === course.id)) {
-        const newCourse: RegistrationCourse = {
-          id: Date.now() + Math.random(), // Unique ID
-          courseId: course.id,
-          courseCode: course.courseCode || "N/A",
-          courseTitle: course.courseTitle || "Unknown Course",
-          lectureHours: course.lectureHours || 0,
-          labHours: course.labHours || 0,
-          totalHours: course.creditHours || 0
-        };
-        newCourses.push(newCourse);
-      }
-    });
-
-    if (newCourses.length > 0) {
-      setRegistrationCourses([...registrationCourses, ...newCourses]);
-      setSelectedCourseIds([]);
-      toast.success(`${newCourses.length} course(s) added successfully`);
-    } else {
-      toast.error("Selected courses are already added or not found");
+      const newCourse: RegistrationCourse = {
+        id: Date.now() + Math.random(),
+        courseId: course.cid, // Changed from id to cid
+        courseCode: course.ccode || "N/A", // Changed from courseCode to ccode
+        courseTitle: course.ctitle || "Unknown Course", // Changed from courseTitle to ctitle
+        lectureHours: course.theoryHrs || 0, // Changed from lectureHours to theoryHrs
+        labHours: course.labHrs || 0, // Changed from labHours to labHrs
+        totalHours: totalHours
+      };
+      newCourses.push(newCourse);
     }
-  };
+  });
+
+  if (newCourses.length > 0) {
+    setRegistrationCourses([...registrationCourses, ...newCourses]);
+    setSelectedCourseIds([]);
+    toast.success(`${newCourses.length} course(s) added successfully`);
+  } else {
+    toast.error("Selected courses are already added or not found");
+  }
+};
 
 
 
@@ -1396,7 +1414,7 @@ export default function RegistrationSlips() {
                       }}
                       className="h-6 text-xs"
                     >
-                      Retry Load
+                      Retry Load (API returned {Array.isArray(courses) ? courses.length : 'invalid'} courses)
                     </Button>
                   )}
                 </div>
@@ -1444,13 +1462,13 @@ export default function RegistrationSlips() {
                     ) : (
                       <div className="space-y-1 p-2">
                         {courses.map((course) => {
-                          // Extract values with defaults to handle different API formats and missing properties
-                          const courseId = course?.id ?? 0;
-                          const courseCode = course?.courseCode || "N/A";
-                          const courseTitle = course?.courseTitle || "Unknown Course";
-                          const lectureHours = course?.lectureHours ?? 0;
-                          const labHours = course?.labHours ?? 0;
-                          const creditHours = course?.creditHours ?? 0;
+                          // Use the correct property names from the API
+                          const courseId = course?.cid ?? 0; // Changed from id to cid
+                          const courseCode = course?.ccode || "N/A"; // Changed from courseCode to ccode
+                          const courseTitle = course?.ctitle || "Unknown Course"; // Changed from courseTitle to ctitle
+                          const lectureHours = course?.theoryHrs ?? 0; // Changed from lectureHours to theoryHrs
+                          const labHours = course?.labHrs ?? 0; // Changed from labHours to labHrs
+                          const creditHours = course?.creditHours ?? (lectureHours + labHours); // Calculate if not present
 
                           return (
                             <div
