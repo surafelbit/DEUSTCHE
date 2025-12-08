@@ -576,55 +576,115 @@ const handleAddMultipleCourses = () => {
   };
 
   // New function to handle slip preview
-  const handleSlipPreview = async () => {
-    if (selectedStudents.length === 0) {
-      toast.error("Please select at least one student");
+const handleSlipPreview = async () => {
+  if (selectedStudents.length === 0) {
+    toast.error("Please select at least one student");
+    return;
+  }
+
+  if (registrationCourses.length === 0) {
+    toast.error("Please select at least one course");
+    return;
+  }
+
+  if (!batchClassYear) {
+    toast.error("Please select a Batch Class Year");
+    return;
+  }
+
+  try {
+    setPreviewLoading(true);
+    
+    const studentIds = selectedStudents.map(s => s.studentId);
+    const courseIds = registrationCourses.map(c => c.courseId);
+    
+    // Debug: Log what we're sending
+    console.log("Sending preview request with:", {
+      studentIds,
+      courseIds,
+      batchClassYearSemesterId: parseInt(batchClassYear),
+      batchClassYearString: batchClassYear
+    });
+    
+    // Check if endpoint exists
+    if (!endPoints.slipPreview) {
+      console.error("Slip preview endpoint not defined in endPoints");
+      toast.error("Configuration error: Preview endpoint not found");
+      setPreviewLoading(false);
       return;
     }
+    
+    // Make the API call with better error handling
+    const response = await apiService.post(endPoints.slipPreview, {
+      studentIds,
+      courseIds,
+      batchClassYearSemesterId: parseInt(batchClassYear)
+    });
 
-    if (registrationCourses.length === 0) {
-      toast.error("Please select at least one course");
-      return;
-    }
-
-    if (!batchClassYear) {
-      toast.error("Please select a Batch Class Year");
-      return;
-    }
-
-    try {
-      setPreviewLoading(true);
-      const studentIds = selectedStudents.map(s => s.studentId);
-      const courseIds = registrationCourses.map(c => c.courseId);
-      
-      const response = await apiService.post(endPoints.slipPreview, {
-        studentIds,
-        courseIds,
-        batchClassYearSemesterId: parseInt(batchClassYear)
-      });
-
-      if (Array.isArray(response)) {
-        // Add accepted property to each student
-        const previewWithAcceptance = response.map((student: PreviewStudent) => ({
-          ...student,
-          accepted: false
-        }));
-        setPreviewData(previewWithAcceptance);
-        setShowPreview(true);
-        toast.success("Preview generated successfully");
+    // Debug: Log the response
+    console.log("Preview API response:", response);
+    
+    if (Array.isArray(response)) {
+      // Add accepted property to each student
+      const previewWithAcceptance = response.map((student: PreviewStudent) => ({
+        ...student,
+        accepted: false
+      }));
+      setPreviewData(previewWithAcceptance);
+      setShowPreview(true);
+      toast.success(`Preview generated for ${response.length} student(s)`);
+    } else if (response && typeof response === 'object') {
+      // Handle possible error response objects
+      if (response.error) {
+        toast.error(`API Error: ${response.error}`);
       } else {
-        console.error("Invalid preview response:", response);
-        toast.error("Invalid preview data received");
+        console.error("Unexpected response format:", response);
+        toast.error("Unexpected response format from server");
       }
-      
-      setPreviewLoading(false);
-    } catch (error: any) {
-      console.error("Error generating preview:", error);
-      setPreviewLoading(false);
-      toast.error(error.response?.data?.error || "Failed to generate preview");
-      setPreviewData([]);
+    } else {
+      console.error("Invalid preview response:", response);
+      toast.error("Invalid data received from server");
     }
-  };
+    
+    setPreviewLoading(false);
+  } catch (error: any) {
+    console.error("Error generating preview:", error);
+    
+    // Detailed error logging
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error("Response data:", error.response.data);
+      console.error("Response status:", error.response.status);
+      console.error("Response headers:", error.response.headers);
+      
+      if (error.response.status === 403) {
+        toast.error("Access denied (403). Please check your permissions or authentication.");
+      } else if (error.response.status === 401) {
+        toast.error("Unauthorized (401). Please log in again.");
+      } else if (error.response.status === 404) {
+        toast.error("Endpoint not found (404). Please check the API configuration.");
+      } else if (error.response.status === 400) {
+        toast.error(`Bad request (400): ${error.response.data?.error || 'Invalid request data'}`);
+      } else if (error.response.data?.error) {
+        toast.error(`Server error: ${error.response.data.error}`);
+      } else {
+        toast.error(`Server error: ${error.response.status} ${error.response.statusText}`);
+      }
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error("No response received:", error.request);
+      toast.error("No response from server. Please check your network connection.");
+    } else {
+      // Something happened in setting up the request that triggered an Error
+      console.error("Request setup error:", error.message);
+      toast.error(`Request failed: ${error.message}`);
+    }
+    
+    setPreviewLoading(false);
+    setPreviewData([]);
+  }
+};
 
   // Function to toggle acceptance for a student
   const toggleStudentAcceptance = (studentId: number) => {
