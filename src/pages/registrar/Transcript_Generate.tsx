@@ -99,8 +99,27 @@ export default function Transcript_Generate() {
   const [Error, setError] = useState<string | null>(null);
   const [batch, setBatches] = useState([]);
   const [deparment, setDepartment] = useState([]);
+  const [studentReport, setStudentReport] = useState([]);
   const [manyGradingSystem, setManyGradingSystem] = useState<string>("all");
   // === DEMO BATCH DATA ===
+  useEffect(() => {
+    const fetchStudentCopy = async () => {
+      try {
+        const reponse = await apiService.post(endPoints.studentCopy, {
+          semesterId: "S1",
+          classYearId: 1,
+          studentId: 2,
+        });
+        console.log(reponse);
+
+        setStudentReport((prev) => [...prev, reponse]);
+        console.log(studentReport);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    fetchStudentCopy();
+  }, []);
   useEffect(() => {
     const fetchGradingSystem = async () => {
       try {
@@ -757,8 +776,14 @@ export default function Transcript_Generate() {
 
             {isReport ? (
               <div className="space-y-8">
-                {filteredReports.map((r) => (
-                  <ReportCardView key={r.id} reportData={r} />
+                {/* {filteredReports.map((r) => (
+                  // <ReportCardView key={r.id} reportData={r} />
+                  <MyReport />
+                ))} */}
+                {studentReport.map((r) => (
+                  // <ReportCardView key={r.id} reportData={r} />
+
+                  <MyReport reportData={r} />
                 ))}
                 {filteredReports.length === 0 && (
                   <p className="text-center text-gray-600 dark:text-gray-300 mt-8">
@@ -786,7 +811,57 @@ export default function Transcript_Generate() {
 }
 
 // === PRESENTATION COMPONENTS ===
+function MyReport({ reportData }) {
+  console.log(reportData, "testing testinig");
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-gradient-to-r from-blue-700 to-blue-900 dark:from-blue-800 dark:to-blue-950 text-white p-6 text-center">
+        <h1 className="text-2xl sm:text-3xl font-bold">
+          DEUTSCHE HÖHERE MEDIZINISCHE HOCHSCHULE
+        </h1>
+        <p className="text-lg opacity-90">
+          Student Academic Record - Student Copy
+        </p>
+      </div>
+      <div className="bg-yellow-50 dark:bg-yellow-900/30 border-2 border-yellow-400 dark:border-yellow-600 m-4 sm:m-8 rounded-lg overflow-hidden"></div>
+      <table className="w-full text-sm">
+        <tbody>
+          <tr className="border-b border-yellow-300 dark:border-yellow-700">
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              ID Number
+            </td>
+            <td className="px-4 py-3">{reportData.idNumber}</td>
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Date of Birth
+            </td>
+            <td className="px-4 py-3">{reportData.dateOfBirth}</td>
+          </tr>
+          <tr className="border-b border-yellow-300 dark:border-yellow-700">
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Gender
+            </td>
+            <td className="px-4 py-3">{reportData.gender}</td>
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Date of Enrolled
+            </td>
+            <td className="px-4 py-3">{reportData.dateEnrolled}</td>
+          </tr>
 
+          <tr className="border-b border-yellow-300 dark:border-yellow-700">
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Name
+            </td>
+            <td className="px-4 py-3">{reportData.fullName}</td>
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Program
+            </td>
+            <td className="px-4 py-3">{reportData?.programModality?.name}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
 function ReportCardView({ reportData }: { reportData: ReportRecord }) {
   const totalCredits = reportData.courses.reduce((a, c) => a + c.credit, 0);
   const totalGP = reportData.courses.reduce((a, c) => a + c.gp, 0);
