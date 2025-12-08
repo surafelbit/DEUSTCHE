@@ -221,6 +221,8 @@ export default function RegistrationSlips() {
   const [selectedPreviewStudent, setSelectedPreviewStudent] = useState<PreviewStudent | null>(null);
 
   const [generating, setGenerating] = useState(false);
+  const [generatingSlips, setGeneratingSlips] = useState(false);
+  const [slipsGenerated, setSlipsGenerated] = useState(false);
 
   // Function to select only a single student
   const handleSelectSingleStudent = (student: Student) => {
@@ -251,6 +253,11 @@ export default function RegistrationSlips() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Reset slipsGenerated when preview data changes
+  useEffect(() => {
+    setSlipsGenerated(false);
+  }, [previewData]);
 
   const fetchStudents = async () => {
     try {
@@ -710,8 +717,98 @@ const handleSlipPreview = async () => {
     return previewData.filter(student => student.accepted);
   };
 
+  // Add new function to generate slips via API
+const handleGenerateSlips = async () => {
+  const acceptedStudents = getAcceptedStudents();
+  if (acceptedStudents.length === 0) {
+    toast.error("Please accept at least one student to generate slips");
+    return;
+  }
+
+  if (!batchClassYear) {
+    toast.error("Please select a Batch Class Year");
+    return;
+  }
+
+  try {
+    setGeneratingSlips(true);
+    
+    const requestData: GenerateSlipRequest = {
+      batchClassYearSemesterId: parseInt(batchClassYear),
+      sourceId: 1, // You might need to get this from context or user
+      students: acceptedStudents.map(student => ({
+        studentId: student.studentId,
+        courseIds: student.courses.map(course => course.courseId)
+      }))
+    };
+
+    console.log("Generating slips with data:", requestData);
+    
+    // Call the generate slips API
+    const response: GenerateSlipResponse = await apiService.post(endPoints.generateSlips, requestData);
+    
+    console.log("Generate slips response:", response);
+    
+    if (response) {
+      // Successfully generated slips
+      const successCount = response.successful || 0;
+      const failedCount = response.failed || 0;
+      const total = response.totalStudents || 0;
+      
+      // Show detailed results
+      let message = `Successfully generated slips for ${successCount} out of ${total} students.`;
+      
+      if (failedCount > 0 && response.results) {
+        const failedStudents = response.results.filter(r => !r.success);
+        if (failedStudents.length > 0) {
+          message += `\n\nFailed for ${failedCount} student(s):`;
+          failedStudents.forEach((result, index) => {
+            if (index < 3) { // Show first 3 failures
+              message += `\n• Student ${result.studentId}: ${result.message || 'Unknown error'}`;
+            }
+          });
+          if (failedStudents.length > 3) {
+            message += `\n• ... and ${failedStudents.length - 3} more`;
+          }
+        }
+      }
+      
+      if (response.errors && response.errors.length > 0) {
+        message += `\n\nErrors: ${response.errors.join(', ')}`;
+      }
+      
+      alert(`Slips Generated Successfully!\n\n${message}`);
+      
+      // Mark slips as generated so PDF/Excel/Print can be used
+      setSlipsGenerated(true);
+      
+      // Only proceed with PDF generation if there were successful registrations
+      if (successCount > 0) {
+        // You can automatically generate PDF here if desired:
+        // generatePDF();
+      }
+    }
+    
+    setGeneratingSlips(false);
+  } catch (error: any) {
+    console.error("Error generating slips:", error);
+    setGeneratingSlips(false);
+    
+    if (error.response?.data?.error) {
+      toast.error(`Failed to generate slips: ${error.response.data.error}`);
+    } else {
+      toast.error("Failed to generate slips. Please try again.");
+    }
+  }
+};
+
   // Generate PDF for multiple students
   const generatePDF = async () => {
+    if (!slipsGenerated) {
+      toast.error("Please generate slips first before creating PDF");
+      return;
+    }
+    
     const acceptedStudents = getAcceptedStudents();
     if (acceptedStudents.length === 0) {
       toast.error("Please accept at least one student to generate PDF");
@@ -721,19 +818,6 @@ const handleSlipPreview = async () => {
     try {
       setGenerating(true);
       
-      // First, send data to backend
-      const requestData: GenerateSlipRequest = {
-        batchClassYearSemesterId: parseInt(batchClassYear),
-        sourceId: 1, // You might need to get this from context or user
-        students: acceptedStudents.map(student => ({
-          studentId: student.studentId,
-          courseIds: student.courses.map(course => course.courseId)
-        }))
-      };
-
-      const response: GenerateSlipResponse = await apiService.post(endPoints.generateSlips, requestData);
-      
-      // Then generate PDF
       const doc = new jsPDF({ unit: "mm", format: "a4" });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -912,21 +996,22 @@ const handleSlipPreview = async () => {
       // Save PDF
       doc.save(`Registration_Slips_${Date.now()}.pdf`);
       
-      // Show backend response summary
-      const successCount = response.results?.filter(r => r.success).length || 0;
-      const failedCount = response.results?.filter(r => !r.success).length || 0;
-      
-      toast.success(`PDF generated! ${successCount} successful, ${failedCount} failed`);
+      toast.success("PDF generated successfully!");
       setGenerating(false);
     } catch (error: any) {
-      console.error("Error generating slips:", error);
+      console.error("Error generating PDF:", error);
       setGenerating(false);
-      toast.error(error.response?.data?.error || "Failed to generate slips");
+      toast.error("Failed to generate PDF");
     }
   };
 
   // Generate Excel for multiple students
   const generateExcel = () => {
+    if (!slipsGenerated) {
+      toast.error("Please generate slips first before creating Excel");
+      return;
+    }
+    
     const acceptedStudents = getAcceptedStudents();
     if (acceptedStudents.length === 0) {
       toast.error("Please accept at least one student to generate Excel");
@@ -1004,6 +1089,11 @@ const handleSlipPreview = async () => {
   };
 
   const handlePrint = () => {
+    if (!slipsGenerated) {
+      toast.error("Please generate slips first before printing");
+      return;
+    }
+    
     const acceptedStudents = getAcceptedStudents();
     if (acceptedStudents.length === 0) {
       toast.error("Please accept at least one student to print");
@@ -1694,16 +1784,21 @@ const handleSlipPreview = async () => {
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleAcceptAll}>
                   <CheckCircle className="h-4 w-4 mr-1" />
-                  Accept All
+                  Select All
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleRejectAll}>
                   <X className="h-4 w-4 mr-1" />
-                  Reject All
+                  Unselect All
                 </Button>
               </div>
-              <Badge variant={getAcceptedStudents().length === 0 ? "destructive" : "default"}>
-                {getAcceptedStudents().length} Accepted
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge variant={getAcceptedStudents().length === 0 ? "destructive" : "default"}>
+                  {getAcceptedStudents().length} Selected
+                </Badge>
+                {slipsGenerated && (
+                  <Badge className="bg-green-500">Slips Generated</Badge>
+                )}
+              </div>
             </div>
 
             {/* Students Table */}
@@ -1711,7 +1806,7 @@ const handleSlipPreview = async () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">Accept</TableHead>
+                    <TableHead className="w-12">Select</TableHead>
                     <TableHead>Student ID</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Department</TableHead>
@@ -1767,13 +1862,34 @@ const handleSlipPreview = async () => {
             <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
               <div className="mr-4">
                 <span className="text-sm text-gray-600">
-                  Accepted: {getAcceptedStudents().length} student(s)
+                  Selected: {getAcceptedStudents().length} student(s)
                 </span>
               </div>
+              
+              {/* Generate Button - Must be clicked first */}
+              <Button 
+                onClick={handleGenerateSlips} 
+                className="bg-green-600 hover:bg-green-700"
+                disabled={getAcceptedStudents().length === 0 || generatingSlips || slipsGenerated}
+              >
+                {generatingSlips ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Generate Slips
+                  </>
+                )}
+              </Button>
+              
+              {/* PDF, Excel, Print buttons - only enabled after slips are generated */}
               <Button 
                 onClick={generatePDF} 
                 variant="outline" 
-                disabled={getAcceptedStudents().length === 0 || generating}
+                disabled={!slipsGenerated || generating || getAcceptedStudents().length === 0}
               >
                 {generating ? (
                   <>
@@ -1790,14 +1906,14 @@ const handleSlipPreview = async () => {
               <Button 
                 onClick={generateExcel} 
                 variant="outline" 
-                disabled={getAcceptedStudents().length === 0}
+                disabled={!slipsGenerated || getAcceptedStudents().length === 0}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 Excel
               </Button>
               <Button 
                 onClick={handlePrint} 
-                disabled={getAcceptedStudents().length === 0}
+                disabled={!slipsGenerated || getAcceptedStudents().length === 0}
               >
                 <Printer className="mr-2 h-4 w-4" />
                 Print
