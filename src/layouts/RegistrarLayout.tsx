@@ -56,11 +56,12 @@ export default function RegistrarLayout() {
       icon: ClipboardList,
     },
     { name: "Batches", href: "/registrar/batches", icon: Calendar },
-    { 
-      name: "Registration Slips",    
-      href: "/registrar/registration-slips", 
-      icon: FileText 
+    {
+      name: "Registration Slips",
+      href: "/registrar/registration-slips",
+      icon: FileText,
     },
+    { name: "Transcript ", href: "/registrar/transcripts", icon: FileText },
     { name: "Customize Tables", href: "/registrar/tables", icon: Calendar },
     // { name: "Setting", href: "/registrar/settings", icon: Settings },
   ];
