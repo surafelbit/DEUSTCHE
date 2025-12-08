@@ -57,7 +57,7 @@ const endPoints = {
   programModalityByCode: "/program-modality/:id",
   studentsSlip: "/students/slip-production", 
   lookupsDropdown: "/filters/options",
-  slipPreview: "/slips/preview",
+  slipPreview: "student-slips/preview",
   generateSlips: "/student-slips/generate",
 };
 
