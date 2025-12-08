@@ -67,7 +67,9 @@ const RegistrarStudents = React.lazy(
 );
 const AddStudent = React.lazy(() => import("./pages/registrar/AddStudent"));
 const RegistrarCourses = React.lazy(() => import("./pages/registrar/Courses"));
-const RegistrarAssessments = React.lazy(  () => import("./pages/registrar/Assessments"));
+const RegistrarAssessments = React.lazy(
+  () => import("./pages/registrar/Assessments")
+);
 const RegistrarBatches = React.lazy(() => import("./pages/registrar/Batches"));
 const SingleBatchPage = React.lazy(
   () => import("./pages/registrar/settings/SingleBatchPage .tsx")
@@ -174,6 +176,9 @@ const ProgramLevelsEditor = React.lazy(
 const AttritionCausesEditor = React.lazy(
   () => import("./pages/registrar/settings/AttritionCausesEditor")
 );
+const Transcript_Generate = React.lazy(
+  () => import("./pages/registrar/Transcript_Generate.tsx")
+);
 const SemestersEditor = React.lazy(
   () => import("./pages/registrar/settings/SemestersEditor")
 );
@@ -261,6 +266,7 @@ function App() {
               <Route path="students/:id" element={<StudentDetail />} />
               <Route path="dashboard" element={<RegistrarDashboard />} />
               <Route path="applications" element={<RegistrarApplications />} />
+              <Route path="transcripts" element={<Transcript_Generate />} />
               <Route path="settings/location" element={<LocationEditor />} />
 
               <Route
