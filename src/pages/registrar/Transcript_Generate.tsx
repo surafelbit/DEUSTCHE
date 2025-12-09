@@ -100,26 +100,96 @@ export default function Transcript_Generate() {
   const [batch, setBatches] = useState([]);
   const [deparment, setDepartment] = useState([]);
   const [studentReport, setStudentReport] = useState([]);
+  const [studentReport1, setStudentReport1] = useState();
+
   const [manyGradingSystem, setManyGradingSystem] = useState<string>("all");
   // === DEMO BATCH DATA ===
+  const fakeResponse = {
+    idNumber: "STUD-05",
+    fullName: "Henok Kebede Desse",
+    gender: "MALE",
+    programModality: {
+      id: "RG",
+      name: "Regular",
+    },
+    programLevel: {
+      id: null,
+      name: null,
+    },
+    dateEnrolledGC: "2025-09-01",
+    department: {
+      id: 2,
+      name: "Medicine",
+    },
+    dateOfBirthGC: "2023-01-01",
+    classyear: {
+      id: 1,
+      name: "1",
+    },
+    semester: {
+      id: "S1",
+      name: "First Semester",
+    },
+    academicYear: null,
+    courses: [
+      {
+        courseCode: "PHYS1011",
+        courseTitle: "Human Physilogy",
+        totalCrHrs: 6,
+        letterGrade: "A+",
+        gradePoint: 24.0,
+      },
+    ],
+    semesterGPA: 4.0,
+    semesterCGPA: 4.0,
+    status: "PASSED",
+  };
+
+  // if studentReport should be an array of reports
   useEffect(() => {
     const fetchStudentCopy = async () => {
       try {
-        const reponse = await apiService.post(endPoints.studentCopy, {
-          semesterId: "S1",
-          classYearId: 1,
-          studentId: 2,
-        });
-        console.log(reponse);
+        // FAKE RESPONSE (server is down)
+        const response = fakeResponse;
 
-        setStudentReport((prev) => [...prev, reponse]);
-        console.log(studentReport);
-      } catch (err) {
-        console.log(err);
+        console.log("FAKE RESPONSE:", response);
+
+        setStudentReport((prev) => [...prev, response]);
+        setStudentReport1(response);
+      } catch (error) {
+        console.log(error);
       }
     };
+
     fetchStudentCopy();
   }, []);
+
+  // or if you only ever have one report, make state a single object instead:
+  // const [studentReport, setStudentReport] = useState(null);
+  // setStudentReport(fakeResponse);
+
+  // or if you only ever have one report, make state a single object instead:
+  // const [studentReport, setStudentReport] = useState(null);
+  // setStudentReport(fakeResponse);
+
+  // useEffect(() => {
+  //   const fetchStudentCopy = async () => {
+  //     try {
+  //       const reponse = await apiService.post(endPoints.studentCopy, {
+  //         semesterId: "S1",
+  //         classYearId: 1,
+  //         studentId: 2,
+  //       });
+  //       console.log(reponse);
+
+  //       //   setStudentReport((prev) => [...prev, reponse]);
+  //       console.log(studentReport);
+  //     } catch (err) {
+  //       console.log(err);
+  //     }
+  //   };
+  //   fetchStudentCopy();
+  // }, []);
   useEffect(() => {
     const fetchGradingSystem = async () => {
       try {
@@ -780,11 +850,18 @@ export default function Transcript_Generate() {
                   // <ReportCardView key={r.id} reportData={r} />
                   <MyReport />
                 ))} */}
-                {studentReport.map((r) => (
+                {/* {studentReport.map((r) => (
                   // <ReportCardView key={r.id} reportData={r} />
 
                   <MyReport reportData={r} />
+                ))} */}
+                {/* {studentReport && <MyReport reportData={studentReport} />} */}
+                {/* // or if it's an array: */}
+                {studentReport.map((r, i) => (
+                  <MyReport key={i} reportData={r} />
                 ))}
+                {/* {studentReport1 && <MyReport reportData={studentReport1} />} */}
+
                 {filteredReports.length === 0 && (
                   <p className="text-center text-gray-600 dark:text-gray-300 mt-8">
                     No students found for current batch/department/search.
@@ -811,10 +888,63 @@ export default function Transcript_Generate() {
 }
 
 // === PRESENTATION COMPONENTS ===
+// function MyReport({ reportData }) {
+//   console.log(reportData, "testing testinig");
+//   return (
+//     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+//       <div className="bg-gradient-to-r from-blue-700 to-blue-900 dark:from-blue-800 dark:to-blue-950 text-white p-6 text-center">
+//         <h1 className="text-2xl sm:text-3xl font-bold">
+//           DEUTSCHE HÖHERE MEDIZINISCHE HOCHSCHULE
+//         </h1>
+//         <p className="text-lg opacity-90">
+//           Student Academic Record - Student Copy
+//         </p>
+//       </div>
+//       <div className="bg-yellow-50 dark:bg-yellow-900/30 border-2 border-yellow-400 dark:border-yellow-600 m-4 sm:m-8 rounded-lg overflow-hidden"></div>
+//       <table className="w-full text-sm">
+//         <tbody>
+//           <tr className="border-b border-yellow-300 dark:border-yellow-700">
+//             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+//               ID Number
+//             </td>
+//             <td className="px-4 py-3">{reportData.idNumber}</td>
+//             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+//               Date of Birth
+//             </td>
+//             <td className="px-4 py-3">{reportData.dateOfBirth}</td>
+//           </tr>
+//           <tr className="border-b border-yellow-300 dark:border-yellow-700">
+//             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+//               Gender
+//             </td>
+//             <td className="px-4 py-3">{reportData.gender}</td>
+//             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+//               Date of Enrolled
+//             </td>
+//             <td className="px-4 py-3">{reportData.dateEnrolled}</td>
+//           </tr>
+
+//           <tr className="border-b border-yellow-300 dark:border-yellow-700">
+//             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+//               Name
+//             </td>
+//             <td className="px-4 py-3">{reportData.fullName}</td>
+//             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+//               Program
+//             </td>
+//             <td className="px-4 py-3">{reportData?.programModality?.name}</td>
+//           </tr>
+//         </tbody>
+//       </table>
+//     </div>
+//   );
+// }
 function MyReport({ reportData }) {
   console.log(reportData, "testing testinig");
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden my-6">
+      {/* HEADER */}
       <div className="bg-gradient-to-r from-blue-700 to-blue-900 dark:from-blue-800 dark:to-blue-950 text-white p-6 text-center">
         <h1 className="text-2xl sm:text-3xl font-bold">
           DEUTSCHE HÖHERE MEDIZINISCHE HOCHSCHULE
@@ -823,7 +953,10 @@ function MyReport({ reportData }) {
           Student Academic Record - Student Copy
         </p>
       </div>
-      <div className="bg-yellow-50 dark:bg-yellow-900/30 border-2 border-yellow-400 dark:border-yellow-600 m-4 sm:m-8 rounded-lg overflow-hidden"></div>
+
+      <div className="m-4 sm:m-8 rounded-lg overflow-hidden"></div>
+
+      {/* STUDENT INFO TABLE */}
       <table className="w-full text-sm">
         <tbody>
           <tr className="border-b border-yellow-300 dark:border-yellow-700">
@@ -831,37 +964,124 @@ function MyReport({ reportData }) {
               ID Number
             </td>
             <td className="px-4 py-3">{reportData.idNumber}</td>
+
             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
-              Date of Birth
+              Date of Birth (GC)
             </td>
-            <td className="px-4 py-3">{reportData.dateOfBirth}</td>
+            <td className="px-4 py-3">{reportData.dateOfBirthGC}</td>
           </tr>
+
           <tr className="border-b border-yellow-300 dark:border-yellow-700">
             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
               Gender
             </td>
             <td className="px-4 py-3">{reportData.gender}</td>
+
             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
-              Date of Enrolled
+              Date Enrolled (GC)
             </td>
-            <td className="px-4 py-3">{reportData.dateEnrolled}</td>
+            <td className="px-4 py-3">{reportData.dateEnrolledGC}</td>
           </tr>
 
           <tr className="border-b border-yellow-300 dark:border-yellow-700">
             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
-              Name
+              Full Name
             </td>
             <td className="px-4 py-3">{reportData.fullName}</td>
+
             <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
-              Program
+              Program Modality
             </td>
             <td className="px-4 py-3">{reportData?.programModality?.name}</td>
           </tr>
+
+          <tr className="border-b border-yellow-300 dark:border-yellow-700">
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Program Level
+            </td>
+            <td className="px-4 py-3">
+              {reportData?.programLevel?.name || "-"}
+            </td>
+
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Department
+            </td>
+            <td className="px-4 py-3">{reportData?.department?.name}</td>
+          </tr>
+
+          <tr className="border-b border-yellow-300 dark:border-yellow-700">
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Class Year
+            </td>
+            <td className="px-4 py-3">{reportData?.classyear?.name}</td>
+
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Semester
+            </td>
+            <td className="px-4 py-3">{reportData?.semester?.name}</td>
+          </tr>
+
+          <tr className="border-b border-yellow-300 dark:border-yellow-700">
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Academic Year
+            </td>
+            <td className="px-4 py-3">{reportData.academicYear || "-"}</td>
+
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Status
+            </td>
+            <td className="px-4 py-3">{reportData.status}</td>
+          </tr>
+
+          <tr className="border-b border-yellow-300 dark:border-yellow-700">
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Semester GPA
+            </td>
+            <td className="px-4 py-3">{reportData.semesterGPA}</td>
+
+            <td className="px-4 py-3 font-bold bg-yellow-200 dark:bg-yellow-800">
+              Cumulative GPA
+            </td>
+            <td className="px-4 py-3">{reportData.semesterCGPA}</td>
+          </tr>
         </tbody>
       </table>
+
+      {/* COURSES TABLE */}
+      <div className="p-6">
+        <h2 className="text-xl font-bold mb-4">Courses</h2>
+
+        <table className="w-full text-sm border border-gray-300 dark:border-gray-700">
+          <thead className="bg-gray-200 dark:bg-gray-700">
+            <tr>
+              <th className="px-4 py-2">Course Code</th>
+              <th className="px-4 py-2">Course Title</th>
+              <th className="px-4 py-2">Cr Hrs</th>
+              <th className="px-4 py-2">Grade</th>
+              <th className="px-4 py-2">Grade Point</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {reportData.courses.map((course, i) => (
+              <tr
+                key={i}
+                className="border-t border-gray-300 dark:border-gray-700"
+              >
+                <td className="px-4 py-2">{course.courseCode}</td>
+                <td className="px-4 py-2">{course.courseTitle}</td>
+                <td className="px-4 py-2">{course.totalCrHrs}</td>
+                <td className="px-4 py-2">{course.letterGrade}</td>
+                <td className="px-4 py-2">{course.gradePoint}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
+
 function ReportCardView({ reportData }: { reportData: ReportRecord }) {
   const totalCredits = reportData.courses.reduce((a, c) => a + c.credit, 0);
   const totalGP = reportData.courses.reduce((a, c) => a + c.gp, 0);
