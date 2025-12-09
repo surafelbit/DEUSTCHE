@@ -59,6 +59,12 @@ const endPoints = {
   lookupsDropdown: "/filters/options",
   slipPreview: "student-slips/preview",
   generateSlips: "/student-slips/generate",
+  addCourse: "/student-course-scores/add",
+  updateScore: "/student-course-scores/score/:studentId/:courseId/:batchClassYearSemesterId",
+  updateReleaseStatus: "/student-course-scores/release/:studentId/:courseId/:batchClassYearSemesterId",
+  getGrade: "/student-course-scores/:scoreId/grade",
+  getAll: "/student-course-scores/all",
+  bulkUpdate: "/student-course-scores/bulk-update"
 };
 
 export default endPoints;
