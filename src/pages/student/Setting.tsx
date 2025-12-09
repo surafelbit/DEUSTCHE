@@ -80,22 +80,20 @@ export default function StudentSetting() {
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6 overflow-x-auto">
-          {["password", "enrollment", "department", "account", "support"].map(
-            (tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 text-sm font-medium capitalize ${
-                  activeTab === tab
-                    ? "border-b-2 border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
-                    : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
-                }`}
-                aria-current={activeTab === tab ? "page" : undefined}
-              >
-                {tab === "support" ? "Support & FAQ" : tab}
-              </button>
-            )
-          )}
+          {["password", "enrollment", "account", "support"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 text-sm font-medium capitalize ${
+                activeTab === tab
+                  ? "border-b-2 border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+                  : "text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
+              }`}
+              aria-current={activeTab === tab ? "page" : undefined}
+            >
+              {tab === "support" ? "Support & FAQ" : tab}
+            </button>
+          ))}
         </div>
 
         {/* Password Tab */}
@@ -140,50 +138,6 @@ export default function StudentSetting() {
               <BookOpen className="w-4 h-4 inline-block mr-2" />
               Request Withdraw from Program
             </button>
-            <hr className="my-6 border-gray-200 dark:border-gray-700" />
-          </section>
-        )}
-
-        {/* Department Tab */}
-        {activeTab === "department" && (
-          <section className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">
-              Switch Department
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-4">
-              Change your academic department.
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label
-                  htmlFor="department"
-                  className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  Select Department
-                </label>
-                <select
-                  id="department"
-                  value={selectedDepartment}
-                  onChange={handleDepartmentChange}
-                  className="mt-1 w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
-                >
-                  <option value="">Select a department</option>
-                  {departments.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => setIsSwitchDeptModalOpen(true)}
-                  disabled={!selectedDepartment}
-                  className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 dark:bg-blue-500 dark:hover:bg-blue-600 dark:disabled:bg-gray-600"
-                >
-                  <Briefcase className="w-4 h-4 inline-block mr-2" />
-                  Switch Department
-                </button>
-              </div>
-            </div>
             <hr className="my-6 border-gray-200 dark:border-gray-700" />
           </section>
         )}

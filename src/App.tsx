@@ -23,7 +23,6 @@ const StudentLayout = React.lazy(() => import("./layouts/StudentLayout"));
 const StudentDashboard = React.lazy(() => import("./pages/student/Dashboard"));
 const StudentProfile = React.lazy(() => import("./pages/student/Profile"));
 const StudentGrades = React.lazy(() => import("./pages/student/Grades"));
-const StudentPayments = React.lazy(() => import("./pages/student/Payments"));
 const StudentSetting = React.lazy(() => import("./pages/student/Setting"));
 
 // Teacher Pages
@@ -227,7 +226,6 @@ function App() {
               <Route path="dashboard" element={<StudentDashboard />} />
               <Route path="profile" element={<StudentProfile />} />
               <Route path="grades" element={<StudentGrades />} />
-              <Route path="payments" element={<StudentPayments />} />
               <Route path="settings" element={<StudentSetting />} />
             </Route>
 
@@ -396,7 +394,6 @@ function App() {
                 path="departments/:id"
                 element={<DeanDepartmentDetail />}
               />
-              <Route path="settings" element={<ManagerSettings />} />
               <Route path="teachers" element={<ManagerTeachers />} />
               <Route path="dean" element={<DeanProfile />} />
               <Route path="vice-dean" element={<ViceDeanProfile />} />
