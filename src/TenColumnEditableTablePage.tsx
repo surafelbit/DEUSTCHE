@@ -214,7 +214,7 @@ export default function TenColumnEditableTablePage() {
 
   // Single-row editing state
   const [editingRowId, setEditingRowId] = useState(null);
-  const [draftRow, setDraftRow] = useState({});
+  const [draftRow, setDraftRow] = useState<any>({});
 
   // Selection for bulk actions
   const [selectedIds, setSelectedIds] = useState([]);

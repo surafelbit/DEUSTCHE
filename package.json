@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node --max-old-space-size=8192 ./node_modules/vite/bin/vite.js build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -47,10 +47,10 @@
     "ogl": "^1.0.11",
     "plyr": "^3.8.3",
     "plyr-react": "^5.3.0",
-    "react": "^19.1.0",
+    "react": "^18.2.0",
     "react-chartjs-2": "^5.3.0",
     "react-countup": "^6.5.3",
-    "react-dom": "^19.1.0",
+    "react-dom": "^18.2.0",
     "react-i18next": "^15.7.3",
     "react-icons": "^5.5.0",
     "react-player": "^3.3.3",
@@ -65,8 +65,8 @@
   "devDependencies": {
     "@eslint/js": "^9.30.1",
     "@types/node": "^24.1.0",
-    "@types/react": "^19.1.8",
-    "@types/react-dom": "^19.1.6",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.30.1",

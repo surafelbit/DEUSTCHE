@@ -50,101 +50,101 @@ export default defineConfig({
             if (id.includes('react') || id.includes('react-dom')) {
               return 'react-vendor';
             }
-            
+
             // UI Library chunks
             if (id.includes('@radix-ui')) {
               return 'radix-ui';
             }
-            
+
             if (id.includes('antd')) {
               return 'antd';
             }
-            
+
             // Chart libraries
             if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
               return 'charts';
             }
-            
+
             // Animation libraries
             if (id.includes('framer-motion') || id.includes('lottie-react') || id.includes('aos')) {
               return 'animations';
             }
-            
+
             // PDF handling
             if (id.includes('jspdf')) {
               return 'pdf';
             }
-            
+
             // Excel handling
             if (id.includes('xlsx')) {
               return 'excel';
             }
-            
+
             // Icon libraries
             if (id.includes('lucide-react') || id.includes('react-icons') || id.includes('heroicons')) {
               return 'icons';
             }
-            
+
             // Video player
             if (id.includes('plyr') || id.includes('react-player')) {
               return 'player';
             }
-            
+
             // Utility libraries
             if (id.includes('i18next') || id.includes('axios') || id.includes('clsx') || id.includes('tailwind-merge')) {
               return 'utils';
             }
-            
+
             // Router
             if (id.includes('react-router-dom')) {
               return 'router';
             }
-            
+
             // Other vendor libraries go into a general vendor chunk
             return 'vendor';
           }
-          
+
           // Application code splitting based on directories
           if (id.includes('/src/pages/public/')) {
             return 'public-pages';
           }
-          
+
           if (id.includes('/src/pages/student/')) {
             return 'student-pages';
           }
-          
+
           if (id.includes('/src/pages/teacher/')) {
             return 'teacher-pages';
           }
-          
+
           if (id.includes('/src/pages/registrar/')) {
             return 'registrar-pages';
           }
-          
+
           if (id.includes('/src/pages/dean/')) {
             return 'dean-pages';
           }
-          
+
           if (id.includes('/src/pages/vice-dean/')) {
             return 'vice-dean-pages';
           }
-          
+
           if (id.includes('/src/pages/head/')) {
             return 'head-pages';
           }
-          
+
           if (id.includes('/src/pages/finance/')) {
             return 'finance-pages';
           }
-          
+
           if (id.includes('/src/pages/manager/')) {
             return 'manager-pages';
           }
-          
+
           if (id.includes('/src/layouts/')) {
             return 'layouts';
           }
-          
+
           if (id.includes('/src/components/')) {
             return 'components';
           }
