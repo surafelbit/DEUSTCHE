@@ -72,22 +72,6 @@ const gradeDistribution = {
   ],
 };
 
-const upcomingEvents = [
-  { id: 1, title: "Midterm Exams", date: "Oct 12", note: "All departments" },
-  {
-    id: 2,
-    title: "Grade Submission Deadline",
-    date: "Oct 25",
-    note: "Semester 1",
-  },
-  {
-    id: 3,
-    title: "Results Announcement",
-    date: "Nov 02",
-    note: "Portal + Notice",
-  },
-];
-
 const alerts = [
   { id: 1, type: "warning", text: "12 students at academic risk (GPA < 2.0)" },
   { id: 2, type: "danger", text: "3 disciplinary cases pending review" },
@@ -163,42 +147,9 @@ export default function DeanDashboard() {
                     <span className="text-sm text-gray-700 dark:text-gray-300">
                       {a.text}
                     </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
-                    >
-                      View
-                    </Button>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
-            <CardContent className="p-6 space-y-4">
-              <h2 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                Upcoming
-              </h2>
-              <ul className="space-y-3">
-                {upcomingEvents.map((e) => (
-                  <li
-                    key={e.id}
-                    className="rounded-xl border border-gray-200 dark:border-gray-700 p-3"
-                  >
-                    <p className="font-medium text-blue-600 dark:text-blue-400">
-                      {e.title}
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {e.date} • {e.note}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              <Button className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                Add Event
-              </Button>
             </CardContent>
           </Card>
         </div>

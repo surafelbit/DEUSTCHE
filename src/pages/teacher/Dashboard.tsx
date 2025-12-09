@@ -77,7 +77,7 @@ export default function TeacherDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -109,21 +109,6 @@ export default function TeacherDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Pending Grades
-            </CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">68</div>
-            <p className="text-xs text-muted-foreground">
-              Assignments to grade
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
               Average Rating
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -136,38 +121,6 @@ export default function TeacherDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Today's Schedule */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="mr-2 h-5 w-5" />
-              Today's Classes
-            </CardTitle>
-            <CardDescription>Your teaching schedule for today</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {todayClasses.map((class_, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                >
-                  <div>
-                    <div className="font-medium">{class_.course}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {class_.room} • {class_.students} students
-                    </div>
-                  </div>
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock className="mr-1 h-4 w-4" />
-                    {class_.time}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Recent Assignments */}
         <Card>
           <CardHeader>
@@ -209,53 +162,6 @@ export default function TeacherDashboard() {
         </Card>
       </div>
 
-      {/* Pending Tasks */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pending Tasks</CardTitle>
-          <CardDescription>Items requiring your attention</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {pendingTasks.map((task, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  {task.priority === "high" && (
-                    <AlertCircle className="h-5 w-5 text-red-500" />
-                  )}
-                  {task.priority === "medium" && (
-                    <Clock className="h-5 w-5 text-yellow-500" />
-                  )}
-                  {task.priority === "low" && (
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                  )}
-                  <div>
-                    <div className="font-medium">{task.task}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {task.count} items
-                    </div>
-                  </div>
-                </div>
-                <Badge
-                  variant={
-                    task.priority === "high"
-                      ? "destructive"
-                      : task.priority === "medium"
-                      ? "secondary"
-                      : "outline"
-                  }
-                >
-                  {task.priority}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Quick Actions */}
       <Card>
         <CardHeader>
@@ -263,7 +169,7 @@ export default function TeacherDashboard() {
           <CardDescription>Frequently used features</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Button variant="outline" className="h-20 flex-col bg-transparent">
               <FileText className="h-6 w-6 mb-2" />
               Create Assignment
@@ -275,10 +181,6 @@ export default function TeacherDashboard() {
             <Button variant="outline" className="h-20 flex-col bg-transparent">
               <BookOpen className="h-6 w-6 mb-2" />
               Course Materials
-            </Button>
-            <Button variant="outline" className="h-20 flex-col bg-transparent">
-              <Calendar className="h-6 w-6 mb-2" />
-              Schedule Class
             </Button>
           </div>
         </CardContent>

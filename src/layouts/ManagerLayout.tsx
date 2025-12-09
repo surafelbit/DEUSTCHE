@@ -63,7 +63,6 @@ export default function ManagerLayout() {
     },
 
     { name: "Reports", href: "/general-manager/reports", icon: BarChart3 },
-    { name: "Settings", href: "/general-manager/settings", icon: Settings },
   ];
 
   useEffect(() => {
@@ -187,7 +186,7 @@ export default function ManagerLayout() {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1 items-center">
               <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Dean Portal
+                Genearl Manager Portal
               </h1>
             </div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
@@ -204,7 +203,7 @@ export default function ManagerLayout() {
                 {window.innerWidth > 720 && (
                   <div className="lg:flex items-center gap-x-4 ml-2">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      Dean
+                      General Manager
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       Academic Leadership

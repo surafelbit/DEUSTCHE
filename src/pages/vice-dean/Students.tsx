@@ -138,13 +138,6 @@ export default function DeanStudents() {
                       >
                         View Profile
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-yellow-600 text-yellow-600 dark:border-yellow-500 dark:text-yellow-500"
-                      >
-                        Flag
-                      </Button>
                     </td>
                   </tr>
                 ))}
