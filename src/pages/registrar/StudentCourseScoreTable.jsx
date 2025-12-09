@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Table, message, Spin, Input, Modal, InputNumber, Select } from "antd";
 import apiClient from "../../components/api/apiClient"; 
 import endPoints from "../../components/api/endPoints";
@@ -7,6 +7,7 @@ const initialData = [];
 
 export default function StudentCourseScoreTable() {
   const [data, setData] = useState(initialData);
+  const [originalData, setOriginalData] = useState(initialData); // Store original unfiltered data
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [loading, setLoading] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
@@ -55,7 +56,7 @@ export default function StudentCourseScoreTable() {
   // Fetch student course scores
   useEffect(() => {
     fetchStudentCourseScores();
-  }, [pagination.current, pagination.pageSize, filters]);
+  }, [pagination.current, pagination.pageSize]);
 
   const fetchFilterOptions = async () => {
     try {
@@ -84,13 +85,6 @@ export default function StudentCourseScoreTable() {
       const params = {
         page: pagination.current - 1, // Backend expects 0-based index
         size: pagination.pageSize,
-        ...(filters.department && { departmentId: filters.department }),
-        ...(filters.status && { studentStatusId: filters.status }),
-        ...(filters.batchClassYearSemester && { bcysId: filters.batchClassYearSemester }),
-        ...(filters.search && { 
-          studentId: filters.search.includes('-') ? filters.search : undefined,
-          studentName: !filters.search.includes('-') ? filters.search : undefined
-        }),
       };
 
       console.log("Fetching with params:", params);
@@ -118,7 +112,9 @@ export default function StudentCourseScoreTable() {
           rawData: item // Keep raw data for updates
         }));
         
-        setData(formattedData);
+        setOriginalData(formattedData); // Store original data
+        setData(formattedData); // Set initial data
+        
         setPagination(prev => ({
           ...prev,
           total: response.data.totalElements,
@@ -132,6 +128,57 @@ export default function StudentCourseScoreTable() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Apply client-side filtering when filters change
+  useEffect(() => {
+    if (originalData.length > 0) {
+      applyClientSideFilters();
+    }
+  }, [filters, originalData]);
+
+  const applyClientSideFilters = () => {
+    let filteredData = [...originalData];
+
+    // Apply search filter
+    if (filters.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filteredData = filteredData.filter(item => {
+        const studentId = item.studentId.id?.toString().toLowerCase() || '';
+        const studentName = item.studentId.student?.name?.toLowerCase() || '';
+        return studentId.includes(searchTerm) || studentName.includes(searchTerm);
+      });
+    }
+
+    // Apply batch/class/year/semester filter
+    if (filters.batchClassYearSemester) {
+      filteredData = filteredData.filter(item => 
+        item.batchClassYearSemester.id?.toString() === filters.batchClassYearSemester
+      );
+    }
+
+    // Apply department filter (if we had department data in the response)
+    // Note: The current API response doesn't include department info
+    // if (filters.department) {
+    //   filteredData = filteredData.filter(item => 
+    //     item.departmentId?.toString() === filters.department
+    //   );
+    // }
+
+    // Apply status filter (if we had status data in the response)
+    // Note: The current API response doesn't include status info
+    // if (filters.status) {
+    //   filteredData = filteredData.filter(item => 
+    //     item.statusId?.toString() === filters.status
+    //   );
+    // }
+
+    setData(filteredData);
+    setPagination(prev => ({
+      ...prev,
+      current: 1, // Reset to first page when filtering
+      total: filteredData.length, // Update total for client-side pagination
+    }));
   };
 
   const rowSelection = {
@@ -194,7 +241,6 @@ export default function StudentCourseScoreTable() {
 
   const handleFilterChange = (filterName, value) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
-    setPagination(prev => ({ ...prev, current: 1 })); // Reset to first page on filter change
   };
 
   const columns = [
@@ -202,7 +248,11 @@ export default function StudentCourseScoreTable() {
       title: "Student Id", 
       dataIndex: ["studentId", "id"], 
       key: "studentId",
-      sorter: (a, b) => a.studentId.id?.localeCompare(b.studentId.id || ''),
+      sorter: (a, b) => {
+        const idA = a.studentId.id?.toString() || '';
+        const idB = b.studentId.id?.toString() || '';
+        return idA.localeCompare(idB);
+      },
     },
     { 
       title: "Student Name",
@@ -213,7 +263,11 @@ export default function StudentCourseScoreTable() {
       title: "Course", 
       dataIndex: ["course", "displayName"], 
       key: "course",
-      sorter: (a, b) => a.course.displayName?.localeCompare(b.course.displayName || ''),
+      sorter: (a, b) => {
+        const nameA = a.course.displayName?.toString() || '';
+        const nameB = b.course.displayName?.toString() || '';
+        return nameA.localeCompare(nameB);
+      },
     },
     {
       title: "Batch / Year / Semester",
@@ -221,13 +275,21 @@ export default function StudentCourseScoreTable() {
       render: (_, record) => 
         record.batchClassYearSemester.displayName || 
         `${record.batchClassYearSemester.batch} / ${record.batchClassYearSemester.year} / ${record.batchClassYearSemester.semester}`,
-      sorter: (a, b) => a.batchClassYearSemester.displayName?.localeCompare(b.batchClassYearSemester.displayName || ''),
+      sorter: (a, b) => {
+        const nameA = a.batchClassYearSemester.displayName?.toString() || '';
+        const nameB = b.batchClassYearSemester.displayName?.toString() || '';
+        return nameA.localeCompare(nameB);
+      },
     },
     {
       title: "Course Source",
       dataIndex: ["courseSource", "displayName"],
       key: "courseSource",
-      sorter: (a, b) => a.courseSource.displayName?.localeCompare(b.courseSource.displayName || ''),
+      sorter: (a, b) => {
+        const nameA = a.courseSource.displayName?.toString() || '';
+        const nameB = b.courseSource.displayName?.toString() || '';
+        return nameA.localeCompare(nameB);
+      },
     },
     { 
       title: "Score", 
@@ -341,6 +403,13 @@ export default function StudentCourseScoreTable() {
     setSearchText("");
     setPagination(prev => ({ ...prev, current: 1 }));
   };
+
+  // Calculate paginated data for client-side pagination
+  const paginatedData = useMemo(() => {
+    const start = (pagination.current - 1) * pagination.pageSize;
+    const end = start + pagination.pageSize;
+    return data.slice(start, end);
+  }, [data, pagination.current, pagination.pageSize]);
 
   return (
     <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl dark:shadow-gray-900 max-w-full mx-auto">
@@ -466,7 +535,7 @@ export default function StudentCourseScoreTable() {
         <Input.Search
           value={searchText}
           onChange={(e) => handleSearch(e.target.value)}
-          onSearch={() => fetchStudentCourseScores()}
+          onSearch={() => {}} // Removed fetch call since we're doing client-side filtering
           placeholder="🔍 Search by ID or Name"
           className="w-full sm:w-64"
           size="middle"
@@ -487,6 +556,7 @@ export default function StudentCourseScoreTable() {
           rowSelection={rowSelection}
           pagination={{
             ...pagination,
+            total: data.length, // Use client-side filtered total
             showTotal: (total, range) => 
               `${range[0]}-${range[1]} of ${total} items`,
             onChange: (page, pageSize) => {
@@ -503,7 +573,7 @@ export default function StudentCourseScoreTable() {
               ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800"
               : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
           }
-          dataSource={data}
+          dataSource={paginatedData} // Use paginated data
           columns={columns}
           loading={loading}
           size="middle"
