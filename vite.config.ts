@@ -39,9 +39,7 @@ export default defineConfig({
     minify: 'esbuild',
     sourcemap: false,
     rollupOptions: {
-      external: [
-        /core-js\/.*/, // externalize any core-js imports (e.g., core-js/modules/es.promise.js)
-      ],
+      external: [],
       output: {
         manualChunks: (id) => {
           // Create chunks based on node_modules
