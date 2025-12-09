@@ -1,30 +1,36 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default function HeadDashboard() {
-  const totalStudents = 420
-  const totalTeachers = 28
-  const totalCourses = 56
-  const averageGpa = 3.2
-  const lowPerformingAlerts = 7
+  const totalStudents = 420;
+  const totalTeachers = 28;
+  const totalCourses = 56;
+  const averageGpa = 3.2;
+  const lowPerformingAlerts = 7;
   const announcements = [
     { title: "Midterm exams next week", date: "2025-10-12" },
     { title: "Syllabus update deadline", date: "2025-10-20" },
-  ]
+  ];
 
   const teacherWorkload = [
     { name: "Alemu", courses: 3 },
     { name: "Kebede", courses: 4 },
     { name: "Sara", courses: 2 },
     { name: "Mulu", courses: 5 },
-  ]
+  ];
 
   const coursePerformance = [
     { course: "BIO101", avg: 78 },
     { course: "CHE201", avg: 72 },
     { course: "PHY110", avg: 81 },
     { course: "MAT130", avg: 69 },
-  ]
+  ];
 
   return (
     <div className="space-y-6">
@@ -75,29 +81,17 @@ export default function HeadDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Alerts</CardTitle>
-            <CardDescription>Low-performing students / pending reports</CardDescription>
+            <CardDescription>
+              Low-performing students / pending reports
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <Badge variant="destructive">{lowPerformingAlerts} Alerts</Badge>
-              <span className="text-sm text-muted-foreground">Review required</span>
+              <span className="text-sm text-muted-foreground">
+                Review required
+              </span>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Announcements</CardTitle>
-            <CardDescription>Upcoming deadlines</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {announcements.map((a) => (
-                <li key={a.title} className="flex items-center justify-between">
-                  <span className="text-sm">{a.title}</span>
-                  <span className="text-xs text-muted-foreground">{a.date}</span>
-                </li>
-              ))}
-            </ul>
           </CardContent>
         </Card>
       </div>
@@ -117,7 +111,10 @@ export default function HeadDashboard() {
                   <span>{t.courses}</span>
                 </div>
                 <div className="h-2 rounded bg-gray-200 dark:bg-gray-700">
-                  <div className="h-2 rounded bg-blue-600" style={{ width: `${(t.courses / 6) * 100}%` }} />
+                  <div
+                    className="h-2 rounded bg-blue-600"
+                    style={{ width: `${(t.courses / 6) * 100}%` }}
+                  />
                 </div>
               </div>
             ))}
@@ -137,7 +134,10 @@ export default function HeadDashboard() {
                   <span>{c.avg}%</span>
                 </div>
                 <div className="h-2 rounded bg-gray-200 dark:bg-gray-700">
-                  <div className="h-2 rounded bg-green-600" style={{ width: `${c.avg}%` }} />
+                  <div
+                    className="h-2 rounded bg-green-600"
+                    style={{ width: `${c.avg}%` }}
+                  />
                 </div>
               </div>
             ))}
@@ -145,5 +145,5 @@ export default function HeadDashboard() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

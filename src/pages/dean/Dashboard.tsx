@@ -31,10 +31,10 @@ ChartJS.register(
 );
 
 const totals = {
-  students: 1260,
-  courses: 142,
-  departments: 8,
-  faculty: 215,
+  students: 60,
+  courses: 20,
+  departments: 4,
+  faculty: 6,
 };
 
 const avgGpaByDept = {
@@ -173,42 +173,9 @@ export default function DeanDashboard() {
                     <span className="text-sm text-gray-700 dark:text-gray-300">
                       {a.text}
                     </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
-                    >
-                      View
-                    </Button>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg">
-            <CardContent className="p-6 space-y-4">
-              <h2 className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                Upcoming
-              </h2>
-              <ul className="space-y-3">
-                {upcomingEvents.map((e) => (
-                  <li
-                    key={e.id}
-                    className="rounded-xl border border-gray-200 dark:border-gray-700 p-3"
-                  >
-                    <p className="font-medium text-blue-600 dark:text-blue-400">
-                      {e.title}
-                    </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {e.date} • {e.note}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              <Button className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                Add Event
-              </Button>
             </CardContent>
           </Card>
         </div>

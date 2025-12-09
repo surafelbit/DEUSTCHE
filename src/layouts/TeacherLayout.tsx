@@ -28,7 +28,6 @@ export default function TeacherLayout() {
     { name: "Courses", href: "/teacher/courses", icon: BookOpen },
     { name: "Students", href: "/teacher/students/all", icon: Users },
     { name: "Assessments", href: "/teacher/assessments", icon: FileText },
-    { name: "History", href: "/teacher/history", icon: Clock },
   ];
   useEffect(() => {
     // Update when resizing
@@ -58,10 +57,12 @@ export default function TeacherLayout() {
       )}
 
       {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } transition-transform duration-300 ease-in-out `}
+      {/* <div
+        className={`fixed flex flex-col inset-y-0 left-0 z-50 w-64
+       bg-white dark:bg-gray-800 shadow-xl
+       transform transition-transform duration-300 ease-in-out
+       border-r border-gray-200 dark:border-gray-700
+       ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex items-center justify-between h-16 px-4 bg-blue-600">
           <div className="flex items-center space-x-2">
@@ -128,9 +129,59 @@ export default function TeacherLayout() {
           </div>
         </nav>
 
-        <div className="absolute bottom-20 w-full p-4">
+        <div className="bg-white dark:bg-gray-800 absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-gray-700">
           <Button
             onClick={logout}
+            variant="ghost"
+            className="w-full justify-start text-gray-600 dark:text-gray-300"
+          >
+            <LogOut className="mr-3 h-5 w-5" />
+            Sign Out
+          </Button>
+        </div>
+      </div> */}
+      <div
+        className={`fixed flex flex-col inset-y-0 left-0 z-50 w-64
+       bg-white dark:bg-gray-800 shadow-xl
+       transform transition-transform duration-300 ease-in-out
+       border-r border-gray-200 dark:border-gray-700
+       ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+      >
+        <div className="flex items-center justify-between h-16 px-4 bg-blue-600">
+          <div className="flex items-center space-x-2">
+            <GraduationCap className="h-8 w-8 text-white" />
+            <div className="text-white">
+              <div className="text-sm font-bold">DHFM COLLEGE</div>
+              <div className="text-xs opacity-75">Finance Portal</div>
+            </div>
+          </div>
+        </div>
+
+        <nav className="mt-8">
+          <div className="px-4 space-y-2">
+            {navigation.map((item) => {
+              const isActive = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isActive
+                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                      : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="absolute bottom-0 w-full p-4">
+          <Button
             variant="ghost"
             className="w-full justify-start text-gray-600 dark:text-gray-300"
           >
@@ -161,7 +212,7 @@ export default function TeacherLayout() {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1 items-center">
               <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Dean Portal
+                Teacher Portal
               </h1>
             </div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
