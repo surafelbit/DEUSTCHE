@@ -77,7 +77,6 @@ export default function StudentLayout() {
     { name: t("dashboard"), href: "/student/dashboard", icon: LayoutDashboard },
     { name: t("profile"), href: "/student/profile", icon: User },
     { name: t("grades"), href: "/student/grades", icon: ClipboardList },
-    { name: t("payments"), href: "/student/payments", icon: CreditCard },
     { name: t("settings"), href: "/student/settings", icon: Settings },
   ];
 

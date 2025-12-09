@@ -144,12 +144,6 @@ export default function DeanReports() {
             >
               Download Excel
             </Button>
-            <Button
-              variant="outline"
-              className="border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
-            >
-              Compare Across Years
-            </Button>
           </CardContent>
         </Card>
 
