@@ -152,8 +152,8 @@ const ManagerLayout = React.lazy(() => import("./layouts/ManagerLayout"));
 const ManagerDashboard = React.lazy(() => import("./pages/manager/Dashboard"));
 const ManagerReports = React.lazy(() => import("./pages/manager/Reports"));
 const ManagerSettings = React.lazy(() => import("./pages/manager/Settings"));
-const BatchUpdateTable = React.lazy(
-  () => import("./pages/registrar/BatchUpdateTable")
+const StudentCourseScoreTable = React.lazy(
+  () => import("./pages/registrar/StudentCourseScoreTable")
 );
 const TenColumnEditableTablePage = React.lazy(
   () => import("./TenColumnEditableTablePage")
@@ -333,7 +333,7 @@ function App() {
               <Route path="registration-slips" element={<RegistrationSlip />} />
               <Route path="add-student" element={<AddStudent />} />
               <Route path="assessments" element={<RegistrarAssessments />} />
-              <Route path="scores" element={<BatchUpdateTable />} />
+              <Route path="scores" element={<StudentCourseScoreTable />} />
 
               <Route path="batches" element={<RegistrarBatches />} />
               <Route path="tables" element={<CustomStudentTable />} />
